@@ -13,24 +13,15 @@ abstract class SafeApiCall {
                 val response = apiCall()
                 if (response.isSuccessful) {
                     val body = response.body()
-                    if (body != null) {
-                        return@withContext Resource.Success(body)
-                    }
+                    if (body != null) return@withContext Resource.Success(body)
                 }
-                // Tenta pegar a mensagem de erro do corpo da resposta, se houver
                 val errorBody = response.errorBody()?.string()
-                val errorMessage = if (!errorBody.isNullOrEmpty()) {
-                    errorBody
-                } else {
-                    "Erro ${response.code()}: ${response.message()}"
-                }
-                return@withContext Resource.Error(errorMessage)
-
+                Resource.Error(errorBody ?: "Erro desconhecido: ${response.code()}")
             } catch (e: Exception) {
-                return@withContext when (e) {
-                    is IOException -> Resource.Error("Sem conexão com a internet. Verifique sua rede.")
-                    is HttpException -> Resource.Error("Erro no servidor: ${e.message()}")
-                    else -> Resource.Error("Erro inesperado: ${e.localizedMessage}")
+                when (e) {
+                    is IOException -> Resource.Error("Sem conexão com a internet")
+                    is HttpException -> Resource.Error("Erro no servidor: ${e.message}")
+                    else -> Resource.Error(e.localizedMessage ?: "Erro inesperado")
                 }
             }
         }

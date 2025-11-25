@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class LanguageResponse(
     val id: String,
-    @SerialName("codeLanguage") val code: String, // O back deve retornar "codeLanguage"
-    @SerialName("nameLanguage") val name: String, // O back deve retornar "nameLanguage"
+    @SerialName("codeLanguage") val code: String,
+    @SerialName("nameLanguage") val name: String,
     val iconUrl: String? = null
 )

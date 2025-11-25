@@ -5,6 +5,6 @@ import retrofit2.Response
 import retrofit2.http.GET
 
 interface LanguageApi {
-    @GET("languages") // Verifique se seu controller mapeia para /api/languages ou apenas /languages
+    @GET("languages")
     suspend fun getLanguages(): Response<List<LanguageResponse>>
 }

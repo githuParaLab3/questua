@@ -19,29 +19,20 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-
+    // AJUSTE SEU IP AQUI (10.0.2.2 para Emulador)
     private const val BASE_URL = "http://10.0.2.2:8080/api/"
 
     @Provides
     @Singleton
-    fun provideJson(): Json {
-        return Json {
-            ignoreUnknownKeys = true // Ignora campos extras do backend
-            coerceInputValues = true // Trata nulos com segurança
-            encodeDefaults = true
-        }
-    }
+    fun provideJson(): Json = Json { ignoreUnknownKeys = true; coerceInputValues = true }
 
     @Provides
     @Singleton
     fun provideOkHttpClient(authInterceptor: AuthInterceptor): OkHttpClient {
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
-            .addInterceptor(HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
-            })
+            .addInterceptor(HttpLoggingInterceptor().apply { level = HttpLoggingInterceptor.Level.BODY })
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 
@@ -52,19 +43,15 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(json.asConverterFactory(contentType)) // Uso correto do Kotlinx com Retrofit
+            .addConverterFactory(json.asConverterFactory(contentType))
             .build()
     }
 
     @Provides
     @Singleton
-    fun provideAuthApi(retrofit: Retrofit): AuthApi {
-        return retrofit.create(AuthApi::class.java)
-    }
+    fun provideAuthApi(retrofit: Retrofit): AuthApi = retrofit.create(AuthApi::class.java)
 
     @Provides
     @Singleton
-    fun provideLanguageApi(retrofit: Retrofit): LanguageApi {
-        return retrofit.create(LanguageApi::class.java)
-    }
+    fun provideLanguageApi(retrofit: Retrofit): LanguageApi = retrofit.create(LanguageApi::class.java)
 }

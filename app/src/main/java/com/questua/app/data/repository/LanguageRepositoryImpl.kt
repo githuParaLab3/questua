@@ -15,24 +15,15 @@ class LanguageRepositoryImpl @Inject constructor(
 
     override fun getAvailableLanguages(): Flow<Resource<List<Language>>> = flow {
         emit(Resource.Loading())
-
         val result = safeApiCall { api.getLanguages() }
-
         when (result) {
             is Resource.Success -> {
-                val languages = result.data?.map { dto ->
-                    Language(
-                        id = dto.id,
-                        code = dto.code,
-                        name = dto.name,
-                        iconUrl = dto.iconUrl
-                    )
+                val list = result.data?.map {
+                    Language(it.id, it.code, it.name, it.iconUrl)
                 } ?: emptyList()
-                emit(Resource.Success(languages))
+                emit(Resource.Success(list))
             }
-            is Resource.Error -> {
-                emit(Resource.Error(result.message ?: "Erro ao carregar idiomas"))
-            }
+            is Resource.Error -> emit(Resource.Error(result.message ?: "Erro"))
             is Resource.Loading -> emit(Resource.Loading())
         }
     }

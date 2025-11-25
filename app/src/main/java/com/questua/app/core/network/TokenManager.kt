@@ -18,32 +18,15 @@ class TokenManager @Inject constructor(@ApplicationContext context: Context) {
 
     companion object {
         private val TOKEN_KEY = stringPreferencesKey("jwt_token")
-        private val USER_ID_KEY = stringPreferencesKey("user_id")
     }
 
-    val token: Flow<String?> = dataStore.data.map { prefs ->
-        prefs[TOKEN_KEY]
-    }
-
-    val userId: Flow<String?> = dataStore.data.map { prefs ->
-        prefs[USER_ID_KEY]
-    }
+    val token: Flow<String?> = dataStore.data.map { it[TOKEN_KEY] }
 
     suspend fun saveToken(token: String) {
-        dataStore.edit { prefs ->
-            prefs[TOKEN_KEY] = token
-        }
-    }
-
-    suspend fun saveUserId(userId: String) {
-        dataStore.edit { prefs ->
-            prefs[USER_ID_KEY] = userId
-        }
+        dataStore.edit { it[TOKEN_KEY] = token }
     }
 
     suspend fun clearData() {
-        dataStore.edit { prefs ->
-            prefs.clear()
-        }
+        dataStore.edit { it.clear() }
     }
 }

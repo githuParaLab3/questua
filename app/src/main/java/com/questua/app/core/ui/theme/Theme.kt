@@ -10,34 +10,31 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryDark,
-    secondary = SecondaryDark,
-    background = BackgroundDark,
-    surface = SurfaceDark,
-    onPrimary = Neutral10,
-    onSecondary = Neutral90,
-    onBackground = Neutral10,
-    onSurface = Neutral10
-)
-
 private val LightColorScheme = lightColorScheme(
     primary = PrimaryLight,
+    onPrimary = OnPrimaryLight,
     secondary = SecondaryLight,
+    onSecondary = OnSecondaryLight,
     background = BackgroundLight,
+    onBackground = OnSurfaceLight,
     surface = SurfaceLight,
-    onPrimary = Neutral10,
-    onSecondary = Neutral10,
-    onBackground = Neutral90,
-    onSurface = Neutral90
+    onSurface = OnSurfaceLight,
+    surfaceVariant = Slate200, // Usado para bordas/divisores
+    error = Rose500
+)
+
+// Dark theme placeholder (pode ajustar depois)
+private val DarkColorScheme = darkColorScheme(
+    primary = Amber400,
+    secondary = Slate50,
+    background = Slate900,
+    surface = Slate800
 )
 
 @Composable
 fun QuestuaTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color desativado por padrão para manter identidade da marca,
-    // mude para true se quiser cores do wallpaper do usuário (Android 12+)
-    dynamicColor: Boolean = false,
+    dynamicColor: Boolean = false, // Desativado para manter identidade da marca
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

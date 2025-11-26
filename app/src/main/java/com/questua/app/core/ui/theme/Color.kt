@@ -2,26 +2,35 @@ package com.questua.app.core.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Brand Colors
-val QuestuaBlue = Color(0xFF2196F3)
-val QuestuaBlueDark = Color(0xFF1976D2)
-val QuestuaOrange = Color(0xFFFF9800)
-val QuestuaGreen = Color(0xFF4CAF50)
-val QuestuaRed = Color(0xFFF44336)
+// Royal Navy & Gold Palette
 
-// Neutral
-val Neutral90 = Color(0xFF1C1B1F)
-val Neutral10 = Color(0xFFFDFDFD)
-val NeutralGrey = Color(0xFF9E9E9E)
+// Ambers (Gold/Action)
+val Amber400 = Color(0xFFFBBF24)
+val Amber500 = Color(0xFFF59E0B)
+val Amber600 = Color(0xFFD97706)
 
-// Dark Theme Colors
-val PrimaryDark = Color(0xFF90CAF9)
-val SecondaryDark = Color(0xFFFFB74D)
-val BackgroundDark = Color(0xFF121212)
-val SurfaceDark = Color(0xFF1E1E1E)
+// Slates (Neutral/Navy)
+val Slate50 = Color(0xFFF8FAFC)
+val Slate200 = Color(0xFFE2E8F0)
+val Slate400 = Color(0xFF94A3B8) // <--- Adicionado
+val Slate500 = Color(0xFF64748B)
+val Slate800 = Color(0xFF1E293B)
+val Slate900 = Color(0xFF0F172A)
 
-// Light Theme Colors
-val PrimaryLight = QuestuaBlue
-val SecondaryLight = QuestuaOrange
-val BackgroundLight = Color(0xFFF5F5F5)
+// Accents
+val Rose500 = Color(0xFFF43F5E)
+val Green500 = Color(0xFF22C55E)
+
+// Brand Legacy Colors (Usados em componentes específicos como Gems)
+val QuestuaBlue = Color(0xFF3B82F6)      // <--- Adicionado (Blue-500)
+val QuestuaBlueDark = Color(0xFF1D4ED8)  // <--- Adicionado (Blue-700)
+val QuestuaOrange = Amber500             // Alias para compatibilidade
+
+// Material 3 Mapping
+val PrimaryLight = Amber500
+val OnPrimaryLight = Color.White
+val SecondaryLight = Slate900
+val OnSecondaryLight = Color.White
+val BackgroundLight = Slate50
 val SurfaceLight = Color.White
+val OnSurfaceLight = Slate800

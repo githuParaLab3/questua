@@ -1,5 +1,6 @@
 package com.questua.app.data.repository
 
+import android.util.Base64
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.SafeApiCall
 import com.questua.app.core.network.TokenManager
@@ -12,6 +13,7 @@ import com.questua.app.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.flow
+import org.json.JSONObject
 import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
@@ -28,11 +30,34 @@ class AuthRepositoryImpl @Inject constructor(
         when (result) {
             is Resource.Success -> {
                 val token = result.data!!.token
-                tokenManager.saveToken(token)
-                emit(Resource.Success(token))
+                try {
+                    // Lógica Real: Extrair ID do JWT para persistência
+                    val userId = extractUserIdFromToken(token)
+                    if (userId != null) {
+                        tokenManager.saveAuthData(token, userId)
+                        emit(Resource.Success(token))
+                    } else {
+                        emit(Resource.Error("Token inválido: ID não encontrado"))
+                    }
+                } catch (e: Exception) {
+                    emit(Resource.Error("Erro ao processar autenticação"))
+                }
             }
             is Resource.Error -> emit(Resource.Error(result.message ?: "Login falhou"))
             else -> Unit
+        }
+    }
+
+    private fun extractUserIdFromToken(token: String): String? {
+        return try {
+            val parts = token.split(".")
+            if (parts.size < 2) return null
+            val payload = String(Base64.decode(parts[1], Base64.URL_SAFE))
+            val json = JSONObject(payload)
+            json.getString("sub") // O campo 'sub' do JWT padrão contém o ID do usuário
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 
@@ -53,9 +78,9 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+
     override fun logout(): Flow<Resource<Unit>> = flow {
-        emit(Resource.Loading())
-        tokenManager.clearData() // CORRIGIDO: clearToken -> clearData
+        tokenManager.clearData()
         emit(Resource.Success(Unit))
     }
 

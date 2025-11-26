@@ -1,26 +1,32 @@
 package com.questua.app.data.remote.dto
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class LoginRequest(val email: String, val password: String)
+data class LoginRequestDTO(
+    val email: String,
+    val password: String
+)
 
 @Serializable
-data class LoginResponse(val token: String)
+data class LoginResponseDTO(
+    val token: String
+)
 
 @Serializable
-data class RegisterRequest(
+data class RegisterRequestDTO(
     val email: String,
     val password: String,
     val displayName: String,
+    val avatarUrl: String? = null,
     val nativeLanguageId: String
 )
 
 @Serializable
-data class RegisterResponse(
+data class RegisterResponseDTO(
     val id: String,
     val email: String,
     val displayName: String,
+    val avatarUrl: String?,
     val nativeLanguageId: String
 )

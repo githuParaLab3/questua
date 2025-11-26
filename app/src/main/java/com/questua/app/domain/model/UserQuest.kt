@@ -16,7 +16,7 @@ data class UserQuest(
     val lastActivityAt: String,
     val completedAt: String? = null,
     val responses: List<Response>? = null,
-    val overallAssessment: SkillAssessment? = null
+    val overallAssessment: List<SkillAssessment>? = null
 )
 
 @Serializable

@@ -6,4 +6,5 @@ import kotlinx.coroutines.flow.Flow
 
 interface LanguageRepository {
     fun getAvailableLanguages(): Flow<Resource<List<Language>>>
+
 }

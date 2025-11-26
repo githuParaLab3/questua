@@ -7,6 +7,6 @@ import retrofit2.http.Body
 import retrofit2.http.POST
 
 interface PaymentApi {
-    @POST("api/payments/initiate")
+    @POST("payments/initiate")
     suspend fun initiatePayment(@Body request: PaymentRequestDTO): Response<PaymentResponseDTO>
 }

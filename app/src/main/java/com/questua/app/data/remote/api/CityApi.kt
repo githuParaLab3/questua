@@ -7,7 +7,7 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface CityApi {
-    @GET("api/cities")
+    @GET("cities")
     suspend fun list(
         @QueryMap filter: Map<String, String> = emptyMap(),
         @Query("page") page: Int? = null,
@@ -15,15 +15,15 @@ interface CityApi {
         @Query("userId") userId: String? = null
     ): Response<PageResponse<CityResponseDTO>>
 
-    @GET("api/cities/{id}")
+    @GET("cities/{id}")
     suspend fun getById(@Path("id") id: String): Response<CityResponseDTO>
 
-    @POST("api/cities")
+    @POST("cities")
     suspend fun create(@Body dto: CityRequestDTO): Response<CityResponseDTO>
 
-    @PUT("api/cities/{id}")
+    @PUT("cities/{id}")
     suspend fun update(@Path("id") id: String, @Body dto: CityRequestDTO): Response<CityResponseDTO>
 
-    @DELETE("api/cities/{id}")
+    @DELETE("cities/{id}")
     suspend fun delete(@Path("id") id: String): Response<Unit>
 }

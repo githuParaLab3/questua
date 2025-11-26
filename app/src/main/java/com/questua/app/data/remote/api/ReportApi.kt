@@ -7,22 +7,22 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface ReportApi {
-    @GET("api/reports")
+    @GET("reports")
     suspend fun list(
         @QueryMap filter: Map<String, String> = emptyMap(),
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): Response<PageResponse<ReportResponseDTO>>
 
-    @GET("api/reports/{id}")
+    @GET("reports/{id}")
     suspend fun getById(@Path("id") id: String): Response<ReportResponseDTO>
 
-    @POST("api/reports")
+    @POST("reports")
     suspend fun create(@Body dto: ReportRequestDTO): Response<ReportResponseDTO>
 
-    @PUT("api/reports/{id}")
+    @PUT("reports/{id}")
     suspend fun update(@Path("id") id: String, @Body dto: ReportRequestDTO): Response<ReportResponseDTO>
 
-    @DELETE("api/reports/{id}")
+    @DELETE("reports/{id}")
     suspend fun delete(@Path("id") id: String): Response<Unit>
 }

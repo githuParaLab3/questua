@@ -7,7 +7,7 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface QuestPointApi {
-    @GET("api/quest-points")
+    @GET("quest-points")
     suspend fun list(
         @QueryMap filter: Map<String, String> = emptyMap(),
         @Query("page") page: Int? = null,
@@ -15,15 +15,15 @@ interface QuestPointApi {
         @Query("userId") userId: String? = null
     ): Response<PageResponse<QuestPointResponseDTO>>
 
-    @GET("api/quest-points/{id}")
+    @GET("quest-points/{id}")
     suspend fun getById(@Path("id") id: String): Response<QuestPointResponseDTO>
 
-    @POST("api/quest-points")
+    @POST("quest-points")
     suspend fun create(@Body dto: QuestPointRequestDTO): Response<QuestPointResponseDTO>
 
-    @PUT("api/quest-points/{id}")
+    @PUT("quest-points/{id}")
     suspend fun update(@Path("id") id: String, @Body dto: QuestPointRequestDTO): Response<QuestPointResponseDTO>
 
-    @DELETE("api/quest-points/{id}")
+    @DELETE("quest-points/{id}")
     suspend fun delete(@Path("id") id: String): Response<Unit>
 }

@@ -7,35 +7,35 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface UserLanguageApi {
-    @GET("api/user-languages")
+    @GET("/user-languages")
     suspend fun list(
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): Response<PageResponse<UserLanguageResponseDTO>>
 
-    @GET("api/user-languages/{id}")
+    @GET("/user-languages/{id}")
     suspend fun getById(@Path("id") id: String): Response<UserLanguageResponseDTO>
 
-    @GET("api/user-languages/user/{userId}")
+    @GET("user-languages/user/{userId}")
     suspend fun getByUserId(
         @Path("userId") userId: String,
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): Response<PageResponse<UserLanguageResponseDTO>>
 
-    @GET("api/user-languages/language/{languageId}")
+    @GET("user-languages/language/{languageId}")
     suspend fun getByLanguageId(
         @Path("languageId") languageId: String,
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): Response<PageResponse<UserLanguageResponseDTO>>
 
-    @POST("api/user-languages")
+    @POST("user-languages")
     suspend fun create(@Body dto: UserLanguageRequestDTO): Response<UserLanguageResponseDTO>
 
-    @PUT("api/user-languages/{id}")
+    @PUT("user-languages/{id}")
     suspend fun update(@Path("id") id: String, @Body dto: UserLanguageRequestDTO): Response<UserLanguageResponseDTO>
 
-    @DELETE("api/user-languages/{id}")
+    @DELETE("user-languages/{id}")
     suspend fun delete(@Path("id") id: String): Response<Unit>
 }

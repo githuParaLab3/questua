@@ -7,31 +7,31 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface QuestApi {
-    @GET("api/quests")
+    @GET("/quests")
     suspend fun getAll(
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): Response<PageResponse<QuestResponseDTO>>
 
-    @GET("api/quests/{id}")
+    @GET("quests/{id}")
     suspend fun getById(@Path("id") id: String): Response<QuestResponseDTO>
 
-    @GET("api/quests/point/{questPointId}")
+    @GET("quests/point/{questPointId}")
     suspend fun getByQuestPoint(
         @Path("questPointId") questPointId: String,
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): Response<PageResponse<QuestResponseDTO>>
 
-    @POST("api/quests")
+    @POST("quests")
     suspend fun create(@Body dto: QuestRequestDTO): Response<QuestResponseDTO>
 
-    @PUT("api/quests/{id}")
+    @PUT("quests/{id}")
     suspend fun update(@Path("id") id: String, @Body dto: QuestRequestDTO): Response<QuestResponseDTO>
 
-    @DELETE("api/quests/{id}")
+    @DELETE("quests/{id}")
     suspend fun delete(@Path("id") id: String): Response<Unit>
 
-    @PUT("api/quests/{id}/sync-xp")
+    @PUT("quests/{id}/sync-xp")
     suspend fun syncXp(@Path("id") id: String): Response<QuestResponseDTO>
 }

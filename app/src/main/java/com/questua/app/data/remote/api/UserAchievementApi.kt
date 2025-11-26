@@ -7,23 +7,23 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface UserAchievementApi {
-    @GET("api/user-achievements")
+    @GET("/user-achievements")
     suspend fun list(
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): Response<PageResponse<UserAchievementResponseDTO>>
 
-    @GET("api/user-achievements/{id}")
+    @GET("/user-achievements/{id}")
     suspend fun getById(@Path("id") id: String): Response<UserAchievementResponseDTO>
 
-    @GET("api/user-achievements/user/{userId}")
+    @GET("user-achievements/user/{userId}")
     suspend fun listByUser(
         @Path("userId") userId: String,
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): Response<PageResponse<UserAchievementResponseDTO>>
 
-    @GET("api/user-achievements/user/{userId}/language/{languageId}")
+    @GET("user-achievements/user/{userId}/language/{languageId}")
     suspend fun listByUserAndLanguage(
         @Path("userId") userId: String,
         @Path("languageId") languageId: String,
@@ -31,12 +31,12 @@ interface UserAchievementApi {
         @Query("size") size: Int? = null
     ): Response<PageResponse<UserAchievementResponseDTO>>
 
-    @POST("api/user-achievements")
+    @POST("user-achievements")
     suspend fun create(@Body dto: UserAchievementRequestDTO): Response<UserAchievementResponseDTO>
 
-    @PUT("api/user-achievements/{id}")
+    @PUT("user-achievements/{id}")
     suspend fun update(@Path("id") id: String, @Body dto: UserAchievementRequestDTO): Response<UserAchievementResponseDTO>
 
-    @DELETE("api/user-achievements/{id}")
+    @DELETE("user-achievements/{id}")
     suspend fun delete(@Path("id") id: String): Response<Unit>
 }

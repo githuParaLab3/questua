@@ -1,16 +1,20 @@
 package com.questua.app.presentation.common
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home // Ícone disponível na biblioteca padrão
+import androidx.compose.material.icons.filled.Public // Ícone de globo/mundo
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.questua.app.core.ui.components.QuestuaButton
 
 @Composable
 fun InitialScreen(
@@ -20,19 +24,20 @@ fun InitialScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // LOGOTIPO (Usando Home como placeholder)
+        // LOGOTIPO
         Icon(
-            imageVector = Icons.Default.Home,
+            imageVector = Icons.Default.Public,
             contentDescription = "Logo Questua",
             modifier = Modifier.size(120.dp),
             tint = MaterialTheme.colorScheme.primary
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         // NOME DO APP
         Text(
@@ -45,36 +50,31 @@ fun InitialScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // FRASE DE EFEITO
+        // SLOGAN
         Text(
-            text = "Aprenda idiomas explorando o mundo",
+            text = "Aprenda idiomas explorando o mundo real",
             style = MaterialTheme.typography.bodyLarge,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = MaterialTheme.colorScheme.onSurface
         )
 
         Spacer(modifier = Modifier.height(64.dp))
 
-        // BOTÃO CRIAR CONTA
-        Button(
+        // BOTÃO PRIMÁRIO (Criar Conta)
+        QuestuaButton(
+            text = "Começar Aventura",
             onClick = onNavigateToRegister,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-        ) {
-            Text(text = "Criar conta", fontSize = 16.sp)
-        }
+            containerColor = MaterialTheme.colorScheme.primary
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // BOTÃO ENTRAR
-        OutlinedButton(
+        // BOTÃO SECUNDÁRIO (Entrar)
+        // Usamos a cor Secondary para diferenciar visualmente sem precisar de um novo componente "Outlined"
+        QuestuaButton(
+            text = "Já tenho conta",
             onClick = onNavigateToLogin,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-        ) {
-            Text(text = "Entrar", fontSize = 16.sp)
-        }
+            containerColor = MaterialTheme.colorScheme.secondary
+        )
     }
 }

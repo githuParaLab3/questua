@@ -2,56 +2,73 @@ package com.questua.app.presentation.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.questua.app.presentation.auth.LoginScreen
 import com.questua.app.presentation.auth.RegisterScreen
-import com.questua.app.presentation.common.InitialScreen // Importe a nova tela
+import com.questua.app.presentation.common.InitialScreen
 import com.questua.app.presentation.hub.HubScreen
+import com.questua.app.presentation.onboarding.LanguageSelectionScreen
 
 @Composable
 fun SetupNavGraph(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Initial.route // <--- MUDANÇA AQUI: Começa na Inicial
+        startDestination = Screen.Initial.route
     ) {
-        // Rota da Tela Inicial
-        composable(Screen.Initial.route) {
+        // Tela Inicial
+        composable(route = Screen.Initial.route) {
             InitialScreen(
                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },
-                onNavigateToRegister = { navController.navigate(Screen.Register.route) }
+                // Fluxo de cadastro começa escolhendo o idioma
+                onNavigateToRegister = { navController.navigate(Screen.LanguageSelection.route) }
             )
         }
 
-        // Rota de Login
-        composable(Screen.Login.route) {
-            LoginScreen(
-                // No Login, "cadastre-se" também leva para Register
-                onNavigateToRegister = { navController.navigate(Screen.Register.route) },
-                onLoginSuccess = {
-                    navController.navigate(Screen.Hub.route) {
-                        // Ao logar, limpa a pilha (não volta pro login/inicial)
-                        popUpTo(Screen.Initial.route) { inclusive = true }
-                    }
-                }
+        // Tela de Seleção de Idioma
+        composable(route = Screen.LanguageSelection.route) {
+            LanguageSelectionScreen(
+                onLanguageSelected = { languageId ->
+                    // Navega para o registro passando o ID escolhido
+                    navController.navigate(Screen.Register.passId(languageId))
+                },
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
-        // Rota de Registro
-        composable(Screen.Register.route) {
+        // Tela de Registro (Recebe languageId)
+        composable(
+            route = Screen.Register.route,
+            arguments = listOf(navArgument("languageId") { type = NavType.StringType })
+        ) {
+            // O ViewModel pega o ID automaticamente pelo SavedStateHandle,
+            // então não precisamos passar explicitamente via construtor da Screen
             RegisterScreen(
-                // Voltar leva para a tela anterior (Login ou Inicial, dependendo de onde veio)
-                onNavigateToLogin = { navController.popBackStack() },
-                onRegisterSuccess = {
-                    navController.navigate(Screen.Hub.route) {
+                onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Initial.route) { inclusive = true }
                     }
-                }
+                },
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
-        // Rota do Hub
-        composable(Screen.Hub.route) {
+        // Tela de Login
+        composable(route = Screen.Login.route) {
+            LoginScreen(
+                onNavigateToHome = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Initial.route) { inclusive = true }
+                    }
+                },
+                onNavigateToRegister = { navController.navigate(Screen.LanguageSelection.route) }
+            )
+        }
+
+        // Tela Principal (Hub)
+        composable(route = Screen.Home.route) {
             HubScreen()
         }
     }

@@ -1,8 +1,16 @@
 package com.questua.app.presentation.navigation
 
 sealed class Screen(val route: String) {
-    data object Initial : Screen("initial")
-    data object Login : Screen("login")
-    data object Register : Screen("register")
-    data object Hub : Screen("hub")
+    object Initial : Screen("initial_screen")
+    object Login : Screen("login_screen")
+    object LanguageSelection : Screen("language_selection_screen")
+
+    object Register : Screen("register_screen/{languageId}") {
+        fun passId(languageId: String): String {
+            return "register_screen/$languageId"
+        }
+    }
+
+    object Home : Screen("home_screen")
+
 }

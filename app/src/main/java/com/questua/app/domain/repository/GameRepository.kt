@@ -1,6 +1,8 @@
 package com.questua.app.domain.repository
 
 import com.questua.app.core.common.Resource
+import com.questua.app.domain.model.Quest
+import com.questua.app.domain.model.SceneDialogue
 import com.questua.app.domain.model.UserQuest
 import kotlinx.coroutines.flow.Flow
 
@@ -10,4 +12,7 @@ interface GameRepository {
     fun getNextDialogue(userQuestId: String): Flow<Resource<String>> // Retorna ID do próximo diálogo
     fun submitResponse(userQuestId: String, questionId: String, answer: String): Flow<Resource<Boolean>>
     fun completeQuest(userQuestId: String): Flow<Resource<UserQuest>>
+    fun getUserQuestStatus(questId: String, userId: String): Flow<Resource<UserQuest>>
+    fun getQuestById(questId: String): Flow<Resource<Quest>>
+    fun getDialogue(dialogueId: String): Flow<Resource<SceneDialogue>>
 }

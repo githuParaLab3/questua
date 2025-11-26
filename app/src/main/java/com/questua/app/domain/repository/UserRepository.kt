@@ -2,6 +2,7 @@ package com.questua.app.domain.repository
 
 import com.questua.app.core.common.Resource
 import com.questua.app.domain.model.UserAccount
+import com.questua.app.domain.model.UserAchievement
 import com.questua.app.domain.model.UserLanguage
 import com.questua.app.domain.model.UserQuest
 import kotlinx.coroutines.flow.Flow
@@ -18,4 +19,6 @@ interface UserRepository {
     fun startNewLanguage(userId: String, languageId: String): Flow<Resource<UserLanguage>>
     fun resumeLanguage(userLanguageId: String): Flow<Resource<Boolean>>
     fun abandonLanguage(userLanguageId: String): Flow<Resource<Boolean>>
+    fun getUserAchievements(userId: String): Flow<Resource<List<UserAchievement>>>
+    fun sendReport(userId: String, type: String, description: String, screenshotUrl: String? = null): Flow<Resource<Boolean>>
 }

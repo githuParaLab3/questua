@@ -5,6 +5,6 @@ import com.questua.app.domain.model.Language
 import kotlinx.coroutines.flow.Flow
 
 interface LanguageRepository {
-    fun getAvailableLanguages(): Flow<Resource<List<Language>>>
-
+    fun getAvailableLanguages(query: String? = null): Flow<Resource<List<Language>>>
+    fun getLanguageById(id: String): Flow<Resource<Language>>
 }

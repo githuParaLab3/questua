@@ -7,7 +7,5 @@ import kotlinx.coroutines.flow.Flow
 interface AuthRepository {
     fun login(email: String, passwordUser: String): Flow<Resource<String>> // Retorna Token
     fun register(email: String, displayName: String, passwordUser: String, nativeLanguageId: String): Flow<Resource<UserAccount>>
-    fun forgotPassword(email: String): Flow<Resource<Unit>>
     fun logout(): Flow<Resource<Unit>>
-    fun refreshToken(): Flow<Resource<String>>
 }

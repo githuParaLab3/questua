@@ -43,7 +43,6 @@ fun LanguagesListScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
-    // Controle do Modal de Adição
     var showAddModal by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.error) {
@@ -53,7 +52,6 @@ fun LanguagesListScreen(
         }
     }
 
-    // --- MODAL DE ADICIONAR IDIOMA ---
     if (showAddModal) {
         AddLanguageDialog(
             availableLanguages = state.availableLanguagesToAdd,
@@ -83,7 +81,7 @@ fun LanguagesListScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { showAddModal = true }, // Abre o modal
+                onClick = { showAddModal = true },
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 icon = { Icon(Icons.Default.Add, "Adicionar") },
@@ -115,6 +113,10 @@ fun LanguagesListScreen(
 
                     item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
+
+                if (state.isLoading) {
+                    LoadingSpinner(transparentBackground = true)
+                }
             }
         }
     }
@@ -126,7 +128,6 @@ fun LanguageCard(
     onSelect: () -> Unit,
     onAbandon: () -> Unit
 ) {
-    // Cores dinâmicas
     val isActive = item.isCurrent
     val borderColor = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
     val containerColor = if (isActive) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface
@@ -141,6 +142,9 @@ fun LanguageCard(
                 color = borderColor,
                 shape = RoundedCornerShape(16.dp)
             )
+            .clickable(enabled = !isActive) {
+                onSelect()
+            }
     ) {
         Row(
             modifier = Modifier
@@ -148,7 +152,6 @@ fun LanguageCard(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Bandeira
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
                     .data(item.iconUrl?.toFullImageUrl())
@@ -165,7 +168,6 @@ fun LanguageCard(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Info
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.name,
@@ -179,10 +181,8 @@ fun LanguageCard(
                 )
             }
 
-            // Ações
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (isActive) {
-                    // Se for o atual: Mostra check e esconde lixeira (não pode apagar o ativo)
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = "Idioma Atual",
@@ -190,27 +190,12 @@ fun LanguageCard(
                         modifier = Modifier.size(32.dp)
                     )
                 } else {
-                    // Se NÃO for o atual: Lixeira + Botão Selecionar
                     IconButton(onClick = onAbandon) {
                         Icon(
                             imageVector = Icons.Default.Delete,
                             contentDescription = "Desistir do idioma",
                             tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
                         )
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    Button(
-                        onClick = onSelect,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        ),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text("Trocar")
                     }
                 }
             }

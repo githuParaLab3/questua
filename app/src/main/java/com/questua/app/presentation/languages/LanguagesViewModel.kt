@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
+import com.questua.app.domain.enums.StatusLanguage
 import com.questua.app.domain.model.Language
 import com.questua.app.domain.model.UserLanguage
 import com.questua.app.domain.usecase.language_learning.AbandonLanguageUseCase
@@ -17,7 +18,6 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-// Modelo visual completo para a Lista
 data class LanguageUiModel(
     val userLanguage: UserLanguage,
     val name: String,
@@ -27,8 +27,8 @@ data class LanguageUiModel(
 
 data class LanguagesListState(
     val isLoading: Boolean = false,
-    val languages: List<LanguageUiModel> = emptyList(), // Seus idiomas
-    val availableLanguagesToAdd: List<Language> = emptyList(), // Idiomas que você NÃO tem (para o modal)
+    val languages: List<LanguageUiModel> = emptyList(),
+    val availableLanguagesToAdd: List<Language> = emptyList(),
     val error: String? = null
 )
 
@@ -67,23 +67,21 @@ class LanguagesViewModel @Inject constructor(
         _state.value = _state.value.copy(isLoading = true)
 
         viewModelScope.launch {
-            // Combina 3 fontes de dados simultaneamente para montar a tela sem "piscar"
             combine(
-                getUserLanguagesUseCase(userId),        // 1. O que o usuário estuda
-                getAvailableLanguagesUseCase(),         // 2. Todos os idiomas do sistema (pra pegar nome/bandeira)
-                getUserStatsUseCase(userId)             // 3. Qual é o idioma ativo no momento?
+                getUserLanguagesUseCase(userId),
+                getAvailableLanguagesUseCase(),
+                getUserStatsUseCase(userId)
             ) { userLangsRes, allLangsRes, statsRes ->
 
-                // Extrai dados seguros
                 val userLangs = userLangsRes.data ?: emptyList()
                 val allLangs = allLangsRes.data ?: emptyList()
                 val activeLangId = statsRes.data?.languageId
 
-                // Mapa auxiliar: ID -> Objeto Language
                 val allLangsMap = allLangs.associateBy { it.id }
 
-                // --- LISTA PRINCIPAL (Meus Idiomas) ---
-                val uiList = userLangs.mapNotNull { uLang ->
+                val nonAbandonedUserLangs = userLangs.filter { it.status != StatusLanguage.ABANDONED }
+
+                val uiList = nonAbandonedUserLangs.mapNotNull { uLang ->
                     val details = allLangsMap[uLang.languageId]
                     if (details != null) {
                         LanguageUiModel(
@@ -95,7 +93,6 @@ class LanguagesViewModel @Inject constructor(
                     } else null
                 }
 
-                // --- LISTA DO MODAL (O que falta aprender) ---
                 val myLangIds = userLangs.map { it.languageId }.toSet()
                 val toAddList = allLangs.filter { it.id !in myLangIds }
 
@@ -116,8 +113,17 @@ class LanguagesViewModel @Inject constructor(
         val userId = currentUserId ?: return
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            // Ao definir, o combine lá em cima vai detectar a mudança no Stats e atualizar o UI automaticamente
-            setLearningLanguageUseCase(userId, languageId).collect()
+            setLearningLanguageUseCase(userId, languageId).collect { result ->
+                when (result) {
+                    is Resource.Success -> {
+                        currentUserId?.let { fetchLanguages(it) }
+                    }
+                    is Resource.Error -> {
+                        _state.value = _state.value.copy(isLoading = false, error = result.message)
+                    }
+                    is Resource.Loading -> {}
+                }
+            }
         }
     }
 
@@ -125,10 +131,15 @@ class LanguagesViewModel @Inject constructor(
         val userId = currentUserId ?: return
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            // Cria o registro. O combine vai detectar o novo idioma na lista do user e atualizar a tela.
             startNewLanguageUseCase(userId, languageId).collect { result ->
-                if (result is Resource.Error<*>) {
-                    _state.value = _state.value.copy(isLoading = false, error = result.message)
+                when (result) {
+                    is Resource.Success -> {
+                        currentUserId?.let { fetchLanguages(it) }
+                    }
+                    is Resource.Error -> {
+                        _state.value = _state.value.copy(isLoading = false, error = result.message)
+                    }
+                    is Resource.Loading -> {}
                 }
             }
         }
@@ -138,8 +149,14 @@ class LanguagesViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             abandonLanguageUseCase(userLanguageId).collect { result ->
-                if (result is Resource.Error<*>) {
-                    _state.value = _state.value.copy(isLoading = false, error = result.message)
+                when (result) {
+                    is Resource.Success -> {
+                        currentUserId?.let { fetchLanguages(it) }
+                    }
+                    is Resource.Error -> {
+                        _state.value = _state.value.copy(isLoading = false, error = result.message)
+                    }
+                    is Resource.Loading -> {}
                 }
             }
         }

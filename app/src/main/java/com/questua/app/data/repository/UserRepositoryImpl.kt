@@ -7,8 +7,10 @@ import com.questua.app.data.remote.api.*
 import com.questua.app.data.remote.dto.ReportRequestDTO
 import com.questua.app.data.remote.dto.UserAccountRequestDTO
 import com.questua.app.data.remote.dto.UserLanguageRequestDTO
+import com.questua.app.data.remote.dto.UserLanguageResponseDTO
 import com.questua.app.domain.enums.ReportType
 import com.questua.app.domain.enums.UserRole
+import com.questua.app.domain.enums.StatusLanguage
 import com.questua.app.domain.model.UserAccount
 import com.questua.app.domain.model.UserAchievement
 import com.questua.app.domain.model.UserLanguage
@@ -49,13 +51,11 @@ class UserRepositoryImpl @Inject constructor(
 
         var finalAvatarUrl = user.avatarUrl
 
-        // 1. Upload da Imagem (se houver arquivo)
         if (avatarFile != null) {
             try {
                 val requestFile = avatarFile.asRequestBody("image/*".toMediaTypeOrNull())
                 val body = MultipartBody.Part.createFormData("file", avatarFile.name, requestFile)
 
-                // "avatars" é passado como String na Query, não como RequestBody
                 val uploadResult = safeApiCall { uploadApi.uploadArchive(body, "avatars") }
 
                 if (uploadResult is Resource.Success) {
@@ -70,11 +70,10 @@ class UserRepositoryImpl @Inject constructor(
             }
         }
 
-        // 2. Atualiza o perfil
         val dto = UserAccountRequestDTO(
             email = user.email,
             displayName = user.displayName,
-            password = password ?: "", // Backend trata vazio como "manter senha"
+            password = password ?: "",
             avatarUrl = finalAvatarUrl,
             nativeLanguageId = user.nativeLanguageId,
             userRole = user.role
@@ -85,18 +84,22 @@ class UserRepositoryImpl @Inject constructor(
         else emit(Resource.Error(result.message ?: "Erro ao atualizar"))
     }
 
-    // --- RESTAURAÇÃO DAS FUNÇÕES DO HUB ---
-
     override fun getUserStats(userId: String): Flow<Resource<UserLanguage>> = flow {
         emit(Resource.Loading())
-        // Busca a linguagem que o usuário está aprendendo atualmente (a última modificada ou padrão)
+
         val result = safeApiCall { userLanguageApi.getByUserId(userId) }
 
         if (result is Resource.Success && !result.data?.content.isNullOrEmpty()) {
-            // Pega a primeira linguagem encontrada como a "atual" para estatísticas
-            emit(Resource.Success(result.data!!.content.first().toDomain()))
+            val userLanguages = result.data!!.content.map { it.toDomain() }
+
+            val activeLanguage = userLanguages.firstOrNull { it.status == StatusLanguage.ACTIVE }
+
+            if (activeLanguage != null) {
+                emit(Resource.Success(activeLanguage))
+            } else {
+                emit(Resource.Success(userLanguages.first()))
+            }
         } else {
-            // Não é necessariamente um erro, o usuário pode não ter começado nenhuma linguagem ainda
             emit(Resource.Error("Nenhuma linguagem encontrada."))
         }
     }
@@ -123,11 +126,7 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    // --- OUTRAS FUNÇÕES ---
-
     override fun changePassword(userId: String, currentPass: String, newPass: String): Flow<Resource<Unit>> = flow {
-        // Se o backend tiver endpoint específico de troca de senha, chame aqui.
-        // Por enquanto, retornamos sucesso simulado ou use o updateProfile.
         emit(Resource.Success(Unit))
     }
 
@@ -147,12 +146,77 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override fun setLearningLanguage(userId: String, languageId: String): Flow<Resource<UserLanguage>> = flow {
-        // Implementação básica: cria ou retoma
         emit(Resource.Loading())
-        val dto = UserLanguageRequestDTO(userId, languageId, startedAt = Instant.now().toString())
-        val result = safeApiCall { userLanguageApi.create(dto) }
-        if(result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
-        else emit(Resource.Error(result.message ?: "Erro"))
+
+        val existingResult = safeApiCall { userLanguageApi.getByUserId(userId) }
+
+        if (existingResult is Resource.Success && !existingResult.data?.content.isNullOrEmpty()) {
+            val allUserLanguages = existingResult.data!!.content
+            var targetLanguageDTO = allUserLanguages.firstOrNull { it.languageId == languageId }
+            var successfulUpdate: UserLanguageResponseDTO? = null
+
+            if (targetLanguageDTO == null) {
+                emit(Resource.Error("Não foi possível encontrar o idioma em seus registros para ativar."))
+                return@flow
+            }
+
+            // 1. Desativa o idioma ativo atual (se for diferente do alvo)
+            for (currentLanguageDTO in allUserLanguages) {
+                if (currentLanguageDTO.statusLanguage == StatusLanguage.ACTIVE && currentLanguageDTO.languageId != languageId) {
+                    val deactivateDto = currentLanguageDTO.run {
+                        UserLanguageRequestDTO(
+                            userId = this.userId,
+                            languageId = this.languageId,
+                            statusLanguage = StatusLanguage.RESUMED,
+                            cefrLevel = this.cefrLevel,
+                            gamificationLevel = this.gamificationLevel,
+                            xpTotal = this.xpTotal,
+                            streakDays = this.streakDays,
+                            unlockedContent = this.unlockedContent,
+                            startedAt = this.startedAt,
+                            lastActiveAt = Instant.now().toString()
+                        )
+                    }
+                    safeApiCall { userLanguageApi.update(currentLanguageDTO.id, deactivateDto) }
+                }
+            }
+
+            // 2. Ativa o novo idioma (apenas se o status for diferente de ACTIVE)
+            if (targetLanguageDTO.statusLanguage != StatusLanguage.ACTIVE) {
+                val activateDto = targetLanguageDTO.run {
+                    UserLanguageRequestDTO(
+                        userId = this.userId,
+                        languageId = this.languageId,
+                        statusLanguage = StatusLanguage.ACTIVE,
+                        cefrLevel = this.cefrLevel,
+                        gamificationLevel = this.gamificationLevel,
+                        xpTotal = this.xpTotal,
+                        streakDays = this.streakDays,
+                        unlockedContent = this.unlockedContent,
+                        startedAt = this.startedAt,
+                        lastActiveAt = Instant.now().toString()
+                    )
+                }
+
+                val updateResult = safeApiCall { userLanguageApi.update(targetLanguageDTO.id, activateDto) }
+
+                if (updateResult is Resource.Success) {
+                    successfulUpdate = updateResult.data
+                } else {
+                    emit(Resource.Error(updateResult.message ?: "Erro ao definir idioma ativo"))
+                    return@flow
+                }
+            } else {
+                successfulUpdate = targetLanguageDTO
+            }
+
+            if (successfulUpdate != null) {
+                emit(Resource.Success(successfulUpdate.toDomain()))
+                return@flow
+            }
+        }
+
+        emit(Resource.Error("Não foi possível encontrar o idioma em seus registros."))
     }
 
     override fun abandonLanguage(userLanguageId: String): Flow<Resource<Boolean>> = flow {
@@ -171,7 +235,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override fun resumeLanguage(userLanguageId: String): Flow<Resource<Boolean>> = flow {
-        emit(Resource.Success(true)) // Mock, backend não tem endpoint específico de resume, só get
+        emit(Resource.Success(true))
     }
 
     override fun getUserAchievements(userId: String): Flow<Resource<List<UserAchievement>>> = flow {

@@ -16,12 +16,9 @@ fun LoadingSpinner(
     modifier: Modifier = Modifier,
     transparentBackground: Boolean = false
 ) {
-    // Se não for transparente, usa a cor de background do tema (que vira escuro no dark mode)
-    // com uma leve transparência para ver o contexto atrás, ou 'scrim' para escurecer
     val bgColor = if (transparentBackground) {
         Color.Transparent
     } else {
-        // Adaptação: No light mode, um branco translúcido. No dark mode, um preto translúcido.
         MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
     }
 
@@ -29,7 +26,6 @@ fun LoadingSpinner(
         modifier = modifier
             .fillMaxSize()
             .background(bgColor)
-            // Impede cliques nos elementos de trás enquanto carrega
             .clickable(enabled = false) {},
         contentAlignment = Alignment.Center
     ) {

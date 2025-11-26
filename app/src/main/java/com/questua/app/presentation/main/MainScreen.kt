@@ -22,8 +22,9 @@ import com.questua.app.presentation.profile.ProfileScreen
 fun MainScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToLanguages: () -> Unit,
-    onNavigateToCity: (String) -> Unit, // Mudou de 'ToMap' para 'ToCity' (drill-down)
-    onNavigateToAdmin: () -> Unit
+    onNavigateToCity: (String) -> Unit,
+    onNavigateToAdmin: () -> Unit,
+    onNavigateToHelp: () -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(HubTab.HOME) }
 
@@ -32,7 +33,6 @@ fun MainScreen(
             BottomNavBar(
                 selectedTab = currentTab,
                 onTabSelected = { tab ->
-                    // CORREÇÃO: Mapa agora é uma aba comum, removemos a navegação externa
                     currentTab = tab
                 }
             )
@@ -50,16 +50,15 @@ fun MainScreen(
                     )
                 }
                 HubTab.MAP -> {
-                    // CORREÇÃO: WorldMap renderizado dentro da MainScreen
                     WorldMapScreen(
-                        onNavigateBack = null, // Null esconde a seta de voltar se sua WorldMapScreen suportar isso
+                        onNavigateBack = null,
                         onNavigateToCity = onNavigateToCity
                     )
                 }
                 HubTab.PROFILE -> {
                     ProfileScreen(
                         onNavigateToLogin = onNavigateToLogin,
-                        onNavigateToHelp = { },
+                        onNavigateToHelp = onNavigateToHelp,
                         onNavigateToAdmin = onNavigateToAdmin,
                         onNavigateBack = null
                     )

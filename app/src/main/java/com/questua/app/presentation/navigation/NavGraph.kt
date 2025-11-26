@@ -12,6 +12,7 @@ import com.questua.app.presentation.common.InitialScreen
 import com.questua.app.presentation.languages.LanguagesListScreen
 import com.questua.app.presentation.main.MainScreen
 import com.questua.app.presentation.onboarding.LanguageSelectionScreen
+import com.questua.app.presentation.profile.HelpScreen
 
 @Composable
 fun SetupNavGraph(navController: NavHostController) {
@@ -80,14 +81,21 @@ fun SetupNavGraph(navController: NavHostController) {
                 },
                 onNavigateToAdmin = {
                     // Futuro: Rota de admin
-                }
+                },
+                onNavigateToHelp = { navController.navigate(Screen.Help.route) }
             )
         }
 
         composable(route = Screen.LanguagesList.route) {
-            // CORREÇÃO AQUI: Removido onNavigateToNewLanguage
             LanguagesListScreen(
                 onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
+        composable(route = Screen.Help.route) {
+            HelpScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToReport = { /* TODO: Implementar rota de Reporte */ }
             )
         }
     }

@@ -212,7 +212,6 @@ fun ProfileScreen(
             )
 
             // --- SEÇÕES DE CONFIGURAÇÃO E CONTA ---
-            // Só aparecem se NÃO estiver editando
             if (!state.isEditing) {
                 Spacer(modifier = Modifier.height(32.dp))
 
@@ -237,7 +236,7 @@ fun ProfileScreen(
                 SettingsActionItem(
                     label = "Ajuda e Suporte",
                     icon = Icons.Outlined.Help,
-                    onClick = onNavigateToHelp
+                    onClick = onNavigateToHelp // AÇÃO DE NAVEGAÇÃO CORRETA
                 )
 
                 if (state.user?.role == UserRole.ADMIN) {

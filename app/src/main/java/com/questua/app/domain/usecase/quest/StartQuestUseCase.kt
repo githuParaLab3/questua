@@ -1,10 +1,15 @@
 package com.questua.app.domain.usecase.quest
 
+import com.questua.app.core.common.Resource
+import com.questua.app.domain.model.UserQuest
 import com.questua.app.domain.repository.GameRepository
+import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 
 class StartQuestUseCase @Inject constructor(
     private val repository: GameRepository
 ) {
-    operator fun invoke(userId: String, questId: String) = repository.startQuest(userId, questId)
+    operator fun invoke(userId: String, questId: String): Flow<Resource<UserQuest>> {
+        return repository.startQuest(userId, questId)
+    }
 }

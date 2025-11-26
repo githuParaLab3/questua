@@ -19,6 +19,8 @@ fun SetupNavGraph(navController: NavHostController) {
         navController = navController,
         startDestination = Screen.Initial.route
     ) {
+        // --- FLUXO DE ONBOARDING / AUTH ---
+
         composable(route = Screen.Initial.route) {
             InitialScreen(
                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },
@@ -60,7 +62,8 @@ fun SetupNavGraph(navController: NavHostController) {
             )
         }
 
-        // Rota Principal (Agora contém o Mapa)
+        // --- FLUXO PRINCIPAL (LOGADO) ---
+
         composable(route = Screen.Home.route) {
             MainScreen(
                 onNavigateToLogin = {
@@ -72,24 +75,20 @@ fun SetupNavGraph(navController: NavHostController) {
                     navController.navigate(Screen.LanguagesList.route)
                 },
                 onNavigateToCity = { cityId ->
-                    // Implementar rota de detalhes da cidade aqui
+                    // Futuro: Detalhes da cidade
                     // navController.navigate(Screen.CityDetail.passId(cityId))
                 },
                 onNavigateToAdmin = {
-                    // Se tiver rota de admin
+                    // Futuro: Rota de admin
                 }
             )
         }
 
         composable(route = Screen.LanguagesList.route) {
+            // CORREÇÃO AQUI: Removido onNavigateToNewLanguage
             LanguagesListScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToNewLanguage = {
-                    navController.navigate(Screen.LanguageSelection.route)
-                }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
-
-        // A rota Screen.WorldMap foi removida daqui pois agora é uma aba interna da Home
     }
 }

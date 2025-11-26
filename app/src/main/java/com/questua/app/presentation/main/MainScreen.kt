@@ -12,16 +12,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.questua.app.core.ui.components.BottomNavBar
+import com.questua.app.core.ui.components.HubTab
+import com.questua.app.presentation.exploration.worldmap.WorldMapScreen
 import com.questua.app.presentation.hub.HubScreen
-import com.questua.app.presentation.hub.components.BottomNavBar
-import com.questua.app.presentation.hub.components.HubTab
 import com.questua.app.presentation.profile.ProfileScreen
 
 @Composable
 fun MainScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToLanguages: () -> Unit,
-    onNavigateToMap: () -> Unit,
+    onNavigateToCity: (String) -> Unit, // Mudou de 'ToMap' para 'ToCity' (drill-down)
     onNavigateToAdmin: () -> Unit
 ) {
     var currentTab by rememberSaveable { mutableStateOf(HubTab.HOME) }
@@ -31,11 +32,8 @@ fun MainScreen(
             BottomNavBar(
                 selectedTab = currentTab,
                 onTabSelected = { tab ->
-                    if (tab == HubTab.MAP) {
-                        onNavigateToMap()
-                    } else {
-                        currentTab = tab
-                    }
+                    // CORREÇÃO: Mapa agora é uma aba comum, removemos a navegação externa
+                    currentTab = tab
                 }
             )
         }
@@ -51,19 +49,26 @@ fun MainScreen(
                         onNavigateToLanguages = onNavigateToLanguages
                     )
                 }
+                HubTab.MAP -> {
+                    // CORREÇÃO: WorldMap renderizado dentro da MainScreen
+                    WorldMapScreen(
+                        onNavigateBack = null, // Null esconde a seta de voltar se sua WorldMapScreen suportar isso
+                        onNavigateToCity = onNavigateToCity
+                    )
+                }
                 HubTab.PROFILE -> {
                     ProfileScreen(
                         onNavigateToLogin = onNavigateToLogin,
                         onNavigateToHelp = { },
-                        onNavigateToAdmin = onNavigateToAdmin
+                        onNavigateToAdmin = onNavigateToAdmin,
+                        onNavigateBack = null
                     )
                 }
                 HubTab.PROGRESS -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Tela de Progresso")
+                        Text("Tela de Progresso (Em Breve)")
                     }
                 }
-                else -> {}
             }
         }
     }

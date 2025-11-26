@@ -16,7 +16,14 @@ fun LoadingSpinner(
     modifier: Modifier = Modifier,
     transparentBackground: Boolean = false
 ) {
-    val bgColor = if (transparentBackground) Color.Transparent else MaterialTheme.colorScheme.background.copy(alpha = 0.7f)
+    // Se não for transparente, usa a cor de background do tema (que vira escuro no dark mode)
+    // com uma leve transparência para ver o contexto atrás, ou 'scrim' para escurecer
+    val bgColor = if (transparentBackground) {
+        Color.Transparent
+    } else {
+        // Adaptação: No light mode, um branco translúcido. No dark mode, um preto translúcido.
+        MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
+    }
 
     Box(
         modifier = modifier
@@ -26,6 +33,8 @@ fun LoadingSpinner(
             .clickable(enabled = false) {},
         contentAlignment = Alignment.Center
     ) {
-        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+        CircularProgressIndicator(
+            color = MaterialTheme.colorScheme.primary
+        )
     }
 }

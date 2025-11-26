@@ -2,116 +2,74 @@ package com.questua.app.presentation.hub.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.questua.app.core.ui.components.QuestuaAsyncImage
-import com.questua.app.core.ui.theme.*
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import com.questua.app.core.common.toFullImageUrl
 
 @Composable
 fun HeaderStats(
-    streak: Int,
+    userName: String,
+    userAvatar: String?,
+    level: Int,
     xp: Int,
-    languageCode: String?,     // Ex: "PT", "EN" (pode ser nulo carregando)
-    languageIconUrl: String?,  // URL da bandeira
-    onLanguageClick: () -> Unit
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(Color.White)
-            .padding(horizontal = 24.dp, vertical = 16.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Badge Idioma (Clicável)
-        Row(
+        // Avatar com Cache Disabled e URL Completa
+        Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onLanguageClick)
-                .border(1.dp, Slate200, RoundedCornerShape(8.dp))
-                .background(Slate50, RoundedCornerShape(8.dp))
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .size(56.dp)
+                .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                .padding(2.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
-            // Ícone / Bandeira
-            if (languageIconUrl != null) {
-                QuestuaAsyncImage(
-                    imageUrl = languageIconUrl,
-                    contentDescription = "Idioma atual",
-                    modifier = Modifier
-                        .size(20.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                )
-            } else {
-                // Fallback visual enquanto carrega ou se não houver ícone
-                Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Slate400) // Cinza neutro
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Text(
-                text = languageCode ?: "--", // Mostra traço se ainda não carregou
-                style = MaterialTheme.typography.labelSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = Slate500
-                )
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data(userAvatar?.toFullImageUrl() ?: "https://via.placeholder.com/150")
+                    .crossfade(true)
+                    .diskCachePolicy(CachePolicy.DISABLED)
+                    .memoryCachePolicy(CachePolicy.DISABLED)
+                    .build(),
+                contentDescription = "User Avatar",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
             )
         }
 
-        // Status (Streak e XP)
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            // Streak
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.LocalFireDepartment,
-                    contentDescription = "Streak",
-                    tint = Amber500,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = streak.toString(),
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Amber600
-                    )
-                )
-            }
+        Spacer(modifier = Modifier.width(12.dp))
 
-            // XP
+        // Info
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Olá, $userName!",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground
+            )
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Bolt,
-                    contentDescription = "XP",
-                    tint = QuestuaBlue,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
+                Badge(containerColor = MaterialTheme.colorScheme.primary) {
+                    Text("Nível $level", color = MaterialTheme.colorScheme.onPrimary)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "$xp XP",
-                    style = MaterialTheme.typography.labelMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = QuestuaBlueDark
-                    )
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary
                 )
             }
         }

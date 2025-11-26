@@ -9,7 +9,6 @@ import androidx.navigation.navArgument
 import com.questua.app.presentation.auth.LoginScreen
 import com.questua.app.presentation.auth.RegisterScreen
 import com.questua.app.presentation.common.InitialScreen
-import com.questua.app.presentation.exploration.worldmap.WorldMapScreen // <--- IMPORTANTE
 import com.questua.app.presentation.languages.LanguagesListScreen
 import com.questua.app.presentation.main.MainScreen
 import com.questua.app.presentation.onboarding.LanguageSelectionScreen
@@ -61,7 +60,7 @@ fun SetupNavGraph(navController: NavHostController) {
             )
         }
 
-        // Rota Principal (Container com BottomBar)
+        // Rota Principal (Agora contém o Mapa)
         composable(route = Screen.Home.route) {
             MainScreen(
                 onNavigateToLogin = {
@@ -72,11 +71,13 @@ fun SetupNavGraph(navController: NavHostController) {
                 onNavigateToLanguages = {
                     navController.navigate(Screen.LanguagesList.route)
                 },
-                onNavigateToMap = {
-                    // CORREÇÃO: Agora navega de verdade para o mapa
-                    navController.navigate(Screen.WorldMap.route)
+                onNavigateToCity = { cityId ->
+                    // Implementar rota de detalhes da cidade aqui
+                    // navController.navigate(Screen.CityDetail.passId(cityId))
                 },
-                onNavigateToAdmin = { }
+                onNavigateToAdmin = {
+                    // Se tiver rota de admin
+                }
             )
         }
 
@@ -89,15 +90,6 @@ fun SetupNavGraph(navController: NavHostController) {
             )
         }
 
-        // Tela do Mapa Mundi
-        composable(route = Screen.WorldMap.route) {
-            WorldMapScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToCity = { cityId ->
-                    // Futuro: Navegar para detalhes da cidade
-                    // navController.navigate(Screen.CityDetail.passId(cityId))
-                }
-            )
-        }
+        // A rota Screen.WorldMap foi removida daqui pois agora é uma aba interna da Home
     }
 }

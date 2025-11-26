@@ -1,5 +1,6 @@
 package com.questua.app.core.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
@@ -26,18 +27,22 @@ fun QuestuaButton(
     isLoading: Boolean = false,
     containerColor: Color = MaterialTheme.colorScheme.primary,
     contentColor: Color = Color.White,
-    isSecondary: Boolean = false // Flag para estilo "outline" ou secundário
+    isSecondary: Boolean = false
 ) {
-    val backgroundColor = if (isSecondary) Color.White else containerColor
-    val textColor = if (isSecondary) MaterialTheme.colorScheme.secondary else contentColor
-    val elevation = if (isSecondary) 0.dp else 8.dp
-    val borderStroke = if (isSecondary) androidx.compose.foundation.BorderStroke(2.dp, com.questua.app.core.ui.theme.Slate200) else null
+    val backgroundColor = if (isSecondary) MaterialTheme.colorScheme.surface else containerColor
+    val textColor = if (isSecondary) MaterialTheme.colorScheme.onSurface else contentColor
+
+    val buttonBorder = if (isSecondary) {
+        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    } else {
+        null
+    }
 
     Button(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp) // Botões mais altos como no design (py-4)
+            .height(56.dp)
             .shadow(
                 elevation = if (isSecondary) 0.dp else 10.dp,
                 shape = RoundedCornerShape(16.dp),
@@ -49,10 +54,10 @@ fun QuestuaButton(
             contentColor = textColor,
             disabledContainerColor = backgroundColor.copy(alpha = 0.5f)
         ),
-        shape = RoundedCornerShape(16.dp), // rounded-xl
-        border = borderStroke,
+        shape = RoundedCornerShape(16.dp),
+        border = buttonBorder,
         elevation = ButtonDefaults.buttonElevation(
-            defaultElevation = 0.dp, // Sombra controlada pelo modifier .shadow acima para cor customizada
+            defaultElevation = 0.dp,
             pressedElevation = 0.dp
         )
     ) {

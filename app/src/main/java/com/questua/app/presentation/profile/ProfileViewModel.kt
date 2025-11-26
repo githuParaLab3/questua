@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
+import com.questua.app.core.ui.theme.ThemeManager
 import com.questua.app.domain.enums.UserRole
 import com.questua.app.domain.model.UserAccount
 import com.questua.app.domain.usecase.auth.LogoutUseCase
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class ProfileState(
@@ -34,7 +36,8 @@ class ProfileViewModel @Inject constructor(
     private val updateUserProfileUseCase: UpdateUserProfileUseCase,
     private val toggleAdminModeUseCase: ToggleAdminModeUseCase,
     private val logoutUseCase: LogoutUseCase,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val themeManager: ThemeManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ProfileState())
@@ -43,14 +46,24 @@ class ProfileViewModel @Inject constructor(
     // Campos de edição
     val editName = MutableStateFlow("")
     val editEmail = MutableStateFlow("")
+    val newPassword = MutableStateFlow("") // Novo campo
+    val selectedAvatarUri = MutableStateFlow<String?>(null) // Novo campo para Preview
+
+    private var selectedAvatarFile: File? = null // Arquivo real para upload
 
     init {
         loadProfile()
+        // Sincronizar Switch de Tema com Estado Global
+        viewModelScope.launch {
+            themeManager.isDarkTheme.collect { isDark ->
+                _state.value = _state.value.copy(darkThemeEnabled = isDark)
+            }
+        }
     }
 
     private fun loadProfile() {
         viewModelScope.launch {
-            val userId = tokenManager.userId.collectLatest { id ->
+            tokenManager.userId.collectLatest { id ->
                 if (!id.isNullOrEmpty()) {
                     fetchUserData(id)
                 }
@@ -64,7 +77,7 @@ class ProfileViewModel @Inject constructor(
                 is Resource.Loading -> _state.value = _state.value.copy(isLoading = true)
                 is Resource.Success -> {
                     _state.value = _state.value.copy(isLoading = false, user = result.data)
-                    // Inicializa campos de edição
+                    // Preenche campos iniciais
                     editName.value = result.data?.displayName ?: ""
                     editEmail.value = result.data?.email ?: ""
                 }
@@ -73,10 +86,14 @@ class ProfileViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
+    fun onImageSelected(file: File, uriString: String) {
+        selectedAvatarFile = file
+        selectedAvatarUri.value = uriString
+    }
+
     fun toggleEditMode() {
         val current = _state.value.isEditing
         if (current) {
-            // Salvar alterações (se houver validação, fazer antes)
             saveChanges()
         } else {
             _state.value = _state.value.copy(isEditing = true)
@@ -85,17 +102,29 @@ class ProfileViewModel @Inject constructor(
 
     private fun saveChanges() {
         val user = _state.value.user ?: return
+
         val updatedUser = user.copy(
             displayName = editName.value,
-            email = editEmail.value
+            // Não alteramos email aqui por segurança, a menos que o backend suporte
         )
 
+        val passwordToSend = newPassword.value.ifBlank { null }
+
         viewModelScope.launch {
-            updateUserProfileUseCase(updatedUser).collect { result ->
+            // Chama o UseCase atualizado (que suporta password e file)
+            updateUserProfileUseCase(
+                user = updatedUser,
+                password = passwordToSend,
+                avatarFile = selectedAvatarFile
+            ).collect { result ->
                 when(result) {
                     is Resource.Loading -> _state.value = _state.value.copy(isLoading = true)
                     is Resource.Success -> {
                         _state.value = _state.value.copy(isLoading = false, isEditing = false, user = result.data)
+                        // Limpa campos sensíveis/temporários
+                        newPassword.value = ""
+                        selectedAvatarFile = null
+                        selectedAvatarUri.value = null
                     }
                     is Resource.Error -> {
                         _state.value = _state.value.copy(isLoading = false, error = result.message)
@@ -107,15 +136,12 @@ class ProfileViewModel @Inject constructor(
 
     fun toggleAdminMode() {
         val user = _state.value.user ?: return
-        // Lógica simples de toggle (se já é admin, vira user e vice-versa, ou apenas ativa funcionalidades)
-        // Aqui assumimos que a UI só mostra se ele TIVER permissão, e o botão ativa/desativa o "Modo"
-        // Mas se a intenção é dar permissão de admin (debug), usamos o usecase:
         val newStatus = user.role != UserRole.ADMIN
 
         viewModelScope.launch {
             toggleAdminModeUseCase(user.id, newStatus).collect { result ->
                 if (result is Resource.Success) {
-                    fetchUserData(user.id) // Recarrega para atualizar role
+                    fetchUserData(user.id)
                 }
             }
         }
@@ -123,12 +149,10 @@ class ProfileViewModel @Inject constructor(
 
     fun toggleNotifications(enabled: Boolean) {
         _state.value = _state.value.copy(notificationsEnabled = enabled)
-        // Persistir preferência localmente se necessário
     }
 
     fun toggleTheme(enabled: Boolean) {
-        _state.value = _state.value.copy(darkThemeEnabled = enabled)
-        // Persistir preferência
+        themeManager.toggleTheme(enabled)
     }
 
     fun logout(onLogoutSuccess: () -> Unit) {

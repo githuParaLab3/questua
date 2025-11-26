@@ -1,54 +1,87 @@
 package com.questua.app.presentation.profile
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Help
 import androidx.compose.material.icons.outlined.Logout
-import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.ui.unit.sp
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
+import com.questua.app.core.common.toFullImageUrl
+import com.questua.app.core.common.uriToFile
 import com.questua.app.core.ui.components.ErrorDialog
 import com.questua.app.core.ui.components.LoadingSpinner
-import com.questua.app.core.ui.components.QuestuaAsyncImage
 import com.questua.app.core.ui.components.QuestuaButton
 import com.questua.app.core.ui.components.QuestuaTextField
-import com.questua.app.core.ui.theme.*
 import com.questua.app.domain.enums.UserRole
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onNavigateToLogin: () -> Unit,
-    onNavigateToHelp: () -> Unit,
-    onNavigateToAdmin: () -> Unit,
+    onNavigateToHelp: () -> Unit = {},
+    onNavigateToAdmin: () -> Unit = {},
+    onNavigateBack: (() -> Unit)? = null,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val name by viewModel.editName.collectAsState()
     val email by viewModel.editEmail.collectAsState()
+    val newPassword by viewModel.newPassword.collectAsState()
+    val selectedAvatarUri by viewModel.selectedAvatarUri.collectAsState()
+
+    val context = LocalContext.current
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let {
+            val file = context.uriToFile(it)
+            file?.let { f ->
+                viewModel.onImageSelected(f, it.toString())
+            }
+        }
+    }
+
+    LaunchedEffect(state.error) {
+        state.error?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearError()
+        }
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Slate50)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        if (state.isLoading) {
+        if (state.isLoading && state.user == null) {
             LoadingSpinner()
         }
 
@@ -59,131 +92,170 @@ fun ProfileScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // --- Avatar ---
-            Box(
-                modifier = Modifier
-                    .size(120.dp)
-                    .clip(CircleShape)
-                    .background(Color.White),
-                contentAlignment = Alignment.Center
-            ) {
-                if (state.user?.avatarUrl != null) {
-                    QuestuaAsyncImage(
-                        imageUrl = state.user!!.avatarUrl,
-                        contentDescription = "Avatar",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = Slate200
+            if (onNavigateBack != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Voltar",
+                            tint = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    Text(
+                        text = "Meu Perfil",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
                     )
                 }
+            }
 
-                // Botão de editar foto (visual)
+            // --- Avatar ---
+            Box(modifier = Modifier.size(120.dp)) {
+                val avatarModel = selectedAvatarUri ?: state.user?.avatarUrl?.toFullImageUrl()
+
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(avatarModel ?: "https://via.placeholder.com/150")
+                        .crossfade(true)
+                        .diskCachePolicy(CachePolicy.DISABLED)
+                        .memoryCachePolicy(CachePolicy.DISABLED)
+                        .build(),
+                    contentDescription = "Avatar",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .clickable(enabled = state.isEditing) {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        },
+                    contentScale = ContentScale.Crop
+                )
+
                 if (state.isEditing) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(8.dp)
+                            .padding(4.dp)
                             .size(32.dp)
-                            .background(Amber500, CircleShape),
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            .border(2.dp, MaterialTheme.colorScheme.background, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Edit, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = "Alterar",
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // --- Dados Cadastrais ---
+            // --- Formulário / Exibição ---
             if (state.isEditing) {
                 QuestuaTextField(
                     value = name,
                     onValueChange = { viewModel.editName.value = it },
                     label = "Nome",
-                    leadingIcon = Icons.Default.Person
+                    leadingIcon = Icons.Default.Person,
+                    modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 QuestuaTextField(
                     value = email,
-                    onValueChange = { viewModel.editEmail.value = it },
-                    label = "E-mail",
-                    leadingIcon = Icons.Default.Email
+                    onValueChange = { },
+                    label = "E-mail (Fixo)",
+                    leadingIcon = Icons.Default.Email,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                QuestuaTextField(
+                    value = newPassword,
+                    onValueChange = { viewModel.newPassword.value = it },
+                    label = "Nova Senha (Opcional)",
+                    placeholder = "Deixe vazio para manter",
+                    isPassword = true,
+                    modifier = Modifier.fillMaxWidth()
                 )
             } else {
                 Text(
                     text = state.user?.displayName ?: "Usuário",
                     style = MaterialTheme.typography.headlineSmall.copy(
                         fontWeight = FontWeight.Bold,
-                        color = Slate900
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 )
                 Text(
                     text = state.user?.email ?: "carregando...",
-                    style = MaterialTheme.typography.bodyMedium.copy(color = Slate500)
+                    style = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurfaceVariant)
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Botão Editar / Salvar
+            // Botão de Ação Principal
             QuestuaButton(
                 text = if (state.isEditing) "Salvar Alterações" else "Editar Perfil",
                 onClick = { viewModel.toggleEditMode() },
-                isSecondary = !state.isEditing
+                isSecondary = !state.isEditing,
+                isLoading = state.isLoading
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            // --- SEÇÕES DE CONFIGURAÇÃO E CONTA ---
+            // Só aparecem se NÃO estiver editando
+            if (!state.isEditing) {
+                Spacer(modifier = Modifier.height(32.dp))
 
-            // --- Configurações ---
-            SectionHeader("Configurações")
+                SectionHeader("Configurações")
 
-            SettingsItemSwitch(
-                label = "Notificações",
-                checked = state.notificationsEnabled,
-                onCheckedChange = { viewModel.toggleNotifications(it) }
-            )
+                SettingsItemSwitch(
+                    label = "Notificações",
+                    checked = state.notificationsEnabled,
+                    onCheckedChange = { viewModel.toggleNotifications(it) }
+                )
 
-            SettingsItemSwitch(
-                label = "Tema Escuro",
-                checked = state.darkThemeEnabled,
-                onCheckedChange = { viewModel.toggleTheme(it) }
-            )
+                SettingsItemSwitch(
+                    label = "Tema Escuro",
+                    checked = state.darkThemeEnabled,
+                    onCheckedChange = { viewModel.toggleTheme(it) }
+                )
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            // --- Ações ---
-            SectionHeader("Conta")
+                SectionHeader("Conta")
 
-            SettingsActionItem(
-                label = "Ajuda e Suporte",
-                icon = Icons.Outlined.Help,
-                onClick = onNavigateToHelp
-            )
-
-            // Botão Admin (Condicional)
-            // Exibe se o usuário já é admin para permitir acesso ao painel,
-            // OU um toggle para fins de demonstração/debug se quiser simular a promoção.
-            // Assumindo que o botão "Modo Administrador" leva ao Painel Admin.
-            if (state.user?.role == UserRole.ADMIN) {
                 SettingsActionItem(
-                    label = "Painel do Administrador",
-                    icon = Icons.Default.AdminPanelSettings,
-                    onClick = onNavigateToAdmin,
-                    textColor = Amber600
+                    label = "Ajuda e Suporte",
+                    icon = Icons.Outlined.Help,
+                    onClick = onNavigateToHelp
+                )
+
+                if (state.user?.role == UserRole.ADMIN) {
+                    SettingsActionItem(
+                        label = "Painel do Administrador",
+                        icon = Icons.Default.AdminPanelSettings,
+                        onClick = onNavigateToAdmin,
+                        textColor = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                SettingsActionItem(
+                    label = "Sair",
+                    icon = Icons.Outlined.Logout,
+                    onClick = { viewModel.logout(onLogoutSuccess = onNavigateToLogin) },
+                    textColor = MaterialTheme.colorScheme.error
                 )
             }
-
-            SettingsActionItem(
-                label = "Sair",
-                icon = Icons.Outlined.Logout,
-                onClick = { viewModel.logout(onLogoutSuccess = onNavigateToLogin) },
-                textColor = Rose500
-            )
         }
 
         state.error?.let {
@@ -198,7 +270,7 @@ fun SectionHeader(text: String) {
         text = text.uppercase(),
         style = MaterialTheme.typography.labelSmall.copy(
             fontWeight = FontWeight.Bold,
-            color = Slate400,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             letterSpacing = 1.sp
         ),
         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
@@ -220,15 +292,11 @@ fun SettingsItemSwitch(
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyLarge.copy(color = Slate900)
+            style = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onBackground)
         )
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = Amber500
-            )
+            onCheckedChange = onCheckedChange
         )
     }
 }
@@ -238,7 +306,7 @@ fun SettingsActionItem(
     label: String,
     icon: ImageVector,
     onClick: () -> Unit,
-    textColor: Color = Slate900
+    textColor: Color = MaterialTheme.colorScheme.onBackground
 ) {
     Surface(
         onClick = onClick,

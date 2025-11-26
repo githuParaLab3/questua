@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 data class UserAccountRequestDTO(
     val email: String,
     val displayName: String,
-    val password: String,
+    val password: String?,
     val avatarUrl: String? = null,
     val nativeLanguageId: String,
     val userRole: UserRole = UserRole.USER

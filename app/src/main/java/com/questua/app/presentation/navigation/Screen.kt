@@ -12,5 +12,6 @@ sealed class Screen(val route: String) {
     }
 
     object Home : Screen("home_screen")
-
+    object LanguagesList : Screen("languages_list_screen")
+    object WorldMap : Screen("world_map_screen") // <--- NOVA ROTA
 }

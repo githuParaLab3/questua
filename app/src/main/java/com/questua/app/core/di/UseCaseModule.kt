@@ -81,4 +81,20 @@ object UseCaseModule {
     @Provides
     @ViewModelScoped
     fun provideGetUserLanguagesUseCase(repo: UserRepository) = GetUserLanguagesUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetLanguageDetailsUseCase(repo: LanguageRepository) = GetLanguageDetailsUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideSetLearningLanguageUseCase(repo: UserRepository) = SetLearningLanguageUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideToggleAdminModeUseCase(repo: UserRepository) = ToggleAdminModeUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideUpdateUserProfileUseCase(repo: UserRepository) = UpdateUserProfileUseCase(repo)
 }

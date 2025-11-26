@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
@@ -34,7 +35,7 @@ import com.questua.app.core.ui.theme.Slate400
 enum class HubTab(val icon: ImageVector, val label: String) {
     HOME(Icons.Default.Home, "Home"),
     MAP(Icons.Default.Map, "Mapa"),
-    RANK(Icons.Default.EmojiEvents, "Rank"),
+    PROGRESS(Icons.Default.EmojiEvents, "Progresso"),
     PROFILE(Icons.Default.Person, "Perfil")
 }
 
@@ -61,7 +62,6 @@ fun BottomNavBar(
                 val isSelected = selectedTab == tab
                 val interactionSource = remember { MutableInteractionSource() }
 
-                // Animações
                 val offsetY by animateDpAsState(targetValue = if (isSelected) (-8).dp else 0.dp, label = "offset")
                 val iconColor by animateColorAsState(targetValue = if (isSelected) Color.White else Slate400, label = "color")
                 val bgColor by animateColorAsState(targetValue = if (isSelected) Amber500 else Color.Transparent, label = "bg")
@@ -73,10 +73,9 @@ fun BottomNavBar(
                         .offset(y = offsetY)
                         .clickable(
                             interactionSource = interactionSource,
-                            indication = null // Remove o ripple padrão para ficar igual ao React
+                            indication = null
                         ) { onTabSelected(tab) }
                 ) {
-                    // Ícone Container
                     Box(
                         modifier = Modifier
                             .size(48.dp)

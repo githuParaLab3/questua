@@ -9,7 +9,9 @@ import androidx.navigation.navArgument
 import com.questua.app.presentation.auth.LoginScreen
 import com.questua.app.presentation.auth.RegisterScreen
 import com.questua.app.presentation.common.InitialScreen
-import com.questua.app.presentation.hub.HubScreen
+import com.questua.app.presentation.exploration.worldmap.WorldMapScreen // <--- IMPORTANTE
+import com.questua.app.presentation.languages.LanguagesListScreen
+import com.questua.app.presentation.main.MainScreen
 import com.questua.app.presentation.onboarding.LanguageSelectionScreen
 
 @Composable
@@ -18,33 +20,26 @@ fun SetupNavGraph(navController: NavHostController) {
         navController = navController,
         startDestination = Screen.Initial.route
     ) {
-        // Tela Inicial
         composable(route = Screen.Initial.route) {
             InitialScreen(
                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },
-                // Fluxo de cadastro começa escolhendo o idioma
                 onNavigateToRegister = { navController.navigate(Screen.LanguageSelection.route) }
             )
         }
 
-        // Tela de Seleção de Idioma
         composable(route = Screen.LanguageSelection.route) {
             LanguageSelectionScreen(
                 onLanguageSelected = { languageId ->
-                    // Navega para o registro passando o ID escolhido
                     navController.navigate(Screen.Register.passId(languageId))
                 },
                 onNavigateBack = { navController.popBackStack() }
             )
         }
 
-        // Tela de Registro (Recebe languageId)
         composable(
             route = Screen.Register.route,
             arguments = listOf(navArgument("languageId") { type = NavType.StringType })
         ) {
-            // O ViewModel pega o ID automaticamente pelo SavedStateHandle,
-            // então não precisamos passar explicitamente via construtor da Screen
             RegisterScreen(
                 onNavigateToHome = {
                     navController.navigate(Screen.Home.route) {
@@ -55,7 +50,6 @@ fun SetupNavGraph(navController: NavHostController) {
             )
         }
 
-        // Tela de Login
         composable(route = Screen.Login.route) {
             LoginScreen(
                 onNavigateToHome = {
@@ -67,9 +61,43 @@ fun SetupNavGraph(navController: NavHostController) {
             )
         }
 
-        // Tela Principal (Hub)
+        // Rota Principal (Container com BottomBar)
         composable(route = Screen.Home.route) {
-            HubScreen()
+            MainScreen(
+                onNavigateToLogin = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0)
+                    }
+                },
+                onNavigateToLanguages = {
+                    navController.navigate(Screen.LanguagesList.route)
+                },
+                onNavigateToMap = {
+                    // CORREÇÃO: Agora navega de verdade para o mapa
+                    navController.navigate(Screen.WorldMap.route)
+                },
+                onNavigateToAdmin = { }
+            )
+        }
+
+        composable(route = Screen.LanguagesList.route) {
+            LanguagesListScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToNewLanguage = {
+                    navController.navigate(Screen.LanguageSelection.route)
+                }
+            )
+        }
+
+        // Tela do Mapa Mundi
+        composable(route = Screen.WorldMap.route) {
+            WorldMapScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCity = { cityId ->
+                    // Futuro: Navegar para detalhes da cidade
+                    // navController.navigate(Screen.CityDetail.passId(cityId))
+                }
+            )
         }
     }
 }

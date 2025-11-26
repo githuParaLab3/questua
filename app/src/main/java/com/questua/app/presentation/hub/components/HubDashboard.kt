@@ -28,7 +28,10 @@ fun HubDashboard(
     userName: String,
     userStreak: Int,
     userXp: Int,
-    onQuestClick: () -> Unit
+    languageCode: String?,
+    languageIconUrl: String?,
+    onQuestClick: () -> Unit,
+    onLanguageClick: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -38,7 +41,10 @@ fun HubDashboard(
     ) {
         HeaderStats(
             streak = userStreak,
-            xp = userXp
+            xp = userXp,
+            languageCode = languageCode,
+            languageIconUrl = languageIconUrl,
+            onLanguageClick = onLanguageClick
         )
 
         Column(modifier = Modifier.padding(24.dp)) {

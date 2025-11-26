@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
+import com.questua.app.domain.model.Language
 import com.questua.app.domain.model.UserAccount
 import com.questua.app.domain.model.UserLanguage
+import com.questua.app.domain.usecase.onboarding.GetLanguageDetailsUseCase // Importe o novo UseCase
 import com.questua.app.domain.usecase.user.GetUserProfileUseCase
 import com.questua.app.domain.usecase.user.GetUserStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,6 +23,7 @@ data class HubState(
     val isLoading: Boolean = false,
     val user: UserAccount? = null,
     val activeLanguage: UserLanguage? = null,
+    val currentLanguageDetails: Language? = null, // <--- Novo campo para os detalhes visuais
     val error: String? = null
 )
 
@@ -28,6 +31,7 @@ data class HubState(
 class HubViewModel @Inject constructor(
     private val getUserProfileUseCase: GetUserProfileUseCase,
     private val getUserStatsUseCase: GetUserStatsUseCase,
+    private val getLanguageDetailsUseCase: GetLanguageDetailsUseCase, // <--- Injeção
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
@@ -44,7 +48,6 @@ class HubViewModel @Inject constructor(
                 if (!userId.isNullOrEmpty()) {
                     loadHubData(userId)
                 } else {
-                    // Sem usuário logado, estado inicial ou erro
                     _state.value = _state.value.copy(isLoading = false)
                 }
             }
@@ -54,19 +57,37 @@ class HubViewModel @Inject constructor(
     private fun loadHubData(userId: String) {
         _state.value = _state.value.copy(isLoading = true)
 
-        // 1. Perfil do Usuário
+        // 1. Perfil
         getUserProfileUseCase(userId).onEach { result ->
-            when (result) {
-                is Resource.Success -> _state.value = _state.value.copy(user = result.data, isLoading = false)
-                is Resource.Error -> _state.value = _state.value.copy(error = result.message, isLoading = false)
-                is Resource.Loading -> _state.value = _state.value.copy(isLoading = true)
+            if (result is Resource.Success) {
+                _state.value = _state.value.copy(user = result.data)
             }
         }.launchIn(viewModelScope)
 
-        // 2. Estatísticas (XP, Streak)
+        // 2. Estatísticas + Detalhes do Idioma
         getUserStatsUseCase(userId).onEach { result ->
+            when (result) {
+                is Resource.Success -> {
+                    val userLang = result.data!!
+                    _state.value = _state.value.copy(activeLanguage = userLang, isLoading = false)
+
+                    // <--- O PULO DO GATO: Busca os detalhes assim que temos o ID
+                    fetchLanguageDetails(userLang.languageId)
+                }
+                is Resource.Error -> {
+                    _state.value = _state.value.copy(error = result.message, isLoading = false)
+                }
+                is Resource.Loading -> {
+                    // Opcional: manter loading
+                }
+            }
+        }.launchIn(viewModelScope)
+    }
+
+    private fun fetchLanguageDetails(languageId: String) {
+        getLanguageDetailsUseCase(languageId).onEach { result ->
             if (result is Resource.Success) {
-                _state.value = _state.value.copy(activeLanguage = result.data)
+                _state.value = _state.value.copy(currentLanguageDetails = result.data)
             }
         }.launchIn(viewModelScope)
     }

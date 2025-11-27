@@ -9,6 +9,7 @@ import com.questua.app.domain.usecase.monetization.*
 import com.questua.app.domain.usecase.onboarding.*
 import com.questua.app.domain.usecase.user.*
 import com.questua.app.domain.usecase.quest.*
+import com.questua.app.data.remote.api.AchievementApi
 import com.questua.app.domain.usecase.feedback.SendReportUseCase
 import dagger.Module
 import dagger.Provides
@@ -98,6 +99,14 @@ object UseCaseModule {
     @Provides
     @ViewModelScoped
     fun provideUpdateUserProfileUseCase(repo: UserRepository) = UpdateUserProfileUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetUserAchievementsUseCase(repo: UserRepository) = GetUserAchievementsUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetAchievementDetailsUseCase(api: AchievementApi) = GetAchievementDetailsUseCase(api)
 
     // --- FEEDBACK ---
     @Provides

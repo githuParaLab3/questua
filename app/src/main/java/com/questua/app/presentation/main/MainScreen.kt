@@ -19,6 +19,7 @@ import com.questua.app.domain.enums.ReportType
 import com.questua.app.presentation.exploration.worldmap.WorldMapScreen
 import com.questua.app.presentation.hub.HubScreen
 import com.questua.app.presentation.profile.ProfileScreen
+import com.questua.app.presentation.progress.ProgressScreen
 
 @Composable
 fun MainScreen(
@@ -70,9 +71,7 @@ fun MainScreen(
                     )
                 }
                 HubTab.PROGRESS -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Tela de Progresso (Em Breve)")
-                    }
+                    ProgressScreen()
                 }
             }
         }

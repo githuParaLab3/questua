@@ -15,4 +15,9 @@ sealed class Screen(val route: String) {
     object LanguagesList : Screen("languages_list_screen")
     object WorldMap : Screen("world_map_screen")
     object Help : Screen("help_screen")
+    object Feedback : Screen("feedback_screen/{reportType}") {
+        fun passReportType(type: String): String {
+            return "feedback_screen/$type"
+        }
+    }
 }

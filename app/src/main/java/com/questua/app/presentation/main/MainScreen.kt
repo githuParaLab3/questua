@@ -12,8 +12,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavController
 import com.questua.app.core.ui.components.BottomNavBar
 import com.questua.app.core.ui.components.HubTab
+import com.questua.app.domain.enums.ReportType
 import com.questua.app.presentation.exploration.worldmap.WorldMapScreen
 import com.questua.app.presentation.hub.HubScreen
 import com.questua.app.presentation.profile.ProfileScreen
@@ -24,7 +26,9 @@ fun MainScreen(
     onNavigateToLanguages: () -> Unit,
     onNavigateToCity: (String) -> Unit,
     onNavigateToAdmin: () -> Unit,
-    onNavigateToHelp: () -> Unit
+    onNavigateToHelp: () -> Unit,
+    onNavigateToFeedback: (ReportType) -> Unit,
+    navController: NavController
 ) {
     var currentTab by rememberSaveable { mutableStateOf(HubTab.HOME) }
 
@@ -60,7 +64,9 @@ fun MainScreen(
                         onNavigateToLogin = onNavigateToLogin,
                         onNavigateToHelp = onNavigateToHelp,
                         onNavigateToAdmin = onNavigateToAdmin,
-                        onNavigateBack = null
+                        onNavigateToFeedback = { onNavigateToFeedback(ReportType.FEEDBACK) },
+                        onNavigateBack = null,
+                        navController = navController
                     )
                 }
                 HubTab.PROGRESS -> {

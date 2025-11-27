@@ -160,7 +160,6 @@ class UserRepositoryImpl @Inject constructor(
                 return@flow
             }
 
-            // 1. Desativa o idioma ativo atual (se for diferente do alvo)
             for (currentLanguageDTO in allUserLanguages) {
                 if (currentLanguageDTO.statusLanguage == StatusLanguage.ACTIVE && currentLanguageDTO.languageId != languageId) {
                     val deactivateDto = currentLanguageDTO.run {
@@ -181,7 +180,6 @@ class UserRepositoryImpl @Inject constructor(
                 }
             }
 
-            // 2. Ativa o novo idioma (apenas se o status for diferente de ACTIVE)
             if (targetLanguageDTO.statusLanguage != StatusLanguage.ACTIVE) {
                 val activateDto = targetLanguageDTO.run {
                     UserLanguageRequestDTO(
@@ -250,9 +248,35 @@ class UserRepositoryImpl @Inject constructor(
 
     override fun sendReport(userId: String, type: String, description: String, screenshotUrl: String?): Flow<Resource<Boolean>> = flow {
         emit(Resource.Loading())
+
+        var finalScreenshotUrl = screenshotUrl
+
+        if (!screenshotUrl.isNullOrBlank()) {
+            try {
+                val file = File(screenshotUrl)
+                if (file.exists()) {
+                    val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+                    val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
+
+                    val uploadResult = safeApiCall { uploadApi.uploadArchive(body, "reports") }
+
+                    if (uploadResult is Resource.Success) {
+                        finalScreenshotUrl = uploadResult.data?.get("url")
+                    } else {
+                        finalScreenshotUrl = null
+                    }
+                } else {
+                    finalScreenshotUrl = null
+                }
+            } catch (e: Exception) {
+                finalScreenshotUrl = null
+            }
+        }
+
         val reportType = try { ReportType.valueOf(type) } catch (e: Exception) { ReportType.ERROR }
-        val dto = ReportRequestDTO(userId, reportType, description, screenshotUrl)
+        val dto = ReportRequestDTO(userId, reportType, description, finalScreenshotUrl)
+
         val res = safeApiCall { reportApi.create(dto) }
-        if (res is Resource.Success) emit(Resource.Success(true)) else emit(Resource.Error(res.message ?: "Erro"))
+        if (res is Resource.Success) emit(Resource.Success(true)) else emit(Resource.Error(res.message ?: "Erro ao enviar relatório"))
     }
 }

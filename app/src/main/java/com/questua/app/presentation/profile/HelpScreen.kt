@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.draw.rotate
+import com.questua.app.domain.enums.ReportType
 
 data class HelpTopic(
     val title: String,
@@ -49,7 +50,7 @@ private val helpTopics = listOf(
 @Composable
 fun HelpScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToReport: () -> Unit
+    onNavigateToReport: (ReportType) -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -103,7 +104,7 @@ fun HelpScreen(
                     SettingsActionItem(
                         label = "Relatar um Problema",
                         icon = Icons.Default.SupportAgent,
-                        onClick = onNavigateToReport,
+                        onClick = { onNavigateToReport(ReportType.ERROR) },
                         textColor = MaterialTheme.colorScheme.error
                     )
                     Spacer(modifier = Modifier.height(16.dp))

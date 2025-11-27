@@ -30,6 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
@@ -47,7 +49,9 @@ fun ProfileScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToHelp: () -> Unit = {},
     onNavigateToAdmin: () -> Unit = {},
+    onNavigateToFeedback: () -> Unit,
     onNavigateBack: (() -> Unit)? = null,
+    navController: NavController? = null,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -57,6 +61,18 @@ fun ProfileScreen(
     val selectedAvatarUri by viewModel.selectedAvatarUri.collectAsState()
 
     val context = LocalContext.current
+
+    // --- Navigation Result Observer (For Feedback Success) ---
+    val navBackStackEntry = navController?.currentBackStackEntryAsState()?.value
+
+    LaunchedEffect(navBackStackEntry) {
+        val message = navBackStackEntry?.savedStateHandle?.get<String>("feedback_message")
+        if (message != null) {
+            viewModel.setSuccessMessage(message)
+            navBackStackEntry.savedStateHandle.remove<String>("feedback_message")
+        }
+    }
+    // ---------------------------------------------------------
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -165,7 +181,7 @@ fun ProfileScreen(
             if (state.isEditing) {
                 QuestuaTextField(
                     value = name,
-                    onValueChange = { viewModel.editName.value = it },
+                    onValueChange = { newName -> viewModel.editName.value = newName },
                     label = "Nome",
                     leadingIcon = Icons.Default.Person,
                     modifier = Modifier.fillMaxWidth()
@@ -173,7 +189,7 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 QuestuaTextField(
                     value = email,
-                    onValueChange = { },
+                    onValueChange = { /* E-mail é fixo */ },
                     label = "E-mail (Fixo)",
                     leadingIcon = Icons.Default.Email,
                     modifier = Modifier.fillMaxWidth()
@@ -181,7 +197,7 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 QuestuaTextField(
                     value = newPassword,
-                    onValueChange = { viewModel.newPassword.value = it },
+                    onValueChange = { newPass -> viewModel.newPassword.value = newPass },
                     label = "Nova Senha (Opcional)",
                     placeholder = "Deixe vazio para manter",
                     isPassword = true,
@@ -234,9 +250,15 @@ fun ProfileScreen(
                 SectionHeader("Conta")
 
                 SettingsActionItem(
+                    label = "Enviar Sugestão",
+                    icon = Icons.Default.RateReview,
+                    onClick = onNavigateToFeedback
+                )
+
+                SettingsActionItem(
                     label = "Ajuda e Suporte",
                     icon = Icons.Outlined.Help,
-                    onClick = onNavigateToHelp // AÇÃO DE NAVEGAÇÃO CORRETA
+                    onClick = onNavigateToHelp
                 )
 
                 if (state.user?.role == UserRole.ADMIN) {
@@ -260,7 +282,51 @@ fun ProfileScreen(
         state.error?.let {
             ErrorDialog(message = it, onDismiss = { viewModel.clearError() })
         }
+
+        // --- Success Dialog Display ---
+        state.successMessage?.let { message ->
+            SuccessDialog(
+                message = message,
+                onDismiss = { viewModel.clearSuccessMessage() }
+            )
+        }
     }
+}
+
+// --- NEW COMPOSABLE: Success Dialog ---
+@Composable
+private fun SuccessDialog(message: String, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        title = {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(64.dp).padding(bottom = 8.dp)
+                )
+                Text(
+                    text = "Sucesso!",
+                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+        },
+        text = {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("OK")
+            }
+        },
+        modifier = Modifier.fillMaxWidth(0.9f)
+    )
 }
 
 @Composable

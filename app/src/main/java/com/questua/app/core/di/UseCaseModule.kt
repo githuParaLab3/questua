@@ -9,6 +9,7 @@ import com.questua.app.domain.usecase.monetization.*
 import com.questua.app.domain.usecase.onboarding.*
 import com.questua.app.domain.usecase.user.*
 import com.questua.app.domain.usecase.quest.*
+import com.questua.app.domain.usecase.feedback.SendReportUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,7 +37,7 @@ object UseCaseModule {
     // --- EXPLORATION ---
     @Provides
     @ViewModelScoped
-    fun provideGetWorldMapUseCase(contentRepo: ContentRepository) = // Corrigido: Removido userRepo
+    fun provideGetWorldMapUseCase(contentRepo: ContentRepository) =
         GetWorldMapUseCase(contentRepo)
 
     @Provides
@@ -62,7 +63,7 @@ object UseCaseModule {
 
     @Provides
     @ViewModelScoped
-    fun provideLoadSceneEngineUseCase(repo: ContentRepository) = // Corrigido: Requer GameRepository
+    fun provideLoadSceneEngineUseCase(repo: ContentRepository) =
         LoadSceneEngineUseCase(repo)
 
     @Provides
@@ -97,4 +98,9 @@ object UseCaseModule {
     @Provides
     @ViewModelScoped
     fun provideUpdateUserProfileUseCase(repo: UserRepository) = UpdateUserProfileUseCase(repo)
+
+    // --- FEEDBACK ---
+    @Provides
+    @ViewModelScoped
+    fun provideSendReportUseCase(repo: UserRepository) = SendReportUseCase(repo)
 }

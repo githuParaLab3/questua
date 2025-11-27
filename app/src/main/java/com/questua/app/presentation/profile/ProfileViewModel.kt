@@ -27,7 +27,8 @@ data class ProfileState(
     val isEditing: Boolean = false,
     val notificationsEnabled: Boolean = true,
     val darkThemeEnabled: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val successMessage: String? = null
 )
 
 @HiltViewModel
@@ -46,10 +47,10 @@ class ProfileViewModel @Inject constructor(
     // Campos de edição
     val editName = MutableStateFlow("")
     val editEmail = MutableStateFlow("")
-    val newPassword = MutableStateFlow("") // Novo campo
-    val selectedAvatarUri = MutableStateFlow<String?>(null) // Novo campo para Preview
+    val newPassword = MutableStateFlow("")
+    val selectedAvatarUri = MutableStateFlow<String?>(null)
 
-    private var selectedAvatarFile: File? = null // Arquivo real para upload
+    private var selectedAvatarFile: File? = null
 
     init {
         loadProfile()
@@ -105,13 +106,11 @@ class ProfileViewModel @Inject constructor(
 
         val updatedUser = user.copy(
             displayName = editName.value,
-            // Não alteramos email aqui por segurança, a menos que o backend suporte
         )
 
         val passwordToSend = newPassword.value.ifBlank { null }
 
         viewModelScope.launch {
-            // Chama o UseCase atualizado (que suporta password e file)
             updateUserProfileUseCase(
                 user = updatedUser,
                 password = passwordToSend,
@@ -165,5 +164,13 @@ class ProfileViewModel @Inject constructor(
 
     fun clearError() {
         _state.value = _state.value.copy(error = null)
+    }
+
+    fun setSuccessMessage(message: String) {
+        _state.value = _state.value.copy(successMessage = message)
+    }
+
+    fun clearSuccessMessage() {
+        _state.value = _state.value.copy(successMessage = null)
     }
 }

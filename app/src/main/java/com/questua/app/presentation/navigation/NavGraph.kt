@@ -12,6 +12,7 @@ import com.questua.app.presentation.common.InitialScreen
 import com.questua.app.presentation.languages.LanguagesListScreen
 import com.questua.app.presentation.main.MainScreen
 import com.questua.app.presentation.onboarding.LanguageSelectionScreen
+import com.questua.app.presentation.profile.FeedbackScreen
 import com.questua.app.presentation.profile.HelpScreen
 
 @Composable
@@ -82,7 +83,11 @@ fun SetupNavGraph(navController: NavHostController) {
                 onNavigateToAdmin = {
                     // Futuro: Rota de admin
                 },
-                onNavigateToHelp = { navController.navigate(Screen.Help.route) }
+                onNavigateToHelp = { navController.navigate(Screen.Help.route) },
+                onNavigateToFeedback = { type ->
+                    navController.navigate(Screen.Feedback.passReportType(type.name))
+                },
+                navController = navController
             )
         }
 
@@ -95,7 +100,24 @@ fun SetupNavGraph(navController: NavHostController) {
         composable(route = Screen.Help.route) {
             HelpScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToReport = { /* TODO: Implementar rota de Reporte */ }
+                onNavigateToReport = { type ->
+                    navController.navigate(Screen.Feedback.passReportType(type.name))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.Feedback.route,
+            arguments = listOf(navArgument("reportType") { type = NavType.StringType })
+        ) {
+            val previousBackStackEntry = navController.previousBackStackEntry
+
+            FeedbackScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onReportSent = { successMessage ->
+                    previousBackStackEntry?.savedStateHandle?.set("feedback_message", successMessage)
+                    navController.popBackStack()
+                }
             )
         }
     }

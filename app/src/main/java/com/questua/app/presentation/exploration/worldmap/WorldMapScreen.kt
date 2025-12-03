@@ -28,7 +28,6 @@ import com.questua.app.R
 import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.components.QuestuaButton
 
-// ADICIONE ESTA ANOTAÇÃO AQUI
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorldMapScreen(
@@ -39,12 +38,10 @@ fun WorldMapScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
-    // Câmera inicial (pode ser ajustada para focar na primeira cidade)
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(20.0, 0.0), 2f)
     }
 
-    // Configuração do Estilo JSON
     val mapProperties = remember {
         MapProperties(
             mapStyleOptions = try {
@@ -66,7 +63,6 @@ fun WorldMapScreen(
 
     var selectedCityUiModel by remember { mutableStateOf<CityUiModel?>(null) }
 
-    // Foca na primeira cidade quando carregar
     LaunchedEffect(state.cities) {
         if (state.cities.isNotEmpty() && cameraPositionState.position.zoom < 3f) {
             val first = state.cities.first().city
@@ -106,7 +102,6 @@ fun WorldMapScreen(
                 onMapClick = { selectedCityUiModel = null }
             ) {
                 state.cities.forEach { cityUi ->
-                    // Converte os XML Drawables para BitmapDescriptor
                     val icon = bitmapDescriptorFromVector(
                         context,
                         if (cityUi.isUnlocked) R.drawable.ic_city_unlocked else R.drawable.ic_city_locked
@@ -128,7 +123,6 @@ fun WorldMapScreen(
                 LoadingSpinner()
             }
 
-            // Card da Cidade (Tooltip)
             selectedCityUiModel?.let { cityUi ->
                 CityInfoCard(
                     cityUiModel = cityUi,
@@ -150,7 +144,6 @@ fun WorldMapScreen(
     }
 }
 
-// Função auxiliar para converter Vector Drawable (XML) em Bitmap para o Mapa
 fun bitmapDescriptorFromVector(context: android.content.Context, vectorResId: Int): BitmapDescriptor? {
     return ContextCompat.getDrawable(context, vectorResId)?.run {
         setBounds(0, 0, intrinsicWidth, intrinsicHeight)

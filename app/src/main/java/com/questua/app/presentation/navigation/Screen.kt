@@ -20,4 +20,10 @@ sealed class Screen(val route: String) {
             return "feedback_screen/$type"
         }
     }
+
+    object CityDetail : Screen("city_detail_screen/{cityId}") {
+        fun passId(cityId: String): String {
+            return "city_detail_screen/$cityId"
+        }
+    }
 }

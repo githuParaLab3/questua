@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.questua.app.presentation.auth.LoginScreen
 import com.questua.app.presentation.auth.RegisterScreen
 import com.questua.app.presentation.common.InitialScreen
+import com.questua.app.presentation.exploration.city.CityDetailScreen
 import com.questua.app.presentation.languages.LanguagesListScreen
 import com.questua.app.presentation.main.MainScreen
 import com.questua.app.presentation.onboarding.LanguageSelectionScreen
@@ -76,6 +77,7 @@ fun SetupNavGraph(
                     navController.navigate(Screen.LanguagesList.route)
                 },
                 onNavigateToCity = { cityId ->
+                    navController.navigate(Screen.CityDetail.passId(cityId))
                 },
                 onNavigateToAdmin = {
                 },
@@ -120,6 +122,16 @@ fun SetupNavGraph(
                     previousBackStackEntry?.savedStateHandle?.set("feedback_message", successMessage)
                     navController.popBackStack()
                 }
+            )
+        }
+
+        composable(
+            route = Screen.CityDetail.route,
+            arguments = listOf(navArgument("cityId") { type = NavType.StringType })
+        ) {
+            CityDetailScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToQuestPoint = { /* TODO: Navegar para detalhes da Quest */ }
             )
         }
     }

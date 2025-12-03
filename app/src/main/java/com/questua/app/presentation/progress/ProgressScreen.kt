@@ -74,11 +74,11 @@ fun ProgressScreen(
                     }
 
                     item {
-                        val title = if (isGlobal) "Estatísticas Globais" else "Estatísticas do Idioma Ativo"
+                        val title = if (isGlobal) "Estatísticas Globais" else "Estatísticas em ${state.languageDetails?.name ?: "seu idioma atual"}"
                         val subtitle = if (isGlobal)
                             "Total acumulado em todas as suas jornadas."
                         else
-                            "Progresso em ${state.languageDetails?.name ?: "seu idioma atual"}"
+                            "Total acumulado neste idioma."
 
                         Column {
                             Text(

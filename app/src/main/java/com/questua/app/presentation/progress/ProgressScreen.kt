@@ -12,14 +12,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.questua.app.core.ui.components.LoadingSpinner
-import com.questua.app.domain.model.UserAchievement
-import com.questua.app.domain.model.UserLanguage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,32 +45,38 @@ fun ProgressScreen(
                 LoadingSpinner()
             } else {
                 val userLang = state.userLanguage
-                val xp = if (state.filter == ProgressFilter.GLOBAL) 4500 else userLang?.xpTotal ?: 0
-                val level = if (state.filter == ProgressFilter.GLOBAL) 25 else userLang?.gamificationLevel ?: 1
+
+                // Lógica de exibição baseada no filtro selecionado (Global vs Ativo)
+                val xp = if (state.filter == ProgressFilter.GLOBAL) state.globalXp else userLang?.xpTotal ?: 0
+
+                // Nível global é uma simplificação aqui (soma de níveis), ou média.
+                // Usaremos o do idioma ativo se filtro for ativo, ou soma se global (apenas exemplo lógico)
+                val level = if (state.filter == ProgressFilter.ACTIVE_LANGUAGE) userLang?.gamificationLevel ?: 1 else (state.globalXp / 1000).coerceAtLeast(1)
+
                 val streak = userLang?.streakDays ?: 0
-                val questsCompleted = if (state.filter == ProgressFilter.GLOBAL) 120 else 12
+                val questsCompleted = if (state.filter == ProgressFilter.GLOBAL) state.globalQuestsCount else state.activeQuestsCount
 
                 LazyColumn(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
+                    // 1. Filtro
                     item {
-                        // 1. Filtro
                         ProgressFilterSegmentedButton(
                             currentFilter = state.filter,
                             onFilterChange = viewModel::setFilter
                         )
                     }
 
+                    // 2. Cabeçalho
                     item {
-                        // 2. Título e Subtítulo
                         val title = when (state.filter) {
                             ProgressFilter.GLOBAL -> "Estatísticas Globais"
                             ProgressFilter.ACTIVE_LANGUAGE -> "Estatísticas do Idioma Ativo"
                         }
                         val subtitle = when (state.filter) {
-                            ProgressFilter.GLOBAL -> "Total acumulado em todos os idiomas."
+                            ProgressFilter.GLOBAL -> "Total acumulado em todas as suas jornadas."
                             ProgressFilter.ACTIVE_LANGUAGE -> "Progresso em ${state.languageDetails?.name ?: "Carregando..."}"
                         }
                         Text(
@@ -120,16 +123,16 @@ fun ProgressScreen(
                             StatCard(
                                 icon = Icons.Default.TaskAlt,
                                 title = "Missões",
-                                value = "${questsCompleted} completas",
+                                value = "${questsCompleted} concluídas",
                                 modifier = Modifier.weight(1f)
                             )
                         }
                     }
 
-                    // 4. Gráficos (Mock)
+                    // 4. Gráficos (Placeholder)
                     item {
                         Text(
-                            text = "Histórico de XP (Últimas 4 Semanas)",
+                            text = "Histórico de XP",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
                         )
@@ -138,7 +141,7 @@ fun ProgressScreen(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f))
                         ) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Gráfico de XP (Implementação UI)", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Gráfico de XP (Em breve)", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -162,9 +165,9 @@ fun ProgressScreen(
 
             state.error?.let {
                 AlertDialog(
-                    onDismissRequest = { /* Não dismissível no erro de carregamento */ },
+                    onDismissRequest = { },
                     title = { Text("Erro de Carregamento") },
-                    text = { Text(it ?: "Não foi possível carregar os dados de progresso.") },
+                    text = { Text(it) },
                     confirmButton = {
                         TextButton(onClick = { state.userLanguage?.userId?.let { viewModel.loadProgressData(it) } }) {
                             Text("Tentar Novamente")

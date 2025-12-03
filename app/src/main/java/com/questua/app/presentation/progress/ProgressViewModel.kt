@@ -19,8 +19,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
@@ -39,6 +39,12 @@ data class ProgressState(
     val isLoading: Boolean = false,
     val filter: ProgressFilter = ProgressFilter.ACTIVE_LANGUAGE,
     val userLanguage: UserLanguage? = null,
+
+    // Novos campos de estatísticas
+    val globalXp: Int = 0,
+    val globalQuestsCount: Int = 0,
+    val activeQuestsCount: Int = 0,
+
     val achievements: List<ProgressAchievementUiModel> = emptyList(),
     val languageDetails: Language? = null,
     val error: String? = null
@@ -47,6 +53,7 @@ data class ProgressState(
 @HiltViewModel
 class ProgressViewModel @Inject constructor(
     private val getUserStatsUseCase: GetUserStatsUseCase,
+    private val getUserLanguagesUseCase: GetUserLanguagesUseCase, // Injetado para pegar dados globais
     private val getUserAchievementsUseCase: GetUserAchievementsUseCase,
     private val getAchievementDetailsUseCase: GetAchievementDetailsUseCase,
     private val getLanguageDetailsUseCase: GetLanguageDetailsUseCase,
@@ -83,44 +90,63 @@ class ProgressViewModel @Inject constructor(
         _state.value = _state.value.copy(isLoading = true)
 
         viewModelScope.launch {
+            // Combinamos 3 fontes de dados: Estatísticas do idioma ativo, Todos os idiomas (global), e Conquistas
             combine(
                 getUserStatsUseCase(userId),
+                getUserLanguagesUseCase(userId),
                 getUserAchievementsUseCase(userId)
-            ) { statsRes, achievementsRes ->
+            ) { statsRes, allLangsRes, achievementsRes ->
 
-                val userLang = statsRes.data
+                val activeUserLang = statsRes.data
+                val allLangs = allLangsRes.data ?: emptyList()
                 val rawAchievements = achievementsRes.data ?: emptyList()
-                val error = statsRes.message ?: achievementsRes.message
 
+                val error = statsRes.message ?: allLangsRes.message ?: achievementsRes.message
+
+                // --- Lógica de Estatísticas Globais ---
+                val totalXp = allLangs.sumOf { it.xpTotal }
+                // Soma o tamanho da lista de IDs 'quests' em unlockedContent de cada idioma
+                val totalQuests = allLangs.sumOf { it.unlockedContent?.quests?.size ?: 0 }
+
+                // --- Lógica do Idioma Ativo ---
+                val currentQuests = activeUserLang?.unlockedContent?.quests?.size ?: 0
+
+                // Carrega nomes das conquistas (assíncrono)
                 val uiAchievements = rawAchievements.map { userAch ->
                     async {
                         val achDetailsResult = getAchievementDetailsUseCase(userAch.achievementId)
                             .filter { it !is Resource.Loading }
                             .first()
 
-                        val name = achDetailsResult.data?.name ?: "Detalhe Desconhecido"
+                        val name = achDetailsResult.data?.name ?: "Conquista Secreta"
                         ProgressAchievementUiModel(userAch, name)
                     }
                 }.awaitAll()
 
-                if (userLang != null) {
-                    fetchLanguageDetails(userLang.languageId)
+                if (activeUserLang != null) {
+                    fetchLanguageDetails(activeUserLang.languageId)
                 }
 
-                Triple(userLang, uiAchievements, error)
-            }.onEach { result ->
-
-                val userLang = result.first
-                val uiAchievements = result.second
-                val error = result.third
-
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    userLanguage = userLang,
+                // Retorna um objeto intermediário com tudo calculado
+                ProgressDataResult(
+                    activeLang = activeUserLang,
+                    globalXp = totalXp,
+                    globalQuests = totalQuests,
+                    activeQuests = currentQuests,
                     achievements = uiAchievements,
                     error = error
                 )
-            }.launchIn(this)
+            }.collect { result ->
+                _state.value = _state.value.copy(
+                    isLoading = false,
+                    userLanguage = result.activeLang,
+                    globalXp = result.globalXp,
+                    globalQuestsCount = result.globalQuests,
+                    activeQuestsCount = result.activeQuests,
+                    achievements = result.achievements,
+                    error = result.error
+                )
+            }
         }
     }
 
@@ -133,4 +159,14 @@ class ProgressViewModel @Inject constructor(
             }
         }
     }
+
+    // Data class auxiliar interna para passar os dados do combine
+    private data class ProgressDataResult(
+        val activeLang: UserLanguage?,
+        val globalXp: Int,
+        val globalQuests: Int,
+        val activeQuests: Int,
+        val achievements: List<ProgressAchievementUiModel>,
+        val error: String?
+    )
 }

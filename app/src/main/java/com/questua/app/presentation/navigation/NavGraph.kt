@@ -80,6 +80,7 @@ fun SetupNavGraph(
                     navController.navigate(Screen.CityDetail.passId(cityId))
                 },
                 onNavigateToAdmin = {
+                    navController.navigate(Screen.AdminHome.route)
                 },
                 onNavigateToHelp = { navController.navigate(Screen.Help.route) },
                 onNavigateToFeedback = { type ->
@@ -93,7 +94,6 @@ fun SetupNavGraph(
             LanguagesListScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToHome = {
-                    // Navega para Home e limpa a pilha de volta até lá para evitar acumular telas
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }
@@ -134,5 +134,7 @@ fun SetupNavGraph(
                 onNavigateToQuestPoint = { /* TODO: Navegar para detalhes da Quest */ }
             )
         }
+
+        adminNavGraph(navController)
     }
 }

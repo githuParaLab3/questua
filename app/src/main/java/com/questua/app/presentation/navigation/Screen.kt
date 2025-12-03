@@ -26,4 +26,17 @@ sealed class Screen(val route: String) {
             return "city_detail_screen/$cityId"
         }
     }
+
+    object AdminHome : Screen("admin_home_screen")
+    object AdminUsers : Screen("admin_users_screen")
+    object AdminFeedbackList : Screen("admin_feedback_list_screen")
+    object AdminMonetization : Screen("admin_monetization_screen")
+
+    object AdminContentDetail : Screen("admin_content_detail/{contentType}") {
+        fun passType(contentType: String): String {
+            return "admin_content_detail/$contentType"
+        }
+    }
+
+    object AdminLogs : Screen("admin_logs_screen")
 }

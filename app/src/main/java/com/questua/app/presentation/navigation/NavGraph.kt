@@ -16,13 +16,14 @@ import com.questua.app.presentation.profile.FeedbackScreen
 import com.questua.app.presentation.profile.HelpScreen
 
 @Composable
-fun SetupNavGraph(navController: NavHostController) {
+fun SetupNavGraph(
+    navController: NavHostController,
+    startDestination: String
+) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Initial.route
+        startDestination = startDestination
     ) {
-        // --- FLUXO DE ONBOARDING / AUTH ---
-
         composable(route = Screen.Initial.route) {
             InitialScreen(
                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },
@@ -64,8 +65,6 @@ fun SetupNavGraph(navController: NavHostController) {
             )
         }
 
-        // --- FLUXO PRINCIPAL (LOGADO) ---
-
         composable(route = Screen.Home.route) {
             MainScreen(
                 onNavigateToLogin = {
@@ -77,11 +76,8 @@ fun SetupNavGraph(navController: NavHostController) {
                     navController.navigate(Screen.LanguagesList.route)
                 },
                 onNavigateToCity = { cityId ->
-                    // Futuro: Detalhes da cidade
-                    // navController.navigate(Screen.CityDetail.passId(cityId))
                 },
                 onNavigateToAdmin = {
-                    // Futuro: Rota de admin
                 },
                 onNavigateToHelp = { navController.navigate(Screen.Help.route) },
                 onNavigateToFeedback = { type ->

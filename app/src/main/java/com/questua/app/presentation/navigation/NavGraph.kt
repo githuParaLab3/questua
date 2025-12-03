@@ -89,7 +89,13 @@ fun SetupNavGraph(
 
         composable(route = Screen.LanguagesList.route) {
             LanguagesListScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToHome = {
+                    // Navega para Home e limpa a pilha de volta até lá para evitar acumular telas
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                    }
+                }
             )
         }
 

@@ -14,6 +14,7 @@ import com.questua.app.domain.usecase.language_learning.StartNewLanguageUseCase
 import com.questua.app.domain.usecase.onboarding.GetAvailableLanguagesUseCase
 import com.questua.app.domain.usecase.user.GetUserStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -32,6 +33,10 @@ data class LanguagesListState(
     val error: String? = null
 )
 
+sealed class LanguagesUiEvent {
+    object NavigateToHub : LanguagesUiEvent()
+}
+
 @HiltViewModel
 class LanguagesViewModel @Inject constructor(
     private val getUserLanguagesUseCase: GetUserLanguagesUseCase,
@@ -45,6 +50,9 @@ class LanguagesViewModel @Inject constructor(
 
     private val _state = MutableStateFlow(LanguagesListState())
     val state = _state.asStateFlow()
+
+    private val _uiEvent = Channel<LanguagesUiEvent>()
+    val uiEvent = _uiEvent.receiveAsFlow()
 
     private var currentUserId: String? = null
 
@@ -91,7 +99,7 @@ class LanguagesViewModel @Inject constructor(
                             isCurrent = uLang.languageId == activeLangId
                         )
                     } else null
-                }
+                }.sortedByDescending { it.isCurrent }
 
                 val myLangIds = userLangs.map { it.languageId }.toSet()
                 val toAddList = allLangs.filter { it.id !in myLangIds }
@@ -116,7 +124,7 @@ class LanguagesViewModel @Inject constructor(
             setLearningLanguageUseCase(userId, languageId).collect { result ->
                 when (result) {
                     is Resource.Success -> {
-                        currentUserId?.let { fetchLanguages(it) }
+                        _uiEvent.send(LanguagesUiEvent.NavigateToHub)
                     }
                     is Resource.Error -> {
                         _state.value = _state.value.copy(isLoading = false, error = result.message)
@@ -131,10 +139,25 @@ class LanguagesViewModel @Inject constructor(
         val userId = currentUserId ?: return
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
+            // 1. Inicia o novo idioma
             startNewLanguageUseCase(userId, languageId).collect { result ->
                 when (result) {
                     is Resource.Success -> {
-                        currentUserId?.let { fetchLanguages(it) }
+                        // 2. Se deu certo, define ele como ATIVO automaticamente
+                        setLearningLanguageUseCase(userId, languageId).collect { activationResult ->
+                            when(activationResult) {
+                                is Resource.Success -> {
+                                    // 3. Redireciona para o Hub
+                                    _uiEvent.send(LanguagesUiEvent.NavigateToHub)
+                                }
+                                is Resource.Error -> {
+                                    // Falhou ao ativar, mas criou. Apenas recarrega a lista.
+                                    _state.value = _state.value.copy(isLoading = false, error = "Idioma adicionado, mas falha ao ativar: ${activationResult.message}")
+                                    fetchLanguages(userId)
+                                }
+                                else -> {}
+                            }
+                        }
                     }
                     is Resource.Error -> {
                         _state.value = _state.value.copy(isLoading = false, error = result.message)

@@ -1,6 +1,7 @@
 package com.questua.app.presentation.languages
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,7 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -31,19 +33,31 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.core.ui.components.LoadingSpinner
-import com.questua.app.core.ui.components.QuestuaButton
 import com.questua.app.domain.model.Language
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LanguagesListScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToHome: () -> Unit, // Novo parâmetro
     viewModel: LanguagesViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
 
     var showAddModal by remember { mutableStateOf(false) }
+    var languageToAbandon by remember { mutableStateOf<LanguageUiModel?>(null) }
+
+    // Observa eventos de navegação vindos do ViewModel
+    LaunchedEffect(key1 = true) {
+        viewModel.uiEvent.collect { event ->
+            when (event) {
+                is LanguagesUiEvent.NavigateToHub -> {
+                    onNavigateToHome()
+                }
+            }
+        }
+    }
 
     LaunchedEffect(state.error) {
         state.error?.let {
@@ -59,6 +73,39 @@ fun LanguagesListScreen(
             onLanguageSelected = { langId ->
                 viewModel.addNewLanguage(langId)
                 showAddModal = false
+            }
+        )
+    }
+
+    if (languageToAbandon != null) {
+        AlertDialog(
+            onDismissRequest = { languageToAbandon = null },
+            title = {
+                Text(text = "Tem certeza?")
+            },
+            text = {
+                Text(
+                    "Ao desistir de aprender ${languageToAbandon?.name}, você perderá todo o seu progresso, nível e ofensiva neste idioma. \n\nSe decidir voltar no futuro, terá que começar do zero absoluto.",
+                    textAlign = TextAlign.Start
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        languageToAbandon?.let {
+                            viewModel.abandonLanguage(it.userLanguage.id)
+                        }
+                        languageToAbandon = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Sim, desistir")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { languageToAbandon = null }) {
+                    Text("Cancelar")
+                }
             }
         )
     }
@@ -101,13 +148,13 @@ fun LanguagesListScreen(
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     items(state.languages) { item ->
                         LanguageCard(
                             item = item,
                             onSelect = { viewModel.setCurrentLanguage(item.userLanguage.languageId) },
-                            onAbandon = { viewModel.abandonLanguage(item.userLanguage.id) }
+                            onAbandonRequest = { languageToAbandon = item }
                         )
                     }
 
@@ -126,7 +173,7 @@ fun LanguagesListScreen(
 fun LanguageCard(
     item: LanguageUiModel,
     onSelect: () -> Unit,
-    onAbandon: () -> Unit
+    onAbandonRequest: () -> Unit
 ) {
     val isActive = item.isCurrent
     val borderColor = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
@@ -146,42 +193,45 @@ fun LanguageCard(
                 onSelect()
             }
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxWidth()
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(item.iconUrl?.toFullImageUrl())
-                    .crossfade(true)
-                    .diskCachePolicy(CachePolicy.ENABLED)
-                    .build(),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentScale = ContentScale.Crop
-            )
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.name,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface
+            // Header do Card
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(item.iconUrl?.toFullImageUrl())
+                        .crossfade(true)
+                        .diskCachePolicy(CachePolicy.ENABLED)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentScale = ContentScale.Crop
                 )
-                Text(
-                    text = "Nível ${item.userLanguage.gamificationLevel} • ${item.userLanguage.xpTotal} XP",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.name,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Nível ${item.userLanguage.gamificationLevel} • ${item.userLanguage.xpTotal} XP",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
                 if (isActive) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
@@ -189,12 +239,38 @@ fun LanguageCard(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(32.dp)
                     )
-                } else {
-                    IconButton(onClick = onAbandon) {
+                }
+            }
+
+            // Área de Ação (Apenas se não for o ativo)
+            if (!isActive) {
+                Spacer(modifier = Modifier.height(20.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    OutlinedButton(
+                        onClick = onAbandonRequest,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth(0.85f)
+                    ) {
                         Icon(
-                            imageVector = Icons.Default.Delete,
-                            contentDescription = "Desistir do idioma",
-                            tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                            imageVector = Icons.Default.DeleteForever,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Desistir deste idioma",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
                         )
                     }
                 }
@@ -236,7 +312,7 @@ fun AddLanguageDialog(
                             text = "Você já está aprendendo todos os idiomas disponíveis!",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            textAlign = TextAlign.Center
                         )
                     }
                 } else {

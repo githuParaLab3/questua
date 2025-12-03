@@ -6,6 +6,7 @@ import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
 import com.questua.app.domain.model.City
 import com.questua.app.domain.usecase.exploration.GetWorldMapUseCase
+import com.questua.app.domain.usecase.exploration.UnlockContentUseCase
 import com.questua.app.domain.usecase.user.GetUserStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,9 +15,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class CityUiModel(
+    val city: City,
+    val isUnlocked: Boolean
+)
+
 data class WorldMapState(
     val isLoading: Boolean = false,
-    val cities: List<City> = emptyList(),
+    val cities: List<CityUiModel> = emptyList(),
     val error: String? = null
 )
 
@@ -24,6 +30,7 @@ data class WorldMapState(
 class WorldMapViewModel @Inject constructor(
     private val getWorldMapUseCase: GetWorldMapUseCase,
     private val getUserStatsUseCase: GetUserStatsUseCase,
+    private val unlockContentUseCase: UnlockContentUseCase,
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
@@ -40,48 +47,48 @@ class WorldMapViewModel @Inject constructor(
             val userId = tokenManager.userId.first()
 
             if (userId != null) {
-                // 1. Descobre qual idioma o usuário está aprendendo (para carregar o mapa certo)
+                // Pega stats para saber o idioma e cidades desbloqueadas
                 getUserStatsUseCase(userId).collect { statsResult ->
                     when (statsResult) {
                         is Resource.Success -> {
-                            val languageId = statsResult.data!!.languageId
-                            // 2. Carrega as cidades desse idioma
-                            fetchCities(languageId)
+                            val userLang = statsResult.data!!
+                            val langId = userLang.languageId
+                            val unlockedIds = userLang.unlockedContent?.cities ?: emptyList()
+
+                            fetchCities(langId, unlockedIds)
                         }
                         is Resource.Error -> {
-                            _state.value = _state.value.copy(
-                                isLoading = false,
-                                error = "Erro ao carregar estatísticas: ${statsResult.message}"
-                            )
+                            _state.value = _state.value.copy(isLoading = false, error = statsResult.message)
                         }
-                        is Resource.Loading -> { /* Mantém loading */ }
+                        is Resource.Loading -> {}
                     }
                 }
             } else {
-                _state.value = _state.value.copy(isLoading = false, error = "Sessão inválida")
+                _state.value = _state.value.copy(isLoading = false, error = "Usuário não logado")
             }
         }
     }
 
-    private suspend fun fetchCities(languageId: String) {
+    private suspend fun fetchCities(languageId: String, unlockedIds: List<String>) {
         getWorldMapUseCase(languageId).collect { result ->
             when (result) {
-                is Resource.Loading -> {
-                    // Já estamos em loading
-                }
                 is Resource.Success -> {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        cities = result.data ?: emptyList()
-                    )
+                    val cityList = result.data ?: emptyList()
+                    val uiList = cityList.map { city ->
+                        CityUiModel(city, isUnlocked = unlockedIds.contains(city.id))
+                    }
+                    _state.value = _state.value.copy(isLoading = false, cities = uiList)
                 }
                 is Resource.Error -> {
-                    _state.value = _state.value.copy(
-                        isLoading = false,
-                        error = result.message ?: "Erro ao carregar mapa"
-                    )
+                    _state.value = _state.value.copy(isLoading = false, error = result.message)
                 }
+                is Resource.Loading -> {}
             }
         }
+    }
+
+    fun unlockCity(cityId: String) {
+        // Implementar lógica real de desbloqueio aqui (chamar useCase)
+        // Por enquanto, apenas um placeholder
     }
 }

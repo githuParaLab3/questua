@@ -39,7 +39,7 @@ import com.questua.app.domain.model.Language
 @Composable
 fun LanguagesListScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToHome: () -> Unit, // Novo parâmetro
+    onNavigateToHome: () -> Unit,
     viewModel: LanguagesViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -48,7 +48,6 @@ fun LanguagesListScreen(
     var showAddModal by remember { mutableStateOf(false) }
     var languageToAbandon by remember { mutableStateOf<LanguageUiModel?>(null) }
 
-    // Observa eventos de navegação vindos do ViewModel
     LaunchedEffect(key1 = true) {
         viewModel.uiEvent.collect { event ->
             when (event) {
@@ -85,7 +84,10 @@ fun LanguagesListScreen(
             },
             text = {
                 Text(
-                    "Ao desistir de aprender ${languageToAbandon?.name}, você perderá todo o seu progresso, nível e ofensiva neste idioma. \n\nSe decidir voltar no futuro, terá que começar do zero absoluto.",
+                    if (languageToAbandon?.isCurrent == true)
+                        "Você está prestes a desistir do seu idioma ATIVO (${languageToAbandon?.name}). \n\nO sistema definirá automaticamente outro idioma como principal e você perderá todo o progresso no atual."
+                    else
+                        "Ao desistir de aprender ${languageToAbandon?.name}, você perderá todo o seu progresso, nível e ofensiva neste idioma. \n\nSe decidir voltar no futuro, terá que começar do zero absoluto.",
                     textAlign = TextAlign.Start
                 )
             },
@@ -145,6 +147,9 @@ fun LanguagesListScreen(
             if (state.isLoading && state.languages.isEmpty()) {
                 LoadingSpinner()
             } else {
+                // Verifica se há mais de 1 idioma para permitir desistência
+                val canAbandonAny = state.languages.size > 1
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
@@ -153,6 +158,7 @@ fun LanguagesListScreen(
                     items(state.languages) { item ->
                         LanguageCard(
                             item = item,
+                            canAbandon = canAbandonAny,
                             onSelect = { viewModel.setCurrentLanguage(item.userLanguage.languageId) },
                             onAbandonRequest = { languageToAbandon = item }
                         )
@@ -172,6 +178,7 @@ fun LanguagesListScreen(
 @Composable
 fun LanguageCard(
     item: LanguageUiModel,
+    canAbandon: Boolean,
     onSelect: () -> Unit,
     onAbandonRequest: () -> Unit
 ) {
@@ -242,8 +249,8 @@ fun LanguageCard(
                 }
             }
 
-            // Área de Ação (Apenas se não for o ativo)
-            if (!isActive) {
+            // Área de Ação (Visível se houver mais de 1 idioma, permitindo desistir mesmo do ativo)
+            if (canAbandon) {
                 Spacer(modifier = Modifier.height(20.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                 Spacer(modifier = Modifier.height(16.dp))

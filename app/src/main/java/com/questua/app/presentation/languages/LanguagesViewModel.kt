@@ -139,19 +139,15 @@ class LanguagesViewModel @Inject constructor(
         val userId = currentUserId ?: return
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
-            // 1. Inicia o novo idioma
             startNewLanguageUseCase(userId, languageId).collect { result ->
                 when (result) {
                     is Resource.Success -> {
-                        // 2. Se deu certo, define ele como ATIVO automaticamente
                         setLearningLanguageUseCase(userId, languageId).collect { activationResult ->
                             when(activationResult) {
                                 is Resource.Success -> {
-                                    // 3. Redireciona para o Hub
                                     _uiEvent.send(LanguagesUiEvent.NavigateToHub)
                                 }
                                 is Resource.Error -> {
-                                    // Falhou ao ativar, mas criou. Apenas recarrega a lista.
                                     _state.value = _state.value.copy(isLoading = false, error = "Idioma adicionado, mas falha ao ativar: ${activationResult.message}")
                                     fetchLanguages(userId)
                                 }
@@ -169,12 +165,51 @@ class LanguagesViewModel @Inject constructor(
     }
 
     fun abandonLanguage(userLanguageId: String) {
+        val userId = currentUserId ?: return
+        val currentList = _state.value.languages
+
+        // Regra: Não pode desistir se for o único idioma
+        if (currentList.size <= 1) {
+            _state.value = _state.value.copy(error = "Você não pode desistir do seu único idioma.")
+            return
+        }
+
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
+
+            val targetLang = currentList.find { it.userLanguage.id == userLanguageId }
+            if (targetLang == null) {
+                _state.value = _state.value.copy(isLoading = false)
+                return@launch
+            }
+
+            // Se for o idioma ATIVO, precisamos trocar para outro antes de desistir
+            if (targetLang.isCurrent) {
+                // Pega o primeiro idioma da lista que NÃO seja o que estamos removendo (o "mais próximo")
+                val nextLang = currentList.firstOrNull { it.userLanguage.id != userLanguageId }
+
+                if (nextLang != null) {
+                    // 1. Tenta definir o novo idioma como ativo
+                    val switchResult = setLearningLanguageUseCase(userId, nextLang.userLanguage.languageId)
+                        .filter { it !is Resource.Loading }
+                        .first()
+
+                    if (switchResult is Resource.Error) {
+                        _state.value = _state.value.copy(isLoading = false, error = "Erro ao trocar idioma principal: ${switchResult.message}")
+                        return@launch
+                    }
+                    // Se deu sucesso na troca, continuamos para desistir do antigo...
+                } else {
+                    _state.value = _state.value.copy(isLoading = false, error = "Nenhum outro idioma disponível para troca.")
+                    return@launch
+                }
+            }
+
+            // 2. Realiza a desistência (agora seguro, pois não é mais o ativo ou nunca foi)
             abandonLanguageUseCase(userLanguageId).collect { result ->
                 when (result) {
                     is Resource.Success -> {
-                        currentUserId?.let { fetchLanguages(it) }
+                        fetchLanguages(userId)
                     }
                     is Resource.Error -> {
                         _state.value = _state.value.copy(isLoading = false, error = result.message)

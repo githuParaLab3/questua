@@ -5,22 +5,28 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -29,7 +35,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.questua.app.core.ui.components.ErrorDialog
 import com.questua.app.core.ui.components.LoadingSpinner
+import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.enums.ReportStatus
+import com.questua.app.domain.enums.ReportType
 import com.questua.app.domain.model.Report
 import com.questua.app.presentation.admin.components.AdminBottomNavBar
 import com.questua.app.presentation.navigation.Screen
@@ -43,7 +51,53 @@ fun AdminFeedbackScreen(
     val state by viewModel.state.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Garante que a lista seja atualizada sempre que a tela for exibida (ON_RESUME)
+    val currentBackStackEntry = navController.currentBackStackEntry
+
+    // Observa o SavedStateHandle
+    val successMessage by currentBackStackEntry?.savedStateHandle
+        ?.getStateFlow<String?>("feedback_success_message", null)
+        ?.collectAsState() ?: remember { mutableStateOf(null) }
+
+    // --- CORREÇÃO DO MODAL ---
+    if (successMessage != null) {
+        AlertDialog(
+            onDismissRequest = {
+                // Força o valor para null para garantir que o StateFlow atualize e feche o modal
+                navController.currentBackStackEntry?.savedStateHandle?.set("feedback_success_message", null)
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = { Text(text = "Sucesso", textAlign = TextAlign.Center) },
+            text = {
+                Text(
+                    text = successMessage ?: "",
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Força o valor para null aqui também
+                        navController.currentBackStackEntry?.savedStateHandle?.set("feedback_success_message", null)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("OK")
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp
+        )
+    }
+
+    // Atualiza lista ao voltar (Lifecycle Observer)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -51,18 +105,14 @@ fun AdminFeedbackScreen(
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     val openReports = remember(state.reports) {
         state.reports.filter { it.status == ReportStatus.OPEN }
-            .sortedByDescending { it.createdAt }
     }
     val resolvedReports = remember(state.reports) {
         state.reports.filter { it.status == ReportStatus.RESOLVED }
-            .sortedByDescending { it.createdAt }
     }
 
     Scaffold(
@@ -78,78 +128,124 @@ fun AdminFeedbackScreen(
         },
         bottomBar = { AdminBottomNavBar(navController) }
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            if (state.isLoading && state.reports.isEmpty()) {
-                LoadingSpinner()
-            } else {
-                if (state.reports.isEmpty()) {
-                    EmptyState()
-                } else {
-                    LazyColumn(
-                        contentPadding = PaddingValues(bottom = 80.dp),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        if (openReports.isNotEmpty()) {
-                            stickyHeader {
-                                SectionHeader(
-                                    title = "Em Aberto",
-                                    count = openReports.size,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-
-                            items(
-                                items = openReports,
-                                key = { it.id }
-                            ) { report ->
-                                ReportItem(
-                                    report = report,
-                                    onClick = {
-                                        navController.navigate(Screen.AdminReportDetail.passId(report.id))
-                                    },
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                                )
+            // --- ÁREA DE FILTROS E PESQUISA ---
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                QuestuaTextField(
+                    value = state.searchQuery,
+                    onValueChange = viewModel::onSearchQueryChange,
+                    placeholder = "Buscar ID, descrição ou usuário...",
+                    label = null,
+                    leadingIcon = Icons.Default.Search,
+                    trailingIcon = if (state.searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "Limpar")
                             }
                         }
+                    } else null,
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                        if (resolvedReports.isNotEmpty()) {
-                            stickyHeader {
-                                SectionHeader(
-                                    title = "Resolvidos",
-                                    count = resolvedReports.size,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                Spacer(modifier = Modifier.height(12.dp))
 
-                            items(
-                                items = resolvedReports,
-                                key = { it.id }
-                            ) { report ->
-                                ReportItem(
-                                    report = report,
-                                    onClick = {
-                                        navController.navigate(Screen.AdminReportDetail.passId(report.id))
-                                    },
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    item {
+                        FilterChip(
+                            selected = state.selectedTypeFilter == null,
+                            onClick = { viewModel.onTypeFilterChange(null) },
+                            label = { Text("Todos") },
+                            leadingIcon = if (state.selectedTypeFilter == null) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            } else null
+                        )
+                    }
+                    items(ReportType.entries) { type ->
+                        val isSelected = state.selectedTypeFilter == type
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { viewModel.onTypeFilterChange(type) },
+                            label = { Text(type.name) },
+                            leadingIcon = if (isSelected) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                            } else null
+                        )
                     }
                 }
             }
 
-            state.error?.let {
-                ErrorDialog(message = it, onDismiss = { viewModel.loadReports() })
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+            // --- LISTAGEM ---
+            Box(modifier = Modifier.weight(1f)) {
+                if (state.isLoading && state.reports.isEmpty()) {
+                    LoadingSpinner()
+                } else {
+                    if (state.reports.isEmpty()) {
+                        EmptyState(isSearching = state.searchQuery.isNotEmpty() || state.selectedTypeFilter != null)
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(bottom = 80.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            if (openReports.isNotEmpty()) {
+                                stickyHeader {
+                                    SectionHeader(
+                                        title = "Em Aberto",
+                                        count = openReports.size,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                                items(items = openReports, key = { it.id }) { report ->
+                                    ReportItem(
+                                        report = report,
+                                        onClick = { navController.navigate(Screen.AdminReportDetail.passId(report.id)) },
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+
+                            if (resolvedReports.isNotEmpty()) {
+                                stickyHeader {
+                                    SectionHeader(
+                                        title = "Resolvidos",
+                                        count = resolvedReports.size,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                items(items = resolvedReports, key = { it.id }) { report ->
+                                    ReportItem(
+                                        report = report,
+                                        onClick = { navController.navigate(Screen.AdminReportDetail.passId(report.id)) },
+                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                state.error?.let {
+                    ErrorDialog(message = it, onDismiss = { viewModel.loadReports() })
+                }
             }
         }
     }
 }
 
+// ... As funções SectionHeader, EmptyState e ReportItem permanecem as mesmas ...
 @Composable
 fun SectionHeader(title: String, count: Int, color: Color) {
     Surface(
@@ -179,21 +275,21 @@ fun SectionHeader(title: String, count: Int, color: Color) {
 }
 
 @Composable
-fun EmptyState() {
+fun EmptyState(isSearching: Boolean = false) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Icon(
-            imageVector = Icons.Default.CheckCircle,
+            imageVector = if (isSearching) Icons.Default.Search else Icons.Default.CheckCircle,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.size(64.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Tudo limpo por aqui!",
+            text = if (isSearching) "Nenhum resultado para o filtro." else "Tudo limpo por aqui!",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

@@ -31,12 +31,13 @@ import androidx.compose.ui.unit.sp
 fun QuestuaTextField(
     value: String,
     onValueChange: (String) -> Unit,
-    label: String,
     modifier: Modifier = Modifier,
-    leadingIcon: ImageVector? = null,
+    label: String? = null, // Agora é opcional
+    leadingIcon: ImageVector? = null, // Mantemos como ImageVector para consistência
+    trailingIcon: @Composable (() -> Unit)? = null, // Novo parâmetro
     errorMessage: String? = null,
     isPassword: Boolean = false,
-    enabled: Boolean = true, // Adicionado parâmetro enabled padrão
+    enabled: Boolean = true,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     placeholder: String = ""
 ) {
@@ -48,17 +49,19 @@ fun QuestuaTextField(
     val borderColor = MaterialTheme.colorScheme.outline
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Label externa estilizada
-        Text(
-            text = label.uppercase(),
-            style = MaterialTheme.typography.labelSmall.copy(
-                color = labelColor,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                letterSpacing = 0.5.sp
-            ),
-            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-        )
+        // Label externa estilizada (só exibe se não for nulo)
+        if (label != null) {
+            Text(
+                text = label.uppercase(),
+                style = MaterialTheme.typography.labelSmall.copy(
+                    color = labelColor,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 11.sp,
+                    letterSpacing = 0.5.sp
+                ),
+                modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+            )
+        }
 
         OutlinedTextField(
             value = value,
@@ -75,9 +78,13 @@ fun QuestuaTextField(
             singleLine = true,
             keyboardOptions = keyboardOptions,
             visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
+
+            // Leading Icon: Usa o ImageVector passado e cria o Icon internamente
             leadingIcon = if (leadingIcon != null) {
                 { Icon(leadingIcon, contentDescription = null, tint = iconColor) }
             } else null,
+
+            // Trailing Icon: Prioriza o toggle de senha, senão usa o trailingIcon passado (ex: limpar busca)
             trailingIcon = if (isPassword) {
                 {
                     IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -88,21 +95,17 @@ fun QuestuaTextField(
                         )
                     }
                 }
-            } else null,
+            } else trailingIcon,
+
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                // Borda
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = borderColor.copy(alpha = 0.5f),
                 errorBorderColor = MaterialTheme.colorScheme.error,
-
-                // Fundo (Container) - Aqui é a mágica do Dark Mode (Surface muda de branco pra cinza escuro)
                 focusedContainerColor = MaterialTheme.colorScheme.surface,
                 unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                 errorContainerColor = MaterialTheme.colorScheme.surface,
                 disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-
-                // Texto e Cursor
                 cursorColor = MaterialTheme.colorScheme.primary,
                 focusedTextColor = MaterialTheme.colorScheme.onSurface,
                 unfocusedTextColor = MaterialTheme.colorScheme.onSurface,

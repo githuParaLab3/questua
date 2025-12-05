@@ -143,7 +143,7 @@ fun SetupNavGraph(
             arguments = listOf(navArgument("reportId") { type = NavType.StringType })
         ) {
             AdminReportDetailScreen(
-                onNavigateBack = { navController.popBackStack() }
+                navController = navController // <--- AQUI: Passamos o controller direto, sem chaves {}
             )
         }
     }

@@ -21,7 +21,7 @@ data class ReportDetailState(
     val isLoading: Boolean = false,
     val report: Report? = null,
     val error: String? = null,
-    val isDeleted: Boolean = false
+    val successMessage: String? = null // Apenas a mensagem, sem flag de dialog
 )
 
 @HiltViewModel
@@ -62,7 +62,11 @@ class AdminReportDetailViewModel @Inject constructor(
                 when (result) {
                     is Resource.Loading -> _state.value = _state.value.copy(isLoading = true)
                     is Resource.Success -> {
-                        _state.value = _state.value.copy(isLoading = false, report = result.data)
+                        _state.value = _state.value.copy(
+                            isLoading = false,
+                            report = result.data,
+                            successMessage = "O report foi marcado como resolvido com sucesso!"
+                        )
                     }
                     is Resource.Error -> _state.value = _state.value.copy(isLoading = false, error = result.message)
                 }
@@ -77,7 +81,12 @@ class AdminReportDetailViewModel @Inject constructor(
             deleteReportUseCase(currentReport.id).collect { result ->
                 when (result) {
                     is Resource.Loading -> _state.value = _state.value.copy(isLoading = true)
-                    is Resource.Success -> _state.value = _state.value.copy(isLoading = false, isDeleted = true)
+                    is Resource.Success -> {
+                        _state.value = _state.value.copy(
+                            isLoading = false,
+                            successMessage = "O report foi excluído permanentemente."
+                        )
+                    }
                     is Resource.Error -> _state.value = _state.value.copy(isLoading = false, error = result.message)
                 }
             }

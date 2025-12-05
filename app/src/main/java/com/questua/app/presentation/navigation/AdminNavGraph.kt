@@ -9,6 +9,7 @@ import androidx.navigation.navigation
 import com.questua.app.presentation.admin.AdminGeneralManagementScreen
 import com.questua.app.presentation.admin.content.ContentDetailScreen
 import com.questua.app.presentation.admin.feedback.AdminFeedbackScreen
+import com.questua.app.presentation.admin.feedback.AdminReportDetailScreen
 import com.questua.app.presentation.admin.logs.AiLogsScreen
 import com.questua.app.presentation.admin.monetization.AdminMonetizationScreen
 import com.questua.app.presentation.admin.users.UserManagementScreen
@@ -63,6 +64,15 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
 
         composable(route = Screen.AdminMonetization.route) {
             AdminMonetizationScreen(navController = navController)
+        }
+
+        composable(
+            route = Screen.AdminReportDetail.route,
+            arguments = listOf(navArgument("reportId") { type = NavType.StringType })
+        ) {
+            AdminReportDetailScreen(
+                navController = navController // Passa o navController inteiro
+            )
         }
     }
 }

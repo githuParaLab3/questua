@@ -24,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
@@ -34,15 +35,21 @@ import com.questua.app.domain.enums.ReportStatus
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminReportDetailScreen(
-    onNavigateBack: () -> Unit,
+    navController: NavController, // Alterado de () -> Unit para NavController para acesso ao handle
     viewModel: AdminReportDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 
-    // Se deletado com sucesso, volta para a lista
-    LaunchedEffect(state.isDeleted) {
-        if (state.isDeleted) {
-            onNavigateBack()
+    // Lógica de Redirecionamento Imediato com Mensagem
+    LaunchedEffect(state.successMessage) {
+        state.successMessage?.let { message ->
+            // Passa a mensagem para a tela anterior (Lista)
+            navController.previousBackStackEntry
+                ?.savedStateHandle
+                ?.set("feedback_success_message", message)
+
+            // Fecha a tela atual
+            navController.popBackStack()
         }
     }
 
@@ -51,14 +58,14 @@ fun AdminReportDetailScreen(
             TopAppBar(
                 title = { Text("Detalhes do Report") },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
+                    IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
                 }
             )
         },
         bottomBar = {
-            state.report?.let { report ->
+            if (state.report != null) {
                 BottomAppBar(
                     containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 8.dp
@@ -71,7 +78,10 @@ fun AdminReportDetailScreen(
                     ) {
                         Button(
                             onClick = { viewModel.deleteReport() },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            ),
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -79,7 +89,7 @@ fun AdminReportDetailScreen(
                             Text("Excluir")
                         }
 
-                        if (report.status == ReportStatus.OPEN) {
+                        if (state.report?.status == ReportStatus.OPEN) {
                             Button(
                                 onClick = { viewModel.resolveReport() },
                                 modifier = Modifier.weight(1f)
@@ -136,7 +146,6 @@ fun AdminReportDetailScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Type & ID
                         Text("TIPO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                         Text(report.type.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Spacer(modifier = Modifier.height(8.dp))
@@ -150,7 +159,6 @@ fun AdminReportDetailScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Description
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
                             modifier = Modifier.fillMaxWidth()
@@ -164,7 +172,6 @@ fun AdminReportDetailScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Screenshot
                         if (!report.screenshotUrl.isNullOrBlank()) {
                             Text("SCREENSHOT ANEXADO", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(8.dp))
@@ -184,7 +191,6 @@ fun AdminReportDetailScreen(
                             Spacer(modifier = Modifier.height(24.dp))
                         }
 
-                        // Device Info
                         if (report.deviceInfo != null) {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
@@ -207,7 +213,7 @@ fun AdminReportDetailScreen(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(80.dp)) // Espaço para BottomBar
+                        Spacer(modifier = Modifier.height(80.dp))
                     }
                 } ?: run {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

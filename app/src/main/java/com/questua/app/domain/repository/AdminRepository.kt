@@ -38,7 +38,9 @@ interface AdminRepository {
 
     // --- Feedback & Moderation ---
     fun getAllReports(page: Int, size: Int): Flow<Resource<List<Report>>>
+    fun getReportById(id: String): Flow<Resource<Report>>
     fun updateReport(report: Report): Flow<Resource<Report>>
+    fun deleteReport(id: String): Flow<Resource<Unit>>
 
     // --- User Management ---
     fun getAllUsers(page: Int, size: Int): Flow<Resource<List<UserAccount>>>

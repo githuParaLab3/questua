@@ -6,6 +6,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.questua.app.presentation.admin.feedback.AdminReportDetailScreen
 import com.questua.app.presentation.auth.LoginScreen
 import com.questua.app.presentation.auth.RegisterScreen
 import com.questua.app.presentation.common.InitialScreen
@@ -136,5 +137,14 @@ fun SetupNavGraph(
         }
 
         adminNavGraph(navController)
+
+        composable(
+            route = Screen.AdminReportDetail.route,
+            arguments = listOf(navArgument("reportId") { type = NavType.StringType })
+        ) {
+            AdminReportDetailScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
     }
 }

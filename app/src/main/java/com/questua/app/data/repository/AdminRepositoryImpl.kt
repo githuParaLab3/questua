@@ -284,6 +284,20 @@ class AdminRepositoryImpl @Inject constructor(
         else emit(Resource.Error(result.message ?: "Erro ao atualizar relatório"))
     }
 
+    override fun getReportById(id: String): Flow<Resource<Report>> = flow {
+        emit(Resource.Loading())
+        val result = safeApiCall { reportApi.getById(id) }
+        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
+        else emit(Resource.Error(result.message ?: "Erro ao carregar report"))
+    }
+
+    override fun deleteReport(id: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        val result = safeApiCall { reportApi.delete(id) }
+        if (result is Resource.Success) emit(Resource.Success(Unit))
+        else emit(Resource.Error(result.message ?: "Erro ao excluir report"))
+    }
+
     // --- Users & Sales ---
 
     override fun getAllUsers(page: Int, size: Int): Flow<Resource<List<UserAccount>>> = flow {

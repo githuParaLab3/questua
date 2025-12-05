@@ -2,32 +2,37 @@ package com.questua.app.presentation.admin.feedback
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.questua.app.core.ui.components.ErrorDialog
 import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.domain.enums.ReportStatus
 import com.questua.app.domain.model.Report
 import com.questua.app.presentation.admin.components.AdminBottomNavBar
+import com.questua.app.presentation.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -36,8 +41,21 @@ fun AdminFeedbackScreen(
     viewModel: AdminFeedbackViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    // Filtra e prepara as listas na UI
+    // Garante que a lista seja atualizada sempre que a tela for exibida (ON_RESUME)
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.loadReports()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     val openReports = remember(state.reports) {
         state.reports.filter { it.status == ReportStatus.OPEN }
             .sortedByDescending { it.createdAt }
@@ -76,28 +94,36 @@ fun AdminFeedbackScreen(
                         contentPadding = PaddingValues(bottom = 80.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        // --- SEÇÃO: EM ABERTO ---
                         if (openReports.isNotEmpty()) {
                             stickyHeader {
-                                SectionHeader(title = "Em Aberto", count = openReports.size, color = MaterialTheme.colorScheme.error)
+                                SectionHeader(
+                                    title = "Em Aberto",
+                                    count = openReports.size,
+                                    color = MaterialTheme.colorScheme.error
+                                )
                             }
 
                             items(
                                 items = openReports,
-                                key = { it.id } // Importante para performance e animações
+                                key = { it.id }
                             ) { report ->
                                 ReportItem(
                                     report = report,
-                                    onResolve = { viewModel.resolveReport(report) },
+                                    onClick = {
+                                        navController.navigate(Screen.AdminReportDetail.passId(report.id))
+                                    },
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                                 )
                             }
                         }
 
-                        // --- SEÇÃO: RESOLVIDOS ---
                         if (resolvedReports.isNotEmpty()) {
                             stickyHeader {
-                                SectionHeader(title = "Resolvidos", count = resolvedReports.size, color = MaterialTheme.colorScheme.primary)
+                                SectionHeader(
+                                    title = "Resolvidos",
+                                    count = resolvedReports.size,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                             }
 
                             items(
@@ -106,7 +132,9 @@ fun AdminFeedbackScreen(
                             ) { report ->
                                 ReportItem(
                                     report = report,
-                                    onResolve = { viewModel.resolveReport(report) },
+                                    onClick = {
+                                        navController.navigate(Screen.AdminReportDetail.passId(report.id))
+                                    },
                                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
                                 )
                             }
@@ -125,7 +153,7 @@ fun AdminFeedbackScreen(
 @Composable
 fun SectionHeader(title: String, count: Int, color: Color) {
     Surface(
-        color = MaterialTheme.colorScheme.background, // Mesma cor do fundo para parecer transparente mas cobrir o scroll
+        color = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -175,17 +203,18 @@ fun EmptyState() {
 @Composable
 fun ReportItem(
     report: Report,
-    onResolve: () -> Unit,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isResolved = report.status == ReportStatus.RESOLVED
     val cardColor = if (isResolved) MaterialTheme.colorScheme.surface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surface
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = cardColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if(isResolved) 0.dp else 2.dp),
-        border = if(isResolved) null else null // Opcional: borda para abertos
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isResolved) 0.dp else 2.dp)
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -199,7 +228,10 @@ fun ReportItem(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(4.dp))
+                                .background(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(4.dp)
+                                )
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text(
@@ -221,23 +253,10 @@ fun ReportItem(
                     Text(
                         text = report.description,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = if(isResolved) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
+                        color = if (isResolved) MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.onSurface,
                         maxLines = 4,
                         overflow = TextOverflow.Ellipsis
                     )
-                }
-
-                if (!isResolved) {
-                    IconButton(
-                        onClick = onResolve,
-                        modifier = Modifier.padding(start = 8.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Check,
-                            contentDescription = "Resolver",
-                            tint = MaterialTheme.colorScheme.primary
-                        )
-                    }
                 }
             }
 

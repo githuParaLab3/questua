@@ -10,6 +10,8 @@ import com.questua.app.domain.usecase.onboarding.*
 import com.questua.app.domain.usecase.user.*
 import com.questua.app.domain.usecase.quest.*
 import com.questua.app.data.remote.api.AchievementApi
+import com.questua.app.domain.usecase.admin.feedback_management.GetUserReportsUseCase
+import com.questua.app.domain.usecase.admin.feedback_management.ResolveReportUseCase
 import com.questua.app.domain.usecase.feedback.SendReportUseCase
 import dagger.Module
 import dagger.Provides
@@ -112,4 +114,12 @@ object UseCaseModule {
     @Provides
     @ViewModelScoped
     fun provideSendReportUseCase(repo: UserRepository) = SendReportUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetUserReportsUseCase(repo: AdminRepository) = GetUserReportsUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideResolveReportUseCase(repo: AdminRepository) = ResolveReportUseCase(repo)
 }

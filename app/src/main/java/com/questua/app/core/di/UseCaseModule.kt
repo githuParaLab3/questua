@@ -1,20 +1,21 @@
 package com.questua.app.core.di
 
-import com.questua.app.domain.repository.*
-import com.questua.app.domain.usecase.auth.*
-import com.questua.app.domain.usecase.exploration.*
-import com.questua.app.domain.usecase.gameplay.*
-import com.questua.app.domain.usecase.language_learning.*
-import com.questua.app.domain.usecase.monetization.*
-import com.questua.app.domain.usecase.onboarding.*
-import com.questua.app.domain.usecase.user.*
-import com.questua.app.domain.usecase.quest.*
 import com.questua.app.data.remote.api.AchievementApi
+import com.questua.app.domain.repository.*
 import com.questua.app.domain.usecase.admin.feedback_management.DeleteReportUseCase
 import com.questua.app.domain.usecase.admin.feedback_management.GetReportDetailsUseCase
 import com.questua.app.domain.usecase.admin.feedback_management.GetUserReportsUseCase
 import com.questua.app.domain.usecase.admin.feedback_management.ResolveReportUseCase
+import com.questua.app.domain.usecase.admin.users.* // Importante: Importar o pacote dos novos UseCases
+import com.questua.app.domain.usecase.auth.*
+import com.questua.app.domain.usecase.exploration.*
 import com.questua.app.domain.usecase.feedback.SendReportUseCase
+import com.questua.app.domain.usecase.gameplay.*
+import com.questua.app.domain.usecase.language_learning.*
+import com.questua.app.domain.usecase.monetization.*
+import com.questua.app.domain.usecase.onboarding.*
+import com.questua.app.domain.usecase.quest.*
+import com.questua.app.domain.usecase.user.*
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -117,6 +118,7 @@ object UseCaseModule {
     @ViewModelScoped
     fun provideSendReportUseCase(repo: UserRepository) = SendReportUseCase(repo)
 
+    // --- ADMIN: FEEDBACK ---
     @Provides
     @ViewModelScoped
     fun provideGetUserReportsUseCase(repo: AdminRepository) = GetUserReportsUseCase(repo)
@@ -132,4 +134,25 @@ object UseCaseModule {
     @Provides
     @ViewModelScoped
     fun provideDeleteReportUseCase(repo: AdminRepository) = DeleteReportUseCase(repo)
+
+    // --- ADMIN: USER MANAGEMENT (NOVO) ---
+    @Provides
+    @ViewModelScoped
+    fun provideGetAllUsersUseCase(repo: AdminRepository) = GetAllUsersUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetUserDetailsUseCase(repo: AdminRepository) = GetUserDetailsUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideCreateUserUseCase(repo: AdminRepository) = CreateUserUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideUpdateUserUseCase(repo: AdminRepository) = UpdateUserUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideDeleteUserUseCase(repo: AdminRepository) = DeleteUserUseCase(repo)
 }

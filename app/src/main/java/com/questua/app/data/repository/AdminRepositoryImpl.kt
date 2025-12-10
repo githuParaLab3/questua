@@ -5,6 +5,7 @@ import com.questua.app.core.network.SafeApiCall
 import com.questua.app.data.mapper.toDomain
 import com.questua.app.data.remote.api.*
 import com.questua.app.data.remote.dto.*
+import com.questua.app.domain.enums.UserRole
 import com.questua.app.domain.model.*
 import com.questua.app.domain.repository.AdminRepository
 import kotlinx.coroutines.flow.Flow
@@ -305,6 +306,61 @@ class AdminRepositoryImpl @Inject constructor(
         val result = safeApiCall { userApi.list(page = page, size = size) }
         if (result is Resource.Success) emit(Resource.Success(result.data!!.content.map { it.toDomain() }))
         else emit(Resource.Error(result.message ?: "Erro ao carregar utilizadores"))
+    }
+
+    override fun getUserById(id: String): Flow<Resource<UserAccount>> = flow {
+        emit(Resource.Loading())
+        val result = safeApiCall { userApi.getById(id) }
+        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
+        else emit(Resource.Error(result.message ?: "Erro ao carregar utilizador"))
+    }
+
+    override fun createUser(
+        email: String,
+        displayName: String,
+        password: String,
+        nativeLanguageId: String,
+        role: UserRole
+    ): Flow<Resource<UserAccount>> = flow {
+        emit(Resource.Loading())
+        val dto = UserAccountRequestDTO(
+            email = email,
+            displayName = displayName,
+            password = password,
+            nativeLanguageId = nativeLanguageId,
+            userRole = role
+        )
+        val result = safeApiCall { userApi.create(dto) }
+        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
+        else emit(Resource.Error(result.message ?: "Erro ao criar utilizador"))
+    }
+
+    override fun updateUser(
+        id: String,
+        email: String,
+        displayName: String,
+        nativeLanguageId: String,
+        role: UserRole,
+        password: String?
+    ): Flow<Resource<UserAccount>> = flow {
+        emit(Resource.Loading())
+        val dto = UserAccountRequestDTO(
+            email = email,
+            displayName = displayName,
+            password = password, // Opcional no DTO (nullable)
+            nativeLanguageId = nativeLanguageId,
+            userRole = role
+        )
+        val result = safeApiCall { userApi.update(id, dto) }
+        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
+        else emit(Resource.Error(result.message ?: "Erro ao atualizar utilizador"))
+    }
+
+    override fun deleteUser(id: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        val result = safeApiCall { userApi.delete(id) }
+        if (result is Resource.Success) emit(Resource.Success(Unit))
+        else emit(Resource.Error(result.message ?: "Erro ao excluir utilizador"))
     }
 
     override fun getAllTransactions(page: Int, size: Int): Flow<Resource<List<TransactionRecord>>> = flow {

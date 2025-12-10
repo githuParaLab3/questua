@@ -45,4 +45,10 @@ sealed class Screen(val route: String) {
             return "admin_report_detail/$reportId"
         }
     }
+
+    object AdminUserDetail : Screen("admin_user_detail/{userId}") {
+        fun passId(userId: String): String {
+            return "admin_user_detail/$userId"
+        }
+    }
 }

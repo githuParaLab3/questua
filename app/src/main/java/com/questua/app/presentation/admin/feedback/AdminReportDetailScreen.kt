@@ -35,20 +35,16 @@ import com.questua.app.domain.enums.ReportStatus
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminReportDetailScreen(
-    navController: NavController, // Alterado de () -> Unit para NavController para acesso ao handle
+    navController: NavController,
     viewModel: AdminReportDetailViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 
-    // Lógica de Redirecionamento Imediato com Mensagem
     LaunchedEffect(state.successMessage) {
         state.successMessage?.let { message ->
-            // Passa a mensagem para a tela anterior (Lista)
             navController.previousBackStackEntry
                 ?.savedStateHandle
                 ?.set("feedback_success_message", message)
-
-            // Fecha a tela atual
             navController.popBackStack()
         }
     }
@@ -119,7 +115,6 @@ fun AdminReportDetailScreen(
                             .verticalScroll(rememberScrollState())
                             .padding(16.dp)
                     ) {
-                        // Header Status
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth()

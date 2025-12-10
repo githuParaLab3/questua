@@ -1,10 +1,13 @@
 package com.questua.app.domain.repository
 
 import com.questua.app.core.common.Resource
+import com.questua.app.domain.enums.UserRole
 import com.questua.app.domain.model.*
 import kotlinx.coroutines.flow.Flow
 
 interface AdminRepository {
+    // ... (Outros métodos existentes: AI, Content, Feedback) ...
+
     // --- AI Generation ---
     fun generateQuestPoint(cityId: String, theme: String): Flow<Resource<QuestPoint>>
     fun generateQuest(questPointId: String, context: String, difficulty: Int): Flow<Resource<Quest>>
@@ -44,6 +47,25 @@ interface AdminRepository {
 
     // --- User Management ---
     fun getAllUsers(page: Int, size: Int): Flow<Resource<List<UserAccount>>>
+    fun getUserById(id: String): Flow<Resource<UserAccount>>
+    fun createUser(
+        email: String,
+        displayName: String,
+        password: String,
+        nativeLanguageId: String,
+        role: UserRole
+    ): Flow<Resource<UserAccount>>
+
+    fun updateUser(
+        id: String,
+        email: String,
+        displayName: String,
+        nativeLanguageId: String,
+        role: UserRole,
+        password: String? = null
+    ): Flow<Resource<UserAccount>>
+
+    fun deleteUser(id: String): Flow<Resource<Unit>>
 
     // --- Sales ---
     fun getAllTransactions(page: Int, size: Int): Flow<Resource<List<TransactionRecord>>>

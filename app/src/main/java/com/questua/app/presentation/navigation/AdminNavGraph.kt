@@ -12,6 +12,7 @@ import com.questua.app.presentation.admin.feedback.AdminFeedbackScreen
 import com.questua.app.presentation.admin.feedback.AdminReportDetailScreen
 import com.questua.app.presentation.admin.logs.AiLogsScreen
 import com.questua.app.presentation.admin.monetization.AdminMonetizationScreen
+import com.questua.app.presentation.admin.users.UserDetailScreen
 import com.questua.app.presentation.admin.users.UserManagementScreen
 
 fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
@@ -73,6 +74,12 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
             AdminReportDetailScreen(
                 navController = navController // Passa o navController inteiro
             )
+        }
+        composable(
+            route = Screen.AdminUserDetail.route,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) {
+            UserDetailScreen(navController = navController)
         }
     }
 }

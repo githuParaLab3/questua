@@ -1,8 +1,10 @@
 package com.questua.app.presentation.admin.users
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -11,13 +13,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.core.ui.components.ErrorDialog
 import com.questua.app.core.ui.components.LoadingSpinner
+import com.questua.app.core.ui.components.QuestuaAsyncImage
 import com.questua.app.domain.enums.UserRole
+import com.questua.app.domain.model.Language
 import com.questua.app.domain.model.UserAccount
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,14 +51,6 @@ fun UserDetailScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
-                },
-                actions = {
-                    IconButton(onClick = { showEditDialog = true }) {
-                        Icon(Icons.Default.Edit, contentDescription = "Editar")
-                    }
-                    IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = MaterialTheme.colorScheme.error)
-                    }
                 }
             )
         }
@@ -64,20 +63,38 @@ fun UserDetailScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(100.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = user.displayName.firstOrNull()?.toString()?.uppercase() ?: "",
-                                    style = MaterialTheme.typography.displayMedium,
-                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                        // --- ÁREA DO AVATAR ---
+                        Box(contentAlignment = Alignment.BottomEnd) {
+                            if (!user.avatarUrl.isNullOrBlank()) {
+                                // Exibe a imagem se existir URL
+                                QuestuaAsyncImage(
+                                    imageUrl = user.avatarUrl.toFullImageUrl(),
+                                    contentDescription = "Avatar de ${user.displayName}",
+                                    modifier = Modifier
+                                        .size(120.dp)
+                                        .clip(CircleShape)
+                                        .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                                    contentScale = ContentScale.Crop
                                 )
+                            } else {
+                                // Fallback para iniciais
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.size(120.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = user.displayName.firstOrNull()?.toString()?.uppercase() ?: "",
+                                            style = MaterialTheme.typography.displayMedium,
+                                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        )
+                                    }
+                                }
                             }
                         }
 
@@ -91,11 +108,47 @@ fun UserDetailScreen(
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 DetailRow("ID", user.id)
                                 DetailRow("Role", user.role.name)
-                                DetailRow("Idioma Nativo", user.nativeLanguageId)
+
+                                // Encontra o código do idioma na lista carregada
+                                val languageCode = state.availableLanguages
+                                    .find { it.id == user.nativeLanguageId }?.code?.uppercase() ?: "?"
+
+                                DetailRow("Idioma Nativo", "$languageCode (${user.nativeLanguageId})")
+
                                 DetailRow("Criado em", user.createdAt)
                                 DetailRow("Último acesso", user.lastActiveAt ?: "N/A")
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(32.dp))
+
+                        // Botões de Ação no Final da Tela
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Button(
+                                onClick = { showEditDialog = true },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Editar")
+                            }
+
+                            OutlinedButton(
+                                onClick = { showDeleteDialog = true },
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                                border = ButtonDefaults.outlinedButtonBorder.copy(brush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.error)),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Excluir")
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(32.dp))
                     }
                 }
             }
@@ -109,9 +162,10 @@ fun UserDetailScreen(
     if (showEditDialog && state.user != null) {
         EditUserDialog(
             user = state.user!!,
+            languages = state.availableLanguages,
             onDismiss = { showEditDialog = false },
-            onConfirm = { name, email, role, lang, pass ->
-                viewModel.updateUser(name, email, role, lang, pass.takeIf { it.isNotBlank() })
+            onConfirm = { name, email, role, langId, pass ->
+                viewModel.updateUser(name, email, role, langId, pass.takeIf { it.isNotBlank() })
                 showEditDialog = false
             }
         )
@@ -149,31 +203,70 @@ fun DetailRow(label: String, value: String) {
     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditUserDialog(
     user: UserAccount,
+    languages: List<Language>,
     onDismiss: () -> Unit,
     onConfirm: (String, String, UserRole, String, String) -> Unit
 ) {
     var name by remember { mutableStateOf(user.displayName) }
     var email by remember { mutableStateOf(user.email) }
-    var langId by remember { mutableStateOf(user.nativeLanguageId) }
     var role by remember { mutableStateOf(user.role) }
     var password by remember { mutableStateOf("") }
+
+    // Dropdown Logic
+    var expanded by remember { mutableStateOf(false) }
+    var selectedLanguage by remember {
+        mutableStateOf(languages.find { it.id == user.nativeLanguageId } ?: languages.firstOrNull())
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Editar Usuário") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome") })
-                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") })
-                OutlinedTextField(value = langId, onValueChange = { langId = it }, label = { Text("Language ID") })
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
+
+                // Seletor de Idioma
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = selectedLanguage?.let { "${it.code.uppercase()} - ${it.name}" } ?: "Selecione",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Idioma Nativo") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        languages.forEach { language ->
+                            DropdownMenuItem(
+                                text = { Text("${language.code.uppercase()} - ${language.name}") },
+                                onClick = {
+                                    selectedLanguage = language
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
                     label = { Text("Nova Senha (Opcional)") },
-                    placeholder = { Text("Deixe em branco para manter") }
+                    placeholder = { Text("Deixe em branco para manter") },
+                    modifier = Modifier.fillMaxWidth()
                 )
 
                 Text("Função:", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
@@ -192,7 +285,14 @@ fun EditUserDialog(
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(name, email, role, langId, password) }) {
+            Button(
+                onClick = {
+                    if (selectedLanguage != null) {
+                        onConfirm(name, email, role, selectedLanguage!!.id, password)
+                    }
+                },
+                enabled = selectedLanguage != null
+            ) {
                 Text("Salvar")
             }
         },

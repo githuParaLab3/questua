@@ -1,6 +1,5 @@
 package com.questua.app.presentation.admin.users
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,6 +20,7 @@ import com.questua.app.core.ui.components.ErrorDialog
 import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.enums.UserRole
+import com.questua.app.domain.model.Language
 import com.questua.app.domain.model.UserAccount
 import com.questua.app.presentation.admin.components.AdminBottomNavBar
 import com.questua.app.presentation.admin.feedback.EmptyState
@@ -58,7 +58,7 @@ fun UserManagementScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // Filtros e Busca
+            // ... (Código de Filtros e Busca permanece igual) ...
             Column(modifier = Modifier.padding(16.dp)) {
                 QuestuaTextField(
                     value = state.searchQuery,
@@ -122,9 +122,10 @@ fun UserManagementScreen(
 
     if (showCreateDialog) {
         CreateUserDialog(
+            languages = state.availableLanguages,
             onDismiss = { showCreateDialog = false },
-            onConfirm = { name, email, pass, lang, role ->
-                viewModel.createUser(name, email, pass, lang, role)
+            onConfirm = { name, email, pass, langId, role ->
+                viewModel.createUser(name, email, pass, langId, role)
                 showCreateDialog = false
             }
         )
@@ -135,6 +136,7 @@ fun UserManagementScreen(
     }
 }
 
+// ... UserListItem permanece igual ...
 @Composable
 fun UserListItem(user: UserAccount, onClick: () -> Unit) {
     ListItem(
@@ -177,12 +179,21 @@ fun UserListItem(user: UserAccount, onClick: () -> Unit) {
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateUserDialog(onDismiss: () -> Unit, onConfirm: (String, String, String, String, UserRole) -> Unit) {
+fun CreateUserDialog(
+    languages: List<Language>,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String, String, UserRole) -> Unit
+) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var langId by remember { mutableStateOf("en") } // Default stub
+
+    // Lógica do Dropdown de Idiomas
+    var expanded by remember { mutableStateOf(false) }
+    var selectedLanguage by remember { mutableStateOf<Language?>(languages.firstOrNull()) } // Default para o primeiro
+
     var role by remember { mutableStateOf(UserRole.USER) }
 
     AlertDialog(
@@ -190,10 +201,40 @@ fun CreateUserDialog(onDismiss: () -> Unit, onConfirm: (String, String, String, 
         title = { Text("Novo Usuário") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome") })
-                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") })
-                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Senha") })
-                OutlinedTextField(value = langId, onValueChange = { langId = it }, label = { Text("Language ID (ex: en, pt)") })
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Senha") }, modifier = Modifier.fillMaxWidth())
+
+                // Seletor de Idioma
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    OutlinedTextField(
+                        value = selectedLanguage?.let { "${it.code.uppercase()} - ${it.name}" } ?: "Selecione o idioma",
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Idioma Nativo") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        languages.forEach { language ->
+                            DropdownMenuItem(
+                                text = { Text("${language.code.uppercase()} - ${language.name}") },
+                                onClick = {
+                                    selectedLanguage = language
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
 
                 Text("Função:", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -212,8 +253,12 @@ fun CreateUserDialog(onDismiss: () -> Unit, onConfirm: (String, String, String, 
         },
         confirmButton = {
             Button(
-                onClick = { onConfirm(name, email, password, langId, role) },
-                enabled = name.isNotBlank() && email.isNotBlank() && password.isNotBlank()
+                onClick = {
+                    if (selectedLanguage != null) {
+                        onConfirm(name, email, password, selectedLanguage!!.id, role)
+                    }
+                },
+                enabled = name.isNotBlank() && email.isNotBlank() && password.isNotBlank() && selectedLanguage != null
             ) {
                 Text("Criar")
             }

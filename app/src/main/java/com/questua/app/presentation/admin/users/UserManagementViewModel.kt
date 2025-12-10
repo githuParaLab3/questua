@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.domain.enums.UserRole
+import com.questua.app.domain.model.Language
 import com.questua.app.domain.model.UserAccount
 import com.questua.app.domain.usecase.admin.users.CreateUserUseCase
 import com.questua.app.domain.usecase.admin.users.GetAllUsersUseCase
+import com.questua.app.domain.usecase.onboarding.GetAvailableLanguagesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -18,6 +20,7 @@ import javax.inject.Inject
 data class UserManagementState(
     val isLoading: Boolean = false,
     val users: List<UserAccount> = emptyList(),
+    val availableLanguages: List<Language> = emptyList(), // Lista para o Picker
     val error: String? = null,
     val searchQuery: String = "",
     val roleFilter: UserRole? = null
@@ -26,7 +29,8 @@ data class UserManagementState(
 @HiltViewModel
 class UserManagementViewModel @Inject constructor(
     private val getAllUsersUseCase: GetAllUsersUseCase,
-    private val createUserUseCase: CreateUserUseCase
+    private val createUserUseCase: CreateUserUseCase,
+    private val getAvailableLanguagesUseCase: GetAvailableLanguagesUseCase // Injetado
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(UserManagementState())
@@ -36,6 +40,7 @@ class UserManagementViewModel @Inject constructor(
 
     init {
         loadUsers()
+        loadLanguages() // Carrega idiomas na inicialização
     }
 
     fun loadUsers() {
@@ -47,6 +52,14 @@ class UserManagementViewModel @Inject constructor(
                     applyFilters()
                 }
                 is Resource.Error -> _state.value = _state.value.copy(isLoading = false, error = result.message)
+            }
+        }.launchIn(viewModelScope)
+    }
+
+    private fun loadLanguages() {
+        getAvailableLanguagesUseCase().onEach { result ->
+            if (result is Resource.Success) {
+                _state.value = _state.value.copy(availableLanguages = result.data ?: emptyList())
             }
         }.launchIn(viewModelScope)
     }
@@ -85,7 +98,7 @@ class UserManagementViewModel @Inject constructor(
                 when(result) {
                     is Resource.Loading -> _state.value = _state.value.copy(isLoading = true)
                     is Resource.Success -> {
-                        loadUsers() // Recarrega lista completa
+                        loadUsers()
                     }
                     is Resource.Error -> _state.value = _state.value.copy(isLoading = false, error = result.message)
                 }

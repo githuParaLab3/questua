@@ -1,5 +1,6 @@
 package com.questua.app.presentation.admin.users
 
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -12,12 +13,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.core.ui.components.ErrorDialog
 import com.questua.app.core.ui.components.LoadingSpinner
+import com.questua.app.core.ui.components.QuestuaAsyncImage
 import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.enums.UserRole
 import com.questua.app.domain.model.Language
@@ -136,7 +140,6 @@ fun UserManagementScreen(
     }
 }
 
-// ... UserListItem permanece igual ...
 @Composable
 fun UserListItem(user: UserAccount, onClick: () -> Unit) {
     ListItem(
@@ -159,17 +162,29 @@ fun UserListItem(user: UserAccount, onClick: () -> Unit) {
             }
         },
         leadingContent = {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = user.displayName.firstOrNull()?.toString()?.uppercase() ?: "?",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+            // Lógica de Avatar atualizada
+            if (!user.avatarUrl.isNullOrBlank()) {
+                QuestuaAsyncImage(
+                    imageUrl = user.avatarUrl.toFullImageUrl(),
+                    contentDescription = "Avatar de ${user.displayName}",
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = user.displayName.firstOrNull()?.toString()?.uppercase() ?: "?",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer
+                        )
+                    }
                 }
             }
         },
@@ -178,7 +193,6 @@ fun UserListItem(user: UserAccount, onClick: () -> Unit) {
         }
     )
 }
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateUserDialog(
@@ -190,7 +204,6 @@ fun CreateUserDialog(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
-    // Lógica do Dropdown de Idiomas
     var expanded by remember { mutableStateOf(false) }
     var selectedLanguage by remember { mutableStateOf<Language?>(languages.firstOrNull()) } // Default para o primeiro
 

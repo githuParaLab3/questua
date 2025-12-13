@@ -15,12 +15,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class UserDetailState(
     val isLoading: Boolean = false,
     val user: UserAccount? = null,
-    val availableLanguages: List<Language> = emptyList(), // Para lookup de códigos e edição
+    val availableLanguages: List<Language> = emptyList(),
     val error: String? = null,
     val deleteSuccess: Boolean = false
 )
@@ -30,7 +31,7 @@ class UserDetailViewModel @Inject constructor(
     private val getUserDetailsUseCase: GetUserDetailsUseCase,
     private val updateUserUseCase: UpdateUserUseCase,
     private val deleteUserUseCase: DeleteUserUseCase,
-    private val getAvailableLanguagesUseCase: GetAvailableLanguagesUseCase, // Injetado
+    private val getAvailableLanguagesUseCase: GetAvailableLanguagesUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -45,22 +46,18 @@ class UserDetailViewModel @Inject constructor(
     fun loadData() {
         _state.value = _state.value.copy(isLoading = true)
 
-        // Carrega Usuário e Idiomas em paralelo (ou sequencial simples)
         viewModelScope.launch {
-            // 1. Carregar Idiomas (para termos os códigos disponíveis)
             getAvailableLanguagesUseCase().collect { result ->
                 if (result is Resource.Success) {
                     _state.value = _state.value.copy(availableLanguages = result.data ?: emptyList())
                 }
-                // Não paramos o loading aqui, esperamos o usuário
             }
         }
 
         viewModelScope.launch {
-            // 2. Carregar Usuário
             getUserDetailsUseCase(userId).collect { result ->
                 when(result) {
-                    is Resource.Loading -> {} // Já setamos loading no início
+                    is Resource.Loading -> {}
                     is Resource.Success -> _state.value = _state.value.copy(isLoading = false, user = result.data)
                     is Resource.Error -> _state.value = _state.value.copy(isLoading = false, error = result.message)
                 }
@@ -68,10 +65,10 @@ class UserDetailViewModel @Inject constructor(
         }
     }
 
-    fun updateUser(displayName: String, email: String, role: UserRole, nativeLangId: String, password: String?) {
+    fun updateUser(displayName: String, email: String, role: UserRole, nativeLangId: String, password: String?, avatarFile: File?) {
         val currentUser = _state.value.user ?: return
         viewModelScope.launch {
-            updateUserUseCase(currentUser.id, email, displayName, nativeLangId, role, password).collect { result ->
+            updateUserUseCase(currentUser.id, email, displayName, nativeLangId, role, password, avatarFile).collect { result ->
                 when(result) {
                     is Resource.Loading -> _state.value = _state.value.copy(isLoading = true)
                     is Resource.Success -> _state.value = _state.value.copy(isLoading = false, user = result.data)

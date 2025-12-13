@@ -15,12 +15,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class UserManagementState(
     val isLoading: Boolean = false,
     val users: List<UserAccount> = emptyList(),
-    val availableLanguages: List<Language> = emptyList(), // Lista para o Picker
+    val availableLanguages: List<Language> = emptyList(),
     val error: String? = null,
     val searchQuery: String = "",
     val roleFilter: UserRole? = null
@@ -30,7 +31,7 @@ data class UserManagementState(
 class UserManagementViewModel @Inject constructor(
     private val getAllUsersUseCase: GetAllUsersUseCase,
     private val createUserUseCase: CreateUserUseCase,
-    private val getAvailableLanguagesUseCase: GetAvailableLanguagesUseCase // Injetado
+    private val getAvailableLanguagesUseCase: GetAvailableLanguagesUseCase
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(UserManagementState())
@@ -40,7 +41,7 @@ class UserManagementViewModel @Inject constructor(
 
     init {
         loadUsers()
-        loadLanguages() // Carrega idiomas na inicialização
+        loadLanguages()
     }
 
     fun loadUsers() {
@@ -92,9 +93,9 @@ class UserManagementViewModel @Inject constructor(
         _state.value = _state.value.copy(isLoading = false, users = filtered)
     }
 
-    fun createUser(name: String, email: String, pass: String, langId: String, role: UserRole) {
+    fun createUser(name: String, email: String, pass: String, langId: String, role: UserRole, avatarFile: File?) {
         viewModelScope.launch {
-            createUserUseCase(email, name, pass, langId, role).collect { result ->
+            createUserUseCase(email, name, pass, langId, role, avatarFile).collect { result ->
                 when(result) {
                     is Resource.Loading -> _state.value = _state.value.copy(isLoading = true)
                     is Resource.Success -> {

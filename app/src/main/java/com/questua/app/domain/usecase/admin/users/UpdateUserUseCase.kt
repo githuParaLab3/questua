@@ -5,6 +5,7 @@ import com.questua.app.domain.enums.UserRole
 import com.questua.app.domain.model.UserAccount
 import com.questua.app.domain.repository.AdminRepository
 import kotlinx.coroutines.flow.Flow
+import java.io.File
 import javax.inject.Inject
 
 class UpdateUserUseCase @Inject constructor(
@@ -16,8 +17,9 @@ class UpdateUserUseCase @Inject constructor(
         displayName: String,
         nativeLanguageId: String,
         role: UserRole,
-        password: String? = null
+        password: String? = null,
+        avatarFile: File? = null
     ): Flow<Resource<UserAccount>> {
-        return repository.updateUser(id, email, displayName, nativeLanguageId, role, password)
+        return repository.updateUser(id, email, displayName, nativeLanguageId, role, password, avatarFile)
     }
 }

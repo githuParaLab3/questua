@@ -1,12 +1,19 @@
 package com.questua.app.presentation.admin.users
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
@@ -15,17 +22,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
+import com.questua.app.core.common.uriToFile
 import com.questua.app.core.ui.components.ErrorDialog
 import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.components.QuestuaAsyncImage
 import com.questua.app.domain.enums.UserRole
 import com.questua.app.domain.model.Language
 import com.questua.app.domain.model.UserAccount
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,10 +80,8 @@ fun UserDetailScreen(
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // --- ÁREA DO AVATAR ---
                         Box(contentAlignment = Alignment.BottomEnd) {
                             if (!user.avatarUrl.isNullOrBlank()) {
-                                // Exibe a imagem se existir URL
                                 QuestuaAsyncImage(
                                     imageUrl = user.avatarUrl.toFullImageUrl(),
                                     contentDescription = "Avatar de ${user.displayName}",
@@ -81,7 +92,6 @@ fun UserDetailScreen(
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
-                                // Fallback para iniciais
                                 Surface(
                                     shape = CircleShape,
                                     color = MaterialTheme.colorScheme.primaryContainer,
@@ -109,7 +119,6 @@ fun UserDetailScreen(
                                 DetailRow("ID", user.id)
                                 DetailRow("Role", user.role.name)
 
-                                // Encontra o código do idioma na lista carregada
                                 val languageCode = state.availableLanguages
                                     .find { it.id == user.nativeLanguageId }?.code?.uppercase() ?: "?"
 
@@ -122,7 +131,6 @@ fun UserDetailScreen(
 
                         Spacer(modifier = Modifier.height(32.dp))
 
-                        // Botões de Ação no Final da Tela
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -164,8 +172,8 @@ fun UserDetailScreen(
             user = state.user!!,
             languages = state.availableLanguages,
             onDismiss = { showEditDialog = false },
-            onConfirm = { name, email, role, langId, pass ->
-                viewModel.updateUser(name, email, role, langId, pass.takeIf { it.isNotBlank() })
+            onConfirm = { name, email, role, langId, pass, file ->
+                viewModel.updateUser(name, email, role, langId, pass.takeIf { it.isNotBlank() }, file)
                 showEditDialog = false
             }
         )
@@ -209,28 +217,72 @@ fun EditUserDialog(
     user: UserAccount,
     languages: List<Language>,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, UserRole, String, String) -> Unit
+    onConfirm: (String, String, UserRole, String, String, File?) -> Unit
 ) {
     var name by remember { mutableStateOf(user.displayName) }
     var email by remember { mutableStateOf(user.email) }
     var role by remember { mutableStateOf(user.role) }
     var password by remember { mutableStateOf("") }
 
-    // Dropdown Logic
     var expanded by remember { mutableStateOf(false) }
     var selectedLanguage by remember {
         mutableStateOf(languages.find { it.id == user.nativeLanguageId } ?: languages.firstOrNull())
     }
 
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri -> selectedImageUri = uri }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Editar Usuário") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+
+                Box(modifier = Modifier.size(80.dp).clickable {
+                    photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }) {
+                    val modelToRender = selectedImageUri ?: user.avatarUrl?.toFullImageUrl() ?: "https://via.placeholder.com/150"
+
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(modelToRender)
+                            .crossfade(true)
+                            .diskCachePolicy(CachePolicy.DISABLED)
+                            .build(),
+                        contentDescription = "Avatar",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(4.dp)
+                            .size(24.dp)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            .border(1.dp, MaterialTheme.colorScheme.background, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Default.CameraAlt,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
 
-                // Seletor de Idioma
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded },
@@ -269,8 +321,8 @@ fun EditUserDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                Text("Função:", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Função:", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp).fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     FilterChip(
                         selected = role == UserRole.USER,
                         onClick = { role = UserRole.USER },
@@ -288,7 +340,8 @@ fun EditUserDialog(
             Button(
                 onClick = {
                     if (selectedLanguage != null) {
-                        onConfirm(name, email, role, selectedLanguage!!.id, password)
+                        val file = selectedImageUri?.let { context.uriToFile(it) }
+                        onConfirm(name, email, role, selectedLanguage!!.id, password, file)
                     }
                 },
                 enabled = selectedLanguage != null

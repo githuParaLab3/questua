@@ -1,6 +1,11 @@
 package com.questua.app.presentation.admin.users
 
-import androidx.compose.ui.layout.ContentScale
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,11 +19,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
+import com.questua.app.core.common.uriToFile
 import com.questua.app.core.ui.components.ErrorDialog
 import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.components.QuestuaAsyncImage
@@ -29,6 +39,7 @@ import com.questua.app.domain.model.UserAccount
 import com.questua.app.presentation.admin.components.AdminBottomNavBar
 import com.questua.app.presentation.admin.feedback.EmptyState
 import com.questua.app.presentation.navigation.Screen
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +73,6 @@ fun UserManagementScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // ... (Código de Filtros e Busca permanece igual) ...
             Column(modifier = Modifier.padding(16.dp)) {
                 QuestuaTextField(
                     value = state.searchQuery,
@@ -128,8 +138,8 @@ fun UserManagementScreen(
         CreateUserDialog(
             languages = state.availableLanguages,
             onDismiss = { showCreateDialog = false },
-            onConfirm = { name, email, pass, langId, role ->
-                viewModel.createUser(name, email, pass, langId, role)
+            onConfirm = { name, email, pass, langId, role, file ->
+                viewModel.createUser(name, email, pass, langId, role, file)
                 showCreateDialog = false
             }
         )
@@ -162,7 +172,6 @@ fun UserListItem(user: UserAccount, onClick: () -> Unit) {
             }
         },
         leadingContent = {
-            // Lógica de Avatar atualizada
             if (!user.avatarUrl.isNullOrBlank()) {
                 QuestuaAsyncImage(
                     imageUrl = user.avatarUrl.toFullImageUrl(),
@@ -193,32 +202,79 @@ fun UserListItem(user: UserAccount, onClick: () -> Unit) {
         }
     )
 }
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreateUserDialog(
     languages: List<Language>,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, String, UserRole) -> Unit
+    onConfirm: (String, String, String, String, UserRole, File?) -> Unit
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     var expanded by remember { mutableStateOf(false) }
-    var selectedLanguage by remember { mutableStateOf<Language?>(languages.firstOrNull()) } // Default para o primeiro
+    var selectedLanguage by remember { mutableStateOf<Language?>(languages.firstOrNull()) }
 
     var role by remember { mutableStateOf(UserRole.USER) }
+
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        selectedImageUri = uri
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Novo Usuário") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+
+                Box(modifier = Modifier.size(80.dp).clickable {
+                    photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }) {
+                    if (selectedImageUri != null) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(selectedImageUri)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "Avatar Preview",
+                            modifier = Modifier.fillMaxSize().clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.AddAPhoto, contentDescription = "Adicionar Foto", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            .padding(4.dp)
+                    ) {
+                        Icon(Icons.Default.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(12.dp))
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Nome") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text("Senha") }, modifier = Modifier.fillMaxWidth())
 
-                // Seletor de Idioma
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded },
@@ -249,8 +305,8 @@ fun CreateUserDialog(
                     }
                 }
 
-                Text("Função:", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Função:", style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(top = 8.dp).fillMaxWidth())
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     FilterChip(
                         selected = role == UserRole.USER,
                         onClick = { role = UserRole.USER },
@@ -268,7 +324,8 @@ fun CreateUserDialog(
             Button(
                 onClick = {
                     if (selectedLanguage != null) {
-                        onConfirm(name, email, password, selectedLanguage!!.id, role)
+                        val file = selectedImageUri?.let { context.uriToFile(it) }
+                        onConfirm(name, email, password, selectedLanguage!!.id, role, file)
                     }
                 },
                 enabled = name.isNotBlank() && email.isNotBlank() && password.isNotBlank() && selectedLanguage != null

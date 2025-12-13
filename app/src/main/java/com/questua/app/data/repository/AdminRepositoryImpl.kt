@@ -10,6 +10,10 @@ import com.questua.app.domain.model.*
 import com.questua.app.domain.repository.AdminRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.io.File
 import javax.inject.Inject
 
 class AdminRepositoryImpl @Inject constructor(
@@ -21,10 +25,9 @@ class AdminRepositoryImpl @Inject constructor(
     private val characterApi: CharacterEntityApi,
     private val reportApi: ReportApi,
     private val userApi: UserAccountApi,
-    private val transactionApi: TransactionRecordApi
+    private val transactionApi: TransactionRecordApi,
+    private val uploadApi: UploadApi
 ) : AdminRepository, SafeApiCall() {
-
-    // --- AI Generation ---
 
     override fun generateQuestPoint(cityId: String, theme: String): Flow<Resource<QuestPoint>> = flow {
         emit(Resource.Loading())
@@ -66,8 +69,6 @@ class AdminRepositoryImpl @Inject constructor(
         else emit(Resource.Error(result.message ?: "Erro na geração"))
     }
 
-    // --- AI Logs ---
-
     override fun getAiLogs(page: Int, size: Int): Flow<Resource<List<AiGenerationLog>>> = flow {
         emit(Resource.Loading())
         val result = safeApiCall { aiLogApi.list(page = page, size = size) }
@@ -75,11 +76,8 @@ class AdminRepositoryImpl @Inject constructor(
         else emit(Resource.Error(result.message ?: "Erro ao carregar logs"))
     }
 
-    // --- Content Management (Create/Update/Delete) ---
-
     override fun createCity(city: City): Flow<Resource<City>> = flow {
         emit(Resource.Loading())
-        // Manual Mapping Domain -> DTO (ou criar função no Mapper)
         val dto = CityRequestDTO(
             cityName = city.name,
             countryCode = city.countryCode,
@@ -126,8 +124,6 @@ class AdminRepositoryImpl @Inject constructor(
         if (result is Resource.Success) emit(Resource.Success(Unit))
         else emit(Resource.Error(result.message ?: "Erro ao apagar cidade"))
     }
-
-    // (Similar pattern for QuestPoints, Quests, Characters)
 
     override fun createQuestPoint(questPoint: QuestPoint): Flow<Resource<QuestPoint>> = flow {
         emit(Resource.Loading())
@@ -260,8 +256,6 @@ class AdminRepositoryImpl @Inject constructor(
         else emit(Resource.Error(result.message ?: "Erro ao apagar personagem"))
     }
 
-    // --- Feedback ---
-
     override fun getAllReports(page: Int, size: Int): Flow<Resource<List<Report>>> = flow {
         emit(Resource.Loading())
         val result = safeApiCall { reportApi.list(page = page, size = size) }
@@ -278,7 +272,7 @@ class AdminRepositoryImpl @Inject constructor(
             screenshotUrl = report.screenshotUrl,
             statusReport = report.status,
             appVersion = report.appVersion,
-            deviceInfo = null // Assumindo que não mudamos isso no update ou precisa de mapeamento reverso
+            deviceInfo = null
         )
         val result = safeApiCall { reportApi.update(report.id, dto) }
         if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
@@ -299,8 +293,6 @@ class AdminRepositoryImpl @Inject constructor(
         else emit(Resource.Error(result.message ?: "Erro ao excluir report"))
     }
 
-    // --- Users & Sales ---
-
     override fun getAllUsers(page: Int, size: Int): Flow<Resource<List<UserAccount>>> = flow {
         emit(Resource.Loading())
         val result = safeApiCall { userApi.list(page = page, size = size) }
@@ -320,15 +312,38 @@ class AdminRepositoryImpl @Inject constructor(
         displayName: String,
         password: String,
         nativeLanguageId: String,
-        role: UserRole
+        role: UserRole,
+        avatarFile: File?
     ): Flow<Resource<UserAccount>> = flow {
         emit(Resource.Loading())
+
+        var avatarUrl: String? = null
+
+        if (avatarFile != null) {
+            try {
+                val requestFile = avatarFile.asRequestBody("image/*".toMediaTypeOrNull())
+                val body = MultipartBody.Part.createFormData("file", avatarFile.name, requestFile)
+                val uploadResult = safeApiCall { uploadApi.uploadArchive(body, "avatars") }
+
+                if (uploadResult is Resource.Success) {
+                    avatarUrl = uploadResult.data?.get("url")
+                } else {
+                    emit(Resource.Error("Falha no upload do avatar: ${uploadResult.message}"))
+                    return@flow
+                }
+            } catch (e: Exception) {
+                emit(Resource.Error("Erro ao processar imagem: ${e.message}"))
+                return@flow
+            }
+        }
+
         val dto = UserAccountRequestDTO(
             email = email,
             displayName = displayName,
             password = password,
             nativeLanguageId = nativeLanguageId,
-            userRole = role
+            userRole = role,
+            avatarUrl = avatarUrl
         )
         val result = safeApiCall { userApi.create(dto) }
         if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
@@ -341,15 +356,43 @@ class AdminRepositoryImpl @Inject constructor(
         displayName: String,
         nativeLanguageId: String,
         role: UserRole,
-        password: String?
+        password: String?,
+        avatarFile: File?
     ): Flow<Resource<UserAccount>> = flow {
         emit(Resource.Loading())
+
+        var currentAvatarUrl: String? = null
+
+        val currentUserResult = safeApiCall { userApi.getById(id) }
+        if (currentUserResult is Resource.Success) {
+            currentAvatarUrl = currentUserResult.data?.avatarUrl
+        }
+
+        if (avatarFile != null) {
+            try {
+                val requestFile = avatarFile.asRequestBody("image/*".toMediaTypeOrNull())
+                val body = MultipartBody.Part.createFormData("file", avatarFile.name, requestFile)
+                val uploadResult = safeApiCall { uploadApi.uploadArchive(body, "avatars") }
+
+                if (uploadResult is Resource.Success) {
+                    currentAvatarUrl = uploadResult.data?.get("url")
+                } else {
+                    emit(Resource.Error("Falha no upload: ${uploadResult.message}"))
+                    return@flow
+                }
+            } catch (e: Exception) {
+                emit(Resource.Error("Erro imagem: ${e.message}"))
+                return@flow
+            }
+        }
+
         val dto = UserAccountRequestDTO(
             email = email,
             displayName = displayName,
-            password = password, // Opcional no DTO (nullable)
+            password = password,
             nativeLanguageId = nativeLanguageId,
-            userRole = role
+            userRole = role,
+            avatarUrl = currentAvatarUrl
         )
         val result = safeApiCall { userApi.update(id, dto) }
         if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))

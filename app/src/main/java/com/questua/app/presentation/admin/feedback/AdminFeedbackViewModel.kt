@@ -18,10 +18,11 @@ import javax.inject.Inject
 
 data class AdminFeedbackState(
     val isLoading: Boolean = false,
-    val reports: List<Report> = emptyList(), // Lista filtrada exibida na UI
+    val reports: List<Report> = emptyList(),
     val error: String? = null,
     val searchQuery: String = "",
-    val selectedTypeFilter: ReportType? = null // Null = Todos
+    val selectedTypeFilter: ReportType? = null,
+    val selectedStatusFilter: ReportStatus? = null
 )
 
 @HiltViewModel
@@ -33,7 +34,6 @@ class AdminFeedbackViewModel @Inject constructor(
     private val _state = MutableStateFlow(AdminFeedbackState())
     val state = _state.asStateFlow()
 
-    // Cache local para manter todos os dados enquanto filtramos
     private var allReportsCache: List<Report> = emptyList()
 
     init {
@@ -47,9 +47,7 @@ class AdminFeedbackViewModel @Inject constructor(
                     _state.value = _state.value.copy(isLoading = true, error = null)
                 }
                 is Resource.Success -> {
-                    // Atualiza o cache com os dados novos do servidor
                     allReportsCache = result.data ?: emptyList()
-                    // Aplica os filtros atuais (caso o usuário já tenha digitado algo antes do refresh terminar)
                     applyFilters()
                 }
                 is Resource.Error -> {
@@ -68,31 +66,36 @@ class AdminFeedbackViewModel @Inject constructor(
     }
 
     fun onTypeFilterChange(type: ReportType?) {
-        // Se clicar no mesmo que já está selecionado, desmarca (vira null)
         val newType = if (_state.value.selectedTypeFilter == type) null else type
         _state.value = _state.value.copy(selectedTypeFilter = newType)
+        applyFilters()
+    }
+
+    fun onStatusFilterChange(status: ReportStatus?) {
+        val newStatus = if (_state.value.selectedStatusFilter == status) null else status
+        _state.value = _state.value.copy(selectedStatusFilter = newStatus)
         applyFilters()
     }
 
     private fun applyFilters() {
         val query = _state.value.searchQuery.trim().lowercase()
         val typeFilter = _state.value.selectedTypeFilter
+        val statusFilter = _state.value.selectedStatusFilter
 
         val filteredList = allReportsCache.filter { report ->
-            // Filtro de Texto (Busca por ID, UserID ou Descrição)
             val matchesQuery = if (query.isEmpty()) true else {
                 report.description.lowercase().contains(query) ||
                         report.userId.lowercase().contains(query) ||
                         report.id.lowercase().contains(query)
             }
 
-            // Filtro de Tipo (Enum)
             val matchesType = typeFilter == null || report.type == typeFilter
+            val matchesStatus = statusFilter == null || report.status == statusFilter
 
-            matchesQuery && matchesType
+            matchesQuery && matchesType && matchesStatus
         }.sortedWith(
-            compareBy<Report> { it.status } // Abertos (0) primeiro, Resolvidos (1) depois
-                .thenByDescending { it.createdAt } // Mais recentes primeiro
+            compareBy<Report> { it.status }
+                .thenByDescending { it.createdAt }
         )
 
         _state.value = _state.value.copy(
@@ -108,12 +111,10 @@ class AdminFeedbackViewModel @Inject constructor(
             resolveReportUseCase(report).collect { result ->
                 when (result) {
                     is Resource.Success -> {
-                        // Atualiza o item no Cache
                         val updatedReport = result.data!!
                         allReportsCache = allReportsCache.map {
                             if (it.id == report.id) updatedReport else it
                         }
-                        // Re-aplica filtros para atualizar a UI e ordenação
                         applyFilters()
                     }
                     is Resource.Error -> {

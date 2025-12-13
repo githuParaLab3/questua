@@ -14,13 +14,9 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -51,18 +47,18 @@ fun AdminFeedbackScreen(
     val state by viewModel.state.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+
     val currentBackStackEntry = navController.currentBackStackEntry
 
-    // Observa o SavedStateHandle
     val successMessage by currentBackStackEntry?.savedStateHandle
         ?.getStateFlow<String?>("feedback_success_message", null)
         ?.collectAsState() ?: remember { mutableStateOf(null) }
 
-    // --- CORREÇÃO DO MODAL ---
     if (successMessage != null) {
         AlertDialog(
             onDismissRequest = {
-                // Força o valor para null para garantir que o StateFlow atualize e feche o modal
                 navController.currentBackStackEntry?.savedStateHandle?.set("feedback_success_message", null)
             },
             icon = {
@@ -84,7 +80,6 @@ fun AdminFeedbackScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        // Força o valor para null aqui também
                         navController.currentBackStackEntry?.savedStateHandle?.set("feedback_success_message", null)
                     },
                     modifier = Modifier.fillMaxWidth()
@@ -97,7 +92,6 @@ fun AdminFeedbackScreen(
         )
     }
 
-    // Atualiza lista ao voltar (Lifecycle Observer)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -134,16 +128,17 @@ fun AdminFeedbackScreen(
                 .padding(padding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // --- ÁREA DE FILTROS E PESQUISA ---
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 QuestuaTextField(
                     value = state.searchQuery,
                     onValueChange = viewModel::onSearchQueryChange,
-                    placeholder = "Buscar ID, descrição ou usuário...",
+                    placeholder = "Buscar ID, descrição...",
                     label = null,
                     leadingIcon = Icons.Default.Search,
                     trailingIcon = if (state.searchQuery.isNotEmpty()) {
@@ -153,48 +148,40 @@ fun AdminFeedbackScreen(
                             }
                         }
                     } else null,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(1f)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                val hasActiveFilters = state.selectedStatusFilter != null || state.selectedTypeFilter != null
+                FilledTonalIconButton(
+                    onClick = { showFilterSheet = true },
+                    colors = if (hasActiveFilters) IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ) else IconButtonDefaults.filledTonalIconButtonColors()
                 ) {
-                    item {
-                        FilterChip(
-                            selected = state.selectedTypeFilter == null,
-                            onClick = { viewModel.onTypeFilterChange(null) },
-                            label = { Text("Todos") },
-                            leadingIcon = if (state.selectedTypeFilter == null) {
-                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            } else null
-                        )
-                    }
-                    items(ReportType.entries) { type ->
-                        val isSelected = state.selectedTypeFilter == type
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { viewModel.onTypeFilterChange(type) },
-                            label = { Text(type.name) },
-                            leadingIcon = if (isSelected) {
-                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            } else null
-                        )
+                    Box {
+                        Icon(Icons.Default.Tune, contentDescription = "Filtros")
+                        if (hasActiveFilters) {
+                            Badge(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 2.dp, y = (-2).dp),
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-            // --- LISTAGEM ---
             Box(modifier = Modifier.weight(1f)) {
                 if (state.isLoading && state.reports.isEmpty()) {
                     LoadingSpinner()
                 } else {
                     if (state.reports.isEmpty()) {
-                        EmptyState(isSearching = state.searchQuery.isNotEmpty() || state.selectedTypeFilter != null)
+                        EmptyState(isSearching = state.searchQuery.isNotEmpty() || state.selectedTypeFilter != null || state.selectedStatusFilter != null)
                     } else {
                         LazyColumn(
                             contentPadding = PaddingValues(bottom = 80.dp),
@@ -242,10 +229,140 @@ fun AdminFeedbackScreen(
                 }
             }
         }
+
+        if (showFilterSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showFilterSheet = false },
+                sheetState = sheetState
+            ) {
+                FeedbackFilterSheetContent(
+                    state = state,
+                    onStatusSelected = viewModel::onStatusFilterChange,
+                    onTypeSelected = viewModel::onTypeFilterChange,
+                    onDismiss = { showFilterSheet = false }
+                )
+            }
+        }
     }
 }
 
-// ... As funções SectionHeader, EmptyState e ReportItem permanecem as mesmas ...
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FeedbackFilterSheetContent(
+    state: AdminFeedbackState,
+    onStatusSelected: (ReportStatus?) -> Unit,
+    onTypeSelected: (ReportType?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 48.dp)
+            .fillMaxWidth()
+    ) {
+        Text(
+            "Filtros",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+
+        Text(
+            text = "Status",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                FilterChip(
+                    selected = state.selectedStatusFilter == null,
+                    onClick = { onStatusSelected(null) },
+                    label = { Text("Todos") }
+                )
+            }
+            items(ReportStatus.entries) { status ->
+                val isSelected = state.selectedStatusFilter == status
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onStatusSelected(status) },
+                    label = {
+                        Text(
+                            when(status) {
+                                ReportStatus.OPEN -> "Em Aberto"
+                                ReportStatus.RESOLVED -> "Resolvidos"
+                                else -> status.name
+                            }
+                        )
+                    },
+                    leadingIcon = if (isSelected) {
+                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    } else null,
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = if(status == ReportStatus.OPEN) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+                        selectedLabelColor = if(status == ReportStatus.OPEN) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                )
+            }
+        }
+
+        HorizontalDivider(modifier = Modifier.padding(vertical = 24.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+        Text(
+            text = "Tipo de Report",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                FilterChip(
+                    selected = state.selectedTypeFilter == null,
+                    onClick = { onTypeSelected(null) },
+                    label = { Text("Todos") }
+                )
+            }
+            items(ReportType.entries) { type ->
+                val isSelected = state.selectedTypeFilter == type
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onTypeSelected(type) },
+                    label = { Text(type.name) },
+                    leadingIcon = if (isSelected) {
+                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            OutlinedButton(
+                onClick = {
+                    onStatusSelected(null)
+                    onTypeSelected(null)
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Limpar")
+            }
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Ver Resultados")
+            }
+        }
+    }
+}
+
 @Composable
 fun SectionHeader(title: String, count: Int, color: Color) {
     Surface(

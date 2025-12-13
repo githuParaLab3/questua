@@ -5,7 +5,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -50,6 +49,9 @@ fun UserManagementScreen(
     val state by viewModel.state.collectAsState()
     var showCreateDialog by remember { mutableStateOf(false) }
 
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -73,7 +75,13 @@ fun UserManagementScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 QuestuaTextField(
                     value = state.searchQuery,
                     onValueChange = viewModel::onSearchQueryChange,
@@ -86,28 +94,28 @@ fun UserManagementScreen(
                             }
                         }
                     } else null,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.weight(1f)
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item {
-                        FilterChip(
-                            selected = state.roleFilter == null,
-                            onClick = { viewModel.onRoleFilterChange(null) },
-                            label = { Text("Todos") }
-                        )
-                    }
-                    items(UserRole.entries) { role ->
-                        FilterChip(
-                            selected = state.roleFilter == role,
-                            onClick = { viewModel.onRoleFilterChange(role) },
-                            label = { Text(role.name) },
-                            leadingIcon = if (state.roleFilter == role) {
-                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
-                            } else null
-                        )
+                val hasActiveFilters = state.roleFilter != null
+                FilledTonalIconButton(
+                    onClick = { showFilterSheet = true },
+                    colors = if (hasActiveFilters) IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ) else IconButtonDefaults.filledTonalIconButtonColors()
+                ) {
+                    Box {
+                        Icon(Icons.Default.Tune, contentDescription = "Filtros")
+                        if (hasActiveFilters) {
+                            Badge(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .align(Alignment.TopEnd)
+                                    .offset(x = 2.dp, y = (-2).dp),
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
@@ -134,6 +142,19 @@ fun UserManagementScreen(
         }
     }
 
+    if (showFilterSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showFilterSheet = false },
+            sheetState = sheetState
+        ) {
+            UserFilterSheetContent(
+                state = state,
+                onRoleSelected = viewModel::onRoleFilterChange,
+                onDismiss = { showFilterSheet = false }
+            )
+        }
+    }
+
     if (showCreateDialog) {
         CreateUserDialog(
             languages = state.availableLanguages,
@@ -147,6 +168,79 @@ fun UserManagementScreen(
 
     state.error?.let {
         ErrorDialog(message = it, onDismiss = { viewModel.loadUsers() })
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UserFilterSheetContent(
+    state: UserManagementState,
+    onRoleSelected: (UserRole?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 48.dp)
+            .fillMaxWidth()
+    ) {
+        Text(
+            "Filtros",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 24.dp)
+        )
+
+        Text(
+            text = "Função (Role)",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                FilterChip(
+                    selected = state.roleFilter == null,
+                    onClick = { onRoleSelected(null) },
+                    label = { Text("Todos") }
+                )
+            }
+            items(UserRole.entries) { role ->
+                val isSelected = state.roleFilter == role
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onRoleSelected(role) },
+                    label = { Text(role.name) },
+                    leadingIcon = if (isSelected) {
+                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            OutlinedButton(
+                onClick = {
+                    onRoleSelected(null)
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Limpar")
+            }
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Ver Resultados")
+            }
+        }
     }
 }
 

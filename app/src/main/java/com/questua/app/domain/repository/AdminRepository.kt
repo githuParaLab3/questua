@@ -64,4 +64,8 @@ interface AdminRepository {
     fun getProducts(page: Int, size: Int): Flow<Resource<List<Product>>>
     fun createProduct(product: Product): Flow<Resource<Product>>
     fun deleteProduct(productId: String): Flow<Resource<Unit>>
+
+    fun getAllCities(page: Int, size: Int): Flow<Resource<List<City>>>
+    fun getAllQuests(page: Int, size: Int): Flow<Resource<List<Quest>>>
+    fun getAllQuestPoints(page: Int, size: Int): Flow<Resource<List<QuestPoint>>>
 }

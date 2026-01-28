@@ -454,4 +454,46 @@ class AdminRepositoryImpl @Inject constructor(
             emit(Resource.Error(result.message ?: "Erro ao deletar produto"))
         }
     }
+
+    override fun getAllCities(page: Int, size: Int): Flow<Resource<List<City>>> = flow {
+        emit(Resource.Loading())
+        // CORREÇÃO: Usando argumentos nomeados para pular o parâmetro 'filter'
+        val result = safeApiCall { cityApi.list(page = page, size = size) }
+        when (result) {
+            is Resource.Success -> {
+                val list = result.data?.content?.map { it.toDomain() } ?: emptyList()
+                emit(Resource.Success(list))
+            }
+            is Resource.Error -> emit(Resource.Error(result.message ?: "Erro ao buscar cidades"))
+            is Resource.Loading -> emit(Resource.Loading())
+        }
+    }
+
+    override fun getAllQuests(page: Int, size: Int): Flow<Resource<List<Quest>>> = flow {
+        emit(Resource.Loading())
+        // QuestApi.getAll não tem filter, mas usar nomeado é mais seguro
+        val result = safeApiCall { questApi.getAll(page = page, size = size) }
+        when (result) {
+            is Resource.Success -> {
+                val list = result.data?.content?.map { it.toDomain() } ?: emptyList()
+                emit(Resource.Success(list))
+            }
+            is Resource.Error -> emit(Resource.Error(result.message ?: "Erro ao buscar missões"))
+            is Resource.Loading -> emit(Resource.Loading())
+        }
+    }
+
+    override fun getAllQuestPoints(page: Int, size: Int): Flow<Resource<List<QuestPoint>>> = flow {
+        emit(Resource.Loading())
+        // CORREÇÃO: Mesmo caso da CityApi, o list espera um map primeiro
+        val result = safeApiCall { questPointApi.list(page = page, size = size) }
+        when (result) {
+            is Resource.Success -> {
+                val list = result.data?.content?.map { it.toDomain() } ?: emptyList()
+                emit(Resource.Success(list))
+            }
+            is Resource.Error -> emit(Resource.Error(result.message ?: "Erro ao buscar pontos"))
+            is Resource.Loading -> emit(Resource.Loading())
+        }
+    }
 }

@@ -1,5 +1,6 @@
 package com.questua.app.presentation.admin.monetization
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,6 +9,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,7 +35,8 @@ fun AdminMonetizationScreen(
             onDismiss = { viewModel.toggleCreateModal(false) },
             onConfirm = { sku, title, desc, price, type, tId ->
                 viewModel.createProduct(sku, title, desc, price, type, tId)
-            }
+            },
+            viewModel = viewModel
         )
     }
 
@@ -55,7 +58,6 @@ fun AdminMonetizationScreen(
                 .padding(16.dp)
                 .fillMaxSize()
         ) {
-            // Seção de Produtos
             Text(
                 "Produtos Ativos",
                 style = MaterialTheme.typography.titleMedium,
@@ -81,8 +83,10 @@ fun AdminMonetizationScreen(
                 }
             }
 
-            // Seção de Transações
             Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider()
+            Spacer(modifier = Modifier.height(16.dp))
+
             Text(
                 "Histórico de Transações",
                 style = MaterialTheme.typography.titleMedium,
@@ -146,14 +150,31 @@ fun ProductItem(
 @Composable
 fun CreateProductDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Int, TargetType, String) -> Unit
+    onConfirm: (String, String, String, Int, TargetType, String) -> Unit,
+    viewModel: AdminMonetizationViewModel
 ) {
     var sku by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var priceStr by remember { mutableStateOf("") }
     var targetType by remember { mutableStateOf(TargetType.CITY) }
+
     var targetId by remember { mutableStateOf("") }
+    var targetNameDisplay by remember { mutableStateOf("") }
+
+    val state = viewModel.state
+
+    if (state.showTargetSelector) {
+        TargetSelectionDialog(
+            items = state.selectorItems,
+            onDismiss = { viewModel.closeTargetSelector() },
+            onSelect = { item ->
+                targetId = item.id
+                targetNameDisplay = item.name
+                viewModel.closeTargetSelector()
+            }
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -189,25 +210,50 @@ fun CreateProductDialog(
                     label = "Preço em Centavos (ex: 1990)",
                     modifier = Modifier.fillMaxWidth()
                 )
-                QuestuaTextField(
-                    value = targetId,
-                    onValueChange = { targetId = it },
-                    label = "ID do Alvo (UUID)",
-                    modifier = Modifier.fillMaxWidth()
-                )
 
-                Text("Tipo de Alvo", style = MaterialTheme.typography.labelMedium)
+                HorizontalDivider()
+                Text("Vincular Conteúdo", style = MaterialTheme.typography.titleSmall)
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Dropdown simplificado ou Chips para seleção
                     TargetType.values().forEach { type ->
                         FilterChip(
                             selected = targetType == type,
-                            onClick = { targetType = type },
+                            onClick = {
+                                targetType = type
+                                targetId = ""
+                                targetNameDisplay = ""
+                            },
                             label = { Text(type.name) }
                         )
+                    }
+                }
+
+                OutlinedCard(
+                    onClick = { viewModel.openTargetSelector(targetType) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (targetId.isEmpty()) "Selecione ${targetType.name}..." else targetNameDisplay,
+                                style = if (targetId.isEmpty()) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.titleMedium,
+                                color = if (targetId.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.primary
+                            )
+                            if (targetId.isNotEmpty()) {
+                                Text(
+                                    text = "ID: ${targetId.take(8)}...",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+                        }
+                        Icon(Icons.Default.Search, contentDescription = null)
                     }
                 }
             }
@@ -215,11 +261,10 @@ fun CreateProductDialog(
         confirmButton = {
             QuestuaButton(
                 text = "Criar",
+                enabled = targetId.isNotEmpty() && sku.isNotBlank() && title.isNotBlank(),
                 onClick = {
                     val price = priceStr.toIntOrNull() ?: 0
-                    if (sku.isNotBlank() && title.isNotBlank()) {
-                        onConfirm(sku, title, description, price, targetType, targetId)
-                    }
+                    onConfirm(sku, title, description, price, targetType, targetId)
                 },
                 modifier = Modifier.width(100.dp)
             )
@@ -228,6 +273,53 @@ fun CreateProductDialog(
             TextButton(onClick = onDismiss) {
                 Text("Cancelar")
             }
+        }
+    )
+}
+
+@Composable
+fun TargetSelectionDialog(
+    items: List<SelectorItem>,
+    onDismiss: () -> Unit,
+    onSelect: (SelectorItem) -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredItems = items.filter {
+        it.name.contains(searchQuery, ignoreCase = true) || it.id.contains(searchQuery)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Selecione o Item") },
+        text = {
+            Column(modifier = Modifier.height(400.dp)) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    label = { Text("Buscar por nome...") },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.Search, null) }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyColumn {
+                    items(filteredItems) { item ->
+                        ListItem(
+                            headlineContent = { Text(item.name) },
+                            supportingContent = { Text("${item.detail} • ID: ${item.id.take(6)}...") },
+                            modifier = Modifier
+                                .clickable { onSelect(item) }
+                                .fillMaxWidth()
+                        )
+                        HorizontalDivider()
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Fechar") }
         }
     )
 }

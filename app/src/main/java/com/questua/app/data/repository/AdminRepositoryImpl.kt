@@ -496,4 +496,24 @@ class AdminRepositoryImpl @Inject constructor(
             is Resource.Loading -> emit(Resource.Loading())
         }
     }
+
+    override fun updateProduct(product: Product): Flow<Resource<Product>> = flow {
+        emit(Resource.Loading())
+        val request = ProductRequestDTO(
+            sku = product.sku,
+            title = product.title,
+            descriptionProduct = product.description,
+            priceCents = product.priceCents,
+            currency = product.currency,
+            targetType = product.targetType,
+            targetId = product.targetId
+        )
+        // Assumindo que sua API tem um método update(id, dto)
+        val result = safeApiCall { productApi.update(product.id, request) }
+        when (result) {
+            is Resource.Success -> emit(Resource.Success(result.data!!.toDomain()))
+            is Resource.Error -> emit(Resource.Error(result.message ?: "Erro ao atualizar"))
+            is Resource.Loading -> emit(Resource.Loading())
+        }
+    }
 }

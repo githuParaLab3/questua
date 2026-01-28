@@ -9,6 +9,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -20,6 +21,7 @@ import androidx.navigation.NavController
 import com.questua.app.core.ui.components.QuestuaButton
 import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.enums.TargetType
+import com.questua.app.domain.model.Product
 import com.questua.app.presentation.admin.components.AdminBottomNavBar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,11 +32,13 @@ fun AdminMonetizationScreen(
 ) {
     val state = viewModel.state
 
-    if (state.showCreateModal) {
-        CreateProductDialog(
-            onDismiss = { viewModel.toggleCreateModal(false) },
+    // Se o modal estiver visível, renderiza o diálogo de produto (criação ou edição)
+    if (state.showProductDialog) {
+        ProductFormDialog(
+            productToEdit = state.productToEdit,
+            onDismiss = { viewModel.closeDialog() },
             onConfirm = { sku, title, desc, price, currency, type, tId ->
-                viewModel.createProduct(sku, title, desc, price, currency, type, tId)
+                viewModel.saveProduct(sku, title, desc, price, currency, type, tId)
             },
             viewModel = viewModel
         )
@@ -45,7 +49,7 @@ fun AdminMonetizationScreen(
         bottomBar = { AdminBottomNavBar(navController) },
         floatingActionButton = {
             FloatingActionButton(
-                onClick = { viewModel.toggleCreateModal(true) },
+                onClick = { viewModel.openCreateDialog() },
                 containerColor = MaterialTheme.colorScheme.primary
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Novo Produto", tint = MaterialTheme.colorScheme.onPrimary)
@@ -73,10 +77,8 @@ fun AdminMonetizationScreen(
                 LazyColumn(modifier = Modifier.weight(1f)) {
                     items(state.products) { product ->
                         ProductItem(
-                            title = product.title,
-                            sku = product.sku,
-                            price = "${product.currency} ${(product.priceCents / 100.0)}",
-                            type = product.targetType.name,
+                            product = product,
+                            onEdit = { viewModel.openEditDialog(product) }, // <--- Ação de editar
                             onDelete = { viewModel.deleteProduct(product.id) }
                         )
                     }
@@ -116,10 +118,8 @@ fun AdminMonetizationScreen(
 
 @Composable
 fun ProductItem(
-    title: String,
-    sku: String,
-    price: String,
-    type: String,
+    product: Product,
+    onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
     Card(
@@ -136,32 +136,54 @@ fun ProductItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.titleSmall)
-                Text(text = "SKU: $sku", style = MaterialTheme.typography.bodySmall)
-                Text(text = "$type • $price", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(text = product.title, style = MaterialTheme.typography.titleSmall)
+                Text(text = "SKU: ${product.sku}", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    text = "${product.targetType.name} • ${product.currency} ${(product.priceCents / 100.0)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = MaterialTheme.colorScheme.error)
+            // Botões de Ação
+            Row {
+                IconButton(onClick = onEdit) {
+                    Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = MaterialTheme.colorScheme.error)
+                }
             }
         }
     }
 }
 
 @Composable
-fun CreateProductDialog(
+fun ProductFormDialog(
+    productToEdit: Product? = null, // <--- Dados para preencher se for edição
     onDismiss: () -> Unit,
     onConfirm: (String, String, String, Int, String, TargetType, String) -> Unit,
     viewModel: AdminMonetizationViewModel
 ) {
-    var sku by remember { mutableStateOf("") }
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var priceStr by remember { mutableStateOf("") }
-    var currency by remember { mutableStateOf("BRL") } // Estado da moeda
-    var targetType by remember { mutableStateOf(TargetType.CITY) }
+    // Inicializa estados com valores do produto se estiver editando, ou vazio
+    var sku by remember { mutableStateOf(productToEdit?.sku ?: "") }
+    var title by remember { mutableStateOf(productToEdit?.title ?: "") }
+    var description by remember { mutableStateOf(productToEdit?.description ?: "") }
+    var priceStr by remember { mutableStateOf(productToEdit?.priceCents?.toString() ?: "") }
+    var currency by remember { mutableStateOf(productToEdit?.currency ?: "BRL") }
+    var targetType by remember { mutableStateOf(productToEdit?.targetType ?: TargetType.CITY) }
 
-    var targetId by remember { mutableStateOf("") }
-    var targetNameDisplay by remember { mutableStateOf("") }
+    var targetId by remember { mutableStateOf(productToEdit?.targetId ?: "") }
+    var targetNameDisplay by remember { mutableStateOf(viewModel.state.selectedTargetName ?: "") }
+
+    // Atualiza nome do alvo se a VM tiver carregado algo novo no seletor
+    LaunchedEffect(viewModel.state.selectedTargetName) {
+        if (viewModel.state.selectedTargetName != null) {
+            targetNameDisplay = viewModel.state.selectedTargetName!!
+        } else if (productToEdit != null && targetNameDisplay.isEmpty()) {
+            // Fallback inicial na edição
+            targetNameDisplay = "ID: ${productToEdit.targetId}"
+        }
+    }
 
     val state = viewModel.state
 
@@ -179,7 +201,7 @@ fun CreateProductDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Novo Produto") },
+        title = { Text(if (productToEdit == null) "Novo Produto" else "Editar Produto") },
         text = {
             Column(
                 modifier = Modifier
@@ -221,7 +243,6 @@ fun CreateProductDialog(
                     )
                 }
 
-                // Chips de moeda rápida
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("BRL", "USD", "EUR").forEach { curr ->
                         FilterChip(
@@ -244,8 +265,11 @@ fun CreateProductDialog(
                             selected = targetType == type,
                             onClick = {
                                 targetType = type
-                                targetId = ""
-                                targetNameDisplay = ""
+                                // Ao mudar tipo na edição, reseta o ID para forçar nova escolha
+                                if (type != productToEdit?.targetType) {
+                                    targetId = ""
+                                    targetNameDisplay = ""
+                                }
                             },
                             label = { Text(type.name) }
                         )
@@ -281,7 +305,7 @@ fun CreateProductDialog(
         },
         confirmButton = {
             QuestuaButton(
-                text = "Criar",
+                text = if (productToEdit == null) "Criar" else "Salvar",
                 enabled = targetId.isNotEmpty() && sku.isNotBlank() && title.isNotBlank() && currency.isNotBlank(),
                 onClick = {
                     val price = priceStr.toIntOrNull() ?: 0

@@ -68,4 +68,5 @@ interface AdminRepository {
     fun getAllCities(page: Int, size: Int): Flow<Resource<List<City>>>
     fun getAllQuests(page: Int, size: Int): Flow<Resource<List<Quest>>>
     fun getAllQuestPoints(page: Int, size: Int): Flow<Resource<List<QuestPoint>>>
+    fun updateProduct(product: Product): Flow<Resource<Product>>
 }

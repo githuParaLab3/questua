@@ -13,6 +13,7 @@ import com.questua.app.domain.usecase.admin.sales.CreateProductUseCase
 import com.questua.app.domain.usecase.admin.sales.DeleteProductUseCase
 import com.questua.app.domain.usecase.admin.sales.GetProductsUseCase
 import com.questua.app.domain.usecase.admin.sales.GetTransactionHistoryUseCase
+import com.questua.app.domain.usecase.admin.sales.UpdateProductUseCase // <--- Importe o novo UseCase
 import com.questua.app.domain.usecase.admin.selectors.GetCitiesSelectorUseCase
 import com.questua.app.domain.usecase.admin.selectors.GetQuestPointsSelectorUseCase
 import com.questua.app.domain.usecase.admin.selectors.GetQuestsSelectorUseCase
@@ -32,7 +33,9 @@ data class MonetizationState(
     val transactions: List<TransactionRecord> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val showCreateModal: Boolean = false,
+
+    val showProductDialog: Boolean = false, // Renomeado de showCreateModal para ser genérico
+    val productToEdit: Product? = null,     // Se != null, estamos editando
 
     val selectorItems: List<SelectorItem> = emptyList(),
     val showTargetSelector: Boolean = false,
@@ -43,6 +46,7 @@ data class MonetizationState(
 class AdminMonetizationViewModel @Inject constructor(
     private val getProductsUseCase: GetProductsUseCase,
     private val createProductUseCase: CreateProductUseCase,
+    private val updateProductUseCase: UpdateProductUseCase, // <--- Injete aqui
     private val deleteProductUseCase: DeleteProductUseCase,
     private val getTransactionHistoryUseCase: GetTransactionHistoryUseCase,
     private val getCitiesSelectorUseCase: GetCitiesSelectorUseCase,
@@ -80,44 +84,77 @@ class AdminMonetizationViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    fun toggleCreateModal(show: Boolean) {
+    // Abre modal limpo para criar
+    fun openCreateDialog() {
         state = state.copy(
-            showCreateModal = show,
+            showProductDialog = true,
+            productToEdit = null,
             selectedTargetName = null
         )
     }
 
-    fun createProduct(
+    // Abre modal preenchido para editar
+    fun openEditDialog(product: Product) {
+        state = state.copy(
+            showProductDialog = true,
+            productToEdit = product,
+            selectedTargetName = "Item Atual (ID: ${product.targetId.take(6)}...)" // Placeholder até carregar o nome real se quiser
+        )
+    }
+
+    fun closeDialog() {
+        state = state.copy(showProductDialog = false, productToEdit = null)
+    }
+
+    fun saveProduct(
         sku: String,
         title: String,
         description: String,
         priceCents: Int,
-        currency: String, // <--- NOVO PARÂMETRO
+        currency: String,
         targetType: TargetType,
         targetId: String
     ) {
-        val newProduct = Product(
-            id = "",
-            sku = sku,
-            title = title,
-            description = description,
-            priceCents = priceCents,
-            currency = currency, // <--- USANDO A MOEDA
-            targetType = targetType,
-            targetId = targetId,
-            createdAt = ""
-        )
+        val editingProduct = state.productToEdit
 
-        createProductUseCase(newProduct).onEach { result ->
-            when (result) {
-                is Resource.Success -> {
-                    toggleCreateModal(false)
-                    fetchProducts()
-                }
-                is Resource.Error -> state = state.copy(error = result.message, isLoading = false)
-                is Resource.Loading -> state = state.copy(isLoading = true)
+        if (editingProduct == null) {
+            // CRIAÇÃO
+            val newProduct = Product(
+                id = "",
+                sku = sku,
+                title = title,
+                description = description,
+                priceCents = priceCents,
+                currency = currency,
+                targetType = targetType,
+                targetId = targetId,
+                createdAt = ""
+            )
+            createProductUseCase(newProduct).onEach { handleSaveResult(it) }.launchIn(viewModelScope)
+        } else {
+            // EDIÇÃO
+            val updatedProduct = editingProduct.copy(
+                sku = sku,
+                title = title,
+                description = description,
+                priceCents = priceCents,
+                currency = currency,
+                targetType = targetType,
+                targetId = targetId
+            )
+            updateProductUseCase(updatedProduct).onEach { handleSaveResult(it) }.launchIn(viewModelScope)
+        }
+    }
+
+    private fun handleSaveResult(result: Resource<Product>) {
+        when (result) {
+            is Resource.Success -> {
+                closeDialog()
+                fetchProducts()
             }
-        }.launchIn(viewModelScope)
+            is Resource.Error -> state = state.copy(error = result.message, isLoading = false)
+            is Resource.Loading -> state = state.copy(isLoading = true)
+        }
     }
 
     fun deleteProduct(id: String) {

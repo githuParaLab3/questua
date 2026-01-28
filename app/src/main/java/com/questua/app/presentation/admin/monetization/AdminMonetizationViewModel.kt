@@ -83,7 +83,7 @@ class AdminMonetizationViewModel @Inject constructor(
     fun toggleCreateModal(show: Boolean) {
         state = state.copy(
             showCreateModal = show,
-            selectedTargetName = null // Reset selection on open/close
+            selectedTargetName = null
         )
     }
 
@@ -92,6 +92,7 @@ class AdminMonetizationViewModel @Inject constructor(
         title: String,
         description: String,
         priceCents: Int,
+        currency: String, // <--- NOVO PARÂMETRO
         targetType: TargetType,
         targetId: String
     ) {
@@ -101,7 +102,7 @@ class AdminMonetizationViewModel @Inject constructor(
             title = title,
             description = description,
             priceCents = priceCents,
-            currency = "BRL",
+            currency = currency, // <--- USANDO A MOEDA
             targetType = targetType,
             targetId = targetId,
             createdAt = ""
@@ -133,9 +134,15 @@ class AdminMonetizationViewModel @Inject constructor(
         state = state.copy(isLoading = true)
 
         val flow = when (targetType) {
-            TargetType.CITY -> getCitiesSelectorUseCase().onEach { res -> mapToSelector(res, { it.id }, { it.name }, { it.countryCode }) }
-            TargetType.QUEST -> getQuestsSelectorUseCase().onEach { res -> mapToSelector(res, { it.id }, { it.title }, { "Dif: ${it.difficulty}" }) }
-            TargetType.QUEST_POINT -> getQuestPointsSelectorUseCase().onEach { res -> mapToSelector(res, { it.id }, { it.title }, { "Dif: ${it.difficulty}" }) }
+            TargetType.CITY -> getCitiesSelectorUseCase().onEach { res ->
+                mapToSelector(res, { it.id }, { it.name }, { it.countryCode })
+            }
+            TargetType.QUEST -> getQuestsSelectorUseCase().onEach { res ->
+                mapToSelector(res, { it.id }, { it.title }, { "Dif: ${it.difficulty}" })
+            }
+            TargetType.QUEST_POINT -> getQuestPointsSelectorUseCase().onEach { res ->
+                mapToSelector(res, { it.id }, { it.title }, { "Dif: ${it.difficulty}" })
+            }
             else -> getCitiesSelectorUseCase().onEach { }
         }
 

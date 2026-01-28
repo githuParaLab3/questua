@@ -33,8 +33,8 @@ fun AdminMonetizationScreen(
     if (state.showCreateModal) {
         CreateProductDialog(
             onDismiss = { viewModel.toggleCreateModal(false) },
-            onConfirm = { sku, title, desc, price, type, tId ->
-                viewModel.createProduct(sku, title, desc, price, type, tId)
+            onConfirm = { sku, title, desc, price, currency, type, tId ->
+                viewModel.createProduct(sku, title, desc, price, currency, type, tId)
             },
             viewModel = viewModel
         )
@@ -150,13 +150,14 @@ fun ProductItem(
 @Composable
 fun CreateProductDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Int, TargetType, String) -> Unit,
+    onConfirm: (String, String, String, Int, String, TargetType, String) -> Unit,
     viewModel: AdminMonetizationViewModel
 ) {
     var sku by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var priceStr by remember { mutableStateOf("") }
+    var currency by remember { mutableStateOf("BRL") } // Estado da moeda
     var targetType by remember { mutableStateOf(TargetType.CITY) }
 
     var targetId by remember { mutableStateOf("") }
@@ -204,12 +205,32 @@ fun CreateProductDialog(
                     label = "Descrição",
                     modifier = Modifier.fillMaxWidth()
                 )
-                QuestuaTextField(
-                    value = priceStr,
-                    onValueChange = { if (it.all { char -> char.isDigit() }) priceStr = it },
-                    label = "Preço em Centavos (ex: 1990)",
-                    modifier = Modifier.fillMaxWidth()
-                )
+
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    QuestuaTextField(
+                        value = priceStr,
+                        onValueChange = { if (it.all { char -> char.isDigit() }) priceStr = it },
+                        label = "Preço (Centavos)",
+                        modifier = Modifier.weight(1f)
+                    )
+                    QuestuaTextField(
+                        value = currency,
+                        onValueChange = { currency = it.uppercase() },
+                        label = "Moeda",
+                        modifier = Modifier.width(100.dp)
+                    )
+                }
+
+                // Chips de moeda rápida
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("BRL", "USD", "EUR").forEach { curr ->
+                        FilterChip(
+                            selected = currency == curr,
+                            onClick = { currency = curr },
+                            label = { Text(curr) }
+                        )
+                    }
+                }
 
                 HorizontalDivider()
                 Text("Vincular Conteúdo", style = MaterialTheme.typography.titleSmall)
@@ -261,10 +282,10 @@ fun CreateProductDialog(
         confirmButton = {
             QuestuaButton(
                 text = "Criar",
-                enabled = targetId.isNotEmpty() && sku.isNotBlank() && title.isNotBlank(),
+                enabled = targetId.isNotEmpty() && sku.isNotBlank() && title.isNotBlank() && currency.isNotBlank(),
                 onClick = {
                     val price = priceStr.toIntOrNull() ?: 0
-                    onConfirm(sku, title, description, price, targetType, targetId)
+                    onConfirm(sku, title, description, price, currency, targetType, targetId)
                 },
                 modifier = Modifier.width(100.dp)
             )

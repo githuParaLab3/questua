@@ -26,6 +26,7 @@ class AdminRepositoryImpl @Inject constructor(
     private val reportApi: ReportApi,
     private val userApi: UserAccountApi,
     private val transactionApi: TransactionRecordApi,
+    private val productApi: ProductApi,
     private val uploadApi: UploadApi
 ) : AdminRepository, SafeApiCall() {
 
@@ -411,5 +412,46 @@ class AdminRepositoryImpl @Inject constructor(
         val result = safeApiCall { transactionApi.list(page = page, size = size) }
         if (result is Resource.Success) emit(Resource.Success(result.data!!.content.map { it.toDomain() }))
         else emit(Resource.Error(result.message ?: "Erro ao carregar transações"))
+    }
+
+    override fun getProducts(page: Int, size: Int): Flow<Resource<List<Product>>> = flow {
+        emit(Resource.Loading())
+        val result = safeApiCall { productApi.list(page = page, size = size) }
+        if (result is Resource.Success) {
+            // Assume que o PageResponse tem um campo 'content' com a lista
+            emit(Resource.Success(result.data!!.content.map { it.toDomain() }))
+        } else {
+            emit(Resource.Error(result.message ?: "Erro ao carregar produtos"))
+        }
+    }
+
+    override fun createProduct(product: Product): Flow<Resource<Product>> = flow {
+        emit(Resource.Loading())
+        // Mapeando do domínio para DTO
+        val dto = ProductRequestDTO(
+            sku = product.sku,
+            title = product.title,
+            descriptionProduct = product.description,
+            priceCents = product.priceCents,
+            currency = product.currency,
+            targetType = product.targetType,
+            targetId = product.targetId
+        )
+        val result = safeApiCall { productApi.create(dto) }
+        if (result is Resource.Success) {
+            emit(Resource.Success(result.data!!.toDomain()))
+        } else {
+            emit(Resource.Error(result.message ?: "Erro ao criar produto"))
+        }
+    }
+
+    override fun deleteProduct(productId: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        val result = safeApiCall { productApi.delete(productId) }
+        if (result is Resource.Success) {
+            emit(Resource.Success(Unit))
+        } else {
+            emit(Resource.Error(result.message ?: "Erro ao deletar produto"))
+        }
     }
 }

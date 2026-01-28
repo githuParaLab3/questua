@@ -112,7 +112,7 @@ fun AdminFeedbackScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gerenciar Reports") },
+                title = { Text("Feedbacks") },
                 actions = {
                     IconButton(onClick = { viewModel.loadReports() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Atualizar")

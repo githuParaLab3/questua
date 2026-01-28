@@ -60,4 +60,8 @@ interface AdminRepository {
     fun deleteUser(id: String): Flow<Resource<Unit>>
 
     fun getAllTransactions(page: Int, size: Int): Flow<Resource<List<TransactionRecord>>>
+
+    fun getProducts(page: Int, size: Int): Flow<Resource<List<Product>>>
+    fun createProduct(product: Product): Flow<Resource<Product>>
+    fun deleteProduct(productId: String): Flow<Resource<Unit>>
 }

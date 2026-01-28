@@ -1,6 +1,7 @@
 package com.questua.app.domain.repository
 
 import com.questua.app.core.common.Resource
+import com.questua.app.domain.enums.TargetType
 import com.questua.app.domain.enums.UserRole
 import com.questua.app.domain.model.*
 import kotlinx.coroutines.flow.Flow
@@ -61,7 +62,12 @@ interface AdminRepository {
 
     fun getAllTransactions(page: Int, size: Int): Flow<Resource<List<TransactionRecord>>>
 
-    fun getProducts(page: Int, size: Int): Flow<Resource<List<Product>>>
+    fun getProducts(
+        page: Int,
+        size: Int,
+        query: String? = null,
+        type: TargetType? = null
+    ): Flow<Resource<List<Product>>>
     fun createProduct(product: Product): Flow<Resource<Product>>
     fun deleteProduct(productId: String): Flow<Resource<Unit>>
 

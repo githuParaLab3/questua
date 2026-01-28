@@ -11,7 +11,9 @@ interface ProductApi {
     suspend fun list(
         @QueryMap filter: Map<String, String> = emptyMap(),
         @Query("page") page: Int? = null,
-        @Query("size") size: Int? = null
+        @Query("size") size: Int? = null,
+        @Query("title") title: String? = null,
+        @Query("targetType") targetType: String? = null
     ): Response<PageResponse<ProductResponseDTO>>
 
     @GET("products/{id}")

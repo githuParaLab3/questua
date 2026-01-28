@@ -5,6 +5,7 @@ import com.questua.app.core.network.SafeApiCall
 import com.questua.app.data.mapper.toDomain
 import com.questua.app.data.remote.api.*
 import com.questua.app.data.remote.dto.*
+import com.questua.app.domain.enums.TargetType
 import com.questua.app.domain.enums.UserRole
 import com.questua.app.domain.model.*
 import com.questua.app.domain.repository.AdminRepository
@@ -414,14 +415,32 @@ class AdminRepositoryImpl @Inject constructor(
         else emit(Resource.Error(result.message ?: "Erro ao carregar transações"))
     }
 
-    override fun getProducts(page: Int, size: Int): Flow<Resource<List<Product>>> = flow {
+    override fun getProducts(
+        page: Int,
+        size: Int,
+        query: String?,
+        type: TargetType?
+    ): Flow<Resource<List<Product>>> = flow {
         emit(Resource.Loading())
-        val result = safeApiCall { productApi.list(page = page, size = size) }
-        if (result is Resource.Success) {
-            // Assume que o PageResponse tem um campo 'content' com a lista
-            emit(Resource.Success(result.data!!.content.map { it.toDomain() }))
-        } else {
-            emit(Resource.Error(result.message ?: "Erro ao carregar produtos"))
+
+        val typeString = type?.name
+
+        val result = safeApiCall {
+            productApi.list(
+                page = page,
+                size = size,
+                title = query,
+                targetType = typeString
+            )
+        }
+
+        when (result) {
+            is Resource.Success -> {
+                val domainList = result.data?.content?.map { it.toDomain() } ?: emptyList()
+                emit(Resource.Success(domainList))
+            }
+            is Resource.Error -> emit(Resource.Error(result.message ?: "Erro desconhecido"))
+            is Resource.Loading -> emit(Resource.Loading())
         }
     }
 

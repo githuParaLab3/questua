@@ -18,9 +18,12 @@ import com.questua.app.domain.usecase.admin.selectors.GetCitiesSelectorUseCase
 import com.questua.app.domain.usecase.admin.selectors.GetQuestPointsSelectorUseCase
 import com.questua.app.domain.usecase.admin.selectors.GetQuestsSelectorUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.delay
 
 data class SelectorItem(
     val id: String,
@@ -39,7 +42,10 @@ data class MonetizationState(
 
     val selectorItems: List<SelectorItem> = emptyList(),
     val showTargetSelector: Boolean = false,
-    val selectedTargetName: String? = null
+    val selectedTargetName: String? = null,
+
+    val searchQuery: String = "",
+    val activeFilter: TargetType? = null
 )
 
 @HiltViewModel
@@ -65,9 +71,33 @@ class AdminMonetizationViewModel @Inject constructor(
         fetchProducts()
         fetchTransactions()
     }
+    private var searchJob: Job? = null
+
+    // Função de busca que será chamada pela UI
+    fun onSearchQueryChange(newQuery: String) {
+        // Atualiza UI instantaneamente
+        state = state.copy(searchQuery = newQuery)
+
+        // Cancela busca anterior e agenda nova (Debounce de 500ms)
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            delay(500L)
+            fetchProducts()
+        }
+    }
+
+    fun onFilterChange(type: TargetType?) {
+        state = state.copy(activeFilter = type)
+        fetchProducts() // Filtro de tipo pode ser imediato
+    }
+
 
     private fun fetchProducts() {
-        getProductsUseCase().onEach { result ->
+        // Agora passamos os filtros do state para o UseCase
+        val query = if (state.searchQuery.isBlank()) null else state.searchQuery
+        val type = state.activeFilter
+
+        getProductsUseCase(query = query, type = type).onEach { result ->
             state = when (result) {
                 is Resource.Success -> state.copy(products = result.data ?: emptyList(), isLoading = false)
                 is Resource.Error -> state.copy(error = result.message, isLoading = false)

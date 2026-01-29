@@ -1,6 +1,5 @@
 package com.questua.app.presentation.admin
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -9,21 +8,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.questua.app.presentation.admin.components.AdminBottomNavBar
 
 data class ContentCategory(
     val id: String,
     val title: String,
-    val icon: ImageVector,
-    val count: Int
+    val icon: ImageVector
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,24 +34,42 @@ fun AdminGeneralManagementScreen(
     navController: NavController,
     onNavigateToDetail: (String) -> Unit,
     onNavigateToLogs: () -> Unit,
-    onExitAdmin: () -> Unit
+    onExitAdmin: () -> Unit,
+    viewModel: AdminGeneralManagementViewModel = hiltViewModel()
 ) {
-    val categories = listOf(
-        ContentCategory("quests", "Quests", Icons.Default.Map, 120),
-        ContentCategory("dialogues", "Diálogos", Icons.Default.Chat, 450),
-        ContentCategory("items", "Itens", Icons.Default.Backpack, 85),
-        ContentCategory("npcs", "NPCs", Icons.Default.Person, 32),
-        ContentCategory("cities", "Cidades", Icons.Default.LocationCity, 12),
-        ContentCategory("achievements", "Conquistas", Icons.Default.EmojiEvents, 50)
-    )
+    val state by viewModel.state.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    // ATUALIZAÇÃO DINÂMICA AO VOLTAR PARA ESTA TELA
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshStats()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    val categories = remember {
+        listOf(
+            ContentCategory("languages", "Idiomas", Icons.Default.Language),
+            ContentCategory("cities", "Cidades", Icons.Default.LocationCity),
+            ContentCategory("quests", "Quests", Icons.Default.Flag),
+            ContentCategory("quest_points", "Quest Points", Icons.Default.Place),
+            ContentCategory("dialogues", "Diálogos", Icons.Default.Chat),
+            ContentCategory("characters", "Personagens", Icons.Default.Person),
+            ContentCategory("achievements", "Conquistas", Icons.Default.EmojiEvents)
+        )
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Painel Admin") },
+                title = { Text("Painel de Controle", fontWeight = FontWeight.Bold) },
                 actions = {
                     IconButton(onClick = onNavigateToLogs) {
-                        Icon(Icons.Default.History, contentDescription = "Histórico IA")
+                        Icon(Icons.Default.AutoGraph, contentDescription = "Logs de IA")
                     }
                     IconButton(onClick = onExitAdmin) {
                         Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = "Sair")
@@ -63,53 +83,71 @@ fun AdminGeneralManagementScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
             Text(
-                "Visão Geral do Conteúdo",
+                "Gestão de Conteúdo",
                 style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(bottom = 16.dp)
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(vertical = 16.dp)
             )
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(bottom = 24.dp)
             ) {
                 items(categories) { category ->
-                    ContentCategoryCard(category, onClick = { onNavigateToDetail(category.id) })
+                    val count = state.counts[category.id] ?: 0
+                    ContentCategoryCard(
+                        category = category,
+                        count = count,
+                        onClick = { onNavigateToDetail(category.id) }
+                    )
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ContentCategoryCard(category: ContentCategory, onClick: () -> Unit) {
-    Card(
+fun ContentCategoryCard(
+    category: ContentCategory,
+    count: Int,
+    onClick: () -> Unit
+) {
+    ElevatedCard(
         onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+        ),
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(20.dp)
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Icon(
                 imageVector = category.icon,
                 contentDescription = null,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(32.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = category.title,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
-                text = "${category.count} itens",
-                style = MaterialTheme.typography.bodySmall
+                text = "$count itens",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }

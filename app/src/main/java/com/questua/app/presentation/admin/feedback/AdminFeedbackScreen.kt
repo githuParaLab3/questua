@@ -52,6 +52,17 @@ fun AdminFeedbackScreen(
 
     val currentBackStackEntry = navController.currentBackStackEntry
 
+    // Atualização dinâmica ao entrar em foco
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.loadReports()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
     val successMessage by currentBackStackEntry?.savedStateHandle
         ?.getStateFlow<String?>("feedback_success_message", null)
         ?.collectAsState() ?: remember { mutableStateOf(null) }
@@ -86,20 +97,8 @@ fun AdminFeedbackScreen(
                 ) {
                     Text("OK")
                 }
-            },
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 6.dp
-        )
-    }
-
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.loadReports()
             }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        )
     }
 
     val openReports = remember(state.reports) {
@@ -112,12 +111,7 @@ fun AdminFeedbackScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Feedbacks") },
-                actions = {
-                    IconButton(onClick = { viewModel.loadReports() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Atualizar")
-                    }
-                }
+                title = { Text("Feedbacks") }
             )
         },
         bottomBar = { AdminBottomNavBar(navController) }

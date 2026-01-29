@@ -70,12 +70,7 @@ fun UserManagementScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gerenciamento de Usuários") },
-                actions = {
-                    IconButton(onClick = { viewModel.loadUsers() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Atualizar")
-                    }
-                }
+                title = { Text("Usuários") }
             )
         },
         bottomBar = { AdminBottomNavBar(navController) },

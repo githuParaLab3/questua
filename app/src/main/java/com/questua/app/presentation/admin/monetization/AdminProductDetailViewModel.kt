@@ -9,8 +9,10 @@ import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.domain.enums.TargetType
 import com.questua.app.domain.model.Product
+import com.questua.app.domain.model.TransactionRecord
 import com.questua.app.domain.usecase.admin.sales.DeleteProductUseCase
 import com.questua.app.domain.usecase.admin.sales.GetProductsUseCase
+import com.questua.app.domain.usecase.admin.sales.GetTransactionHistoryUseCase
 import com.questua.app.domain.usecase.admin.sales.UpdateProductUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
@@ -19,7 +21,9 @@ import javax.inject.Inject
 
 data class ProductDetailState(
     val product: Product? = null,
+    val transactions: List<TransactionRecord> = emptyList(),
     val isLoading: Boolean = false,
+    val isTransactionsLoading: Boolean = false,
     val error: String? = null
 )
 
@@ -28,7 +32,8 @@ class AdminProductDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getProductsUseCase: GetProductsUseCase,
     private val deleteProductUseCase: DeleteProductUseCase,
-    private val updateProductUseCase: UpdateProductUseCase
+    private val updateProductUseCase: UpdateProductUseCase,
+    private val getTransactionHistoryUseCase: GetTransactionHistoryUseCase
 ) : ViewModel() {
 
     var state by mutableStateOf(ProductDetailState())
@@ -38,6 +43,7 @@ class AdminProductDetailViewModel @Inject constructor(
 
     init {
         loadProduct()
+        loadTransactionHistory()
     }
 
     fun loadProduct() {
@@ -49,6 +55,20 @@ class AdminProductDetailViewModel @Inject constructor(
                 }
                 is Resource.Error -> state.copy(error = result.message, isLoading = false)
                 is Resource.Loading -> state.copy(isLoading = true)
+            }
+        }.launchIn(viewModelScope)
+    }
+
+    private fun loadTransactionHistory() {
+        getTransactionHistoryUseCase().onEach { result ->
+            state = when (result) {
+                is Resource.Success -> {
+                    // Filtra transações que pertencem a este produto
+                    val filtered = result.data?.filter { it.productId == productId } ?: emptyList()
+                    state.copy(transactions = filtered, isTransactionsLoading = false)
+                }
+                is Resource.Error -> state.copy(isTransactionsLoading = false)
+                is Resource.Loading -> state.copy(isTransactionsLoading = true)
             }
         }.launchIn(viewModelScope)
     }

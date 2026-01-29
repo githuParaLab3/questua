@@ -83,6 +83,7 @@ fun AdminProductDetailScreen(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Card de Informações
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
                         Text(product.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
@@ -92,6 +93,7 @@ fun AdminProductDetailScreen(
                     }
                 }
 
+                // Card de Preço
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Row(
                         modifier = Modifier.padding(16.dp).fillMaxWidth(),
@@ -103,6 +105,7 @@ fun AdminProductDetailScreen(
                     }
                 }
 
+                // Card de Vínculo
                 OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
                         Text("Conteúdo Vinculado", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
@@ -112,24 +115,20 @@ fun AdminProductDetailScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Seção de Ações abaixo dos detalhes
-                Column(
+                // Botões de Ação
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     QuestuaButton(
                         text = "Editar Produto",
                         onClick = { showEditDialog = true },
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier.weight(1f)
                     )
 
                     Button(
                         onClick = { showDeleteConfirm = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
+                        modifier = Modifier.weight(1f).height(50.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                             contentColor = MaterialTheme.colorScheme.onErrorContainer
@@ -138,9 +137,47 @@ fun AdminProductDetailScreen(
                     ) {
                         Icon(Icons.Default.Delete, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Excluir Produto")
+                        Text("Excluir")
                     }
                 }
+
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // Seção de Transações Associadas
+                Text(
+                    text = "Vendas deste Produto",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                if (state.isTransactionsLoading) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+                } else if (state.transactions.isEmpty()) {
+                    Text(
+                        "Nenhuma venda registrada para este produto.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Gray,
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                } else {
+                    state.transactions.forEach { transaction ->
+                        ListItem(
+                            headlineContent = { Text("ID: ${transaction.stripePaymentIntentId.take(12)}...") },
+                            supportingContent = { Text("Status: ${transaction.status}") },
+                            trailingContent = {
+                                Text(
+                                    "${transaction.currency} ${String.format("%.2f", transaction.amountCents / 100.0)}",
+                                    fontWeight = FontWeight.Bold
+                                )
+                            },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+                        HorizontalDivider(thickness = 0.5.dp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }

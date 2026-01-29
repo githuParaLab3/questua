@@ -20,9 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -47,10 +50,22 @@ fun UserManagementScreen(
     viewModel: UserManagementViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
     var showCreateDialog by remember { mutableStateOf(false) }
 
     var showFilterSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState()
+
+    // RECARREGAMENTO DINÂMICO AO ENTRAR EM FOCO
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.loadUsers()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(
         topBar = {
@@ -86,6 +101,7 @@ fun UserManagementScreen(
                     value = state.searchQuery,
                     onValueChange = viewModel::onSearchQueryChange,
                     placeholder = "Buscar por nome, email ou ID...",
+                    label = null,
                     leadingIcon = Icons.Default.Search,
                     trailingIcon = if (state.searchQuery.isNotEmpty()) {
                         {

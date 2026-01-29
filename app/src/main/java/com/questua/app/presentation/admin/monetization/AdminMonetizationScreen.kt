@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -34,14 +35,16 @@ fun AdminMonetizationScreen(
 ) {
     val state = viewModel.state
 
-    // CORREÇÃO: Força o recarregamento dos dados sempre que entrar na tela
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+
     LaunchedEffect(Unit) {
         viewModel.loadData()
     }
 
     if (state.showProductDialog) {
         ProductFormDialog(
-            productToEdit = null,
+            productToEdit = state.productToEdit,
             onDismiss = { viewModel.closeDialog() },
             onConfirm = { sku, title, desc, price, currency, type, tId ->
                 viewModel.saveProduct(sku, title, desc, price, currency, type, tId)
@@ -70,91 +73,141 @@ fun AdminMonetizationScreen(
             }
         }
     ) { padding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
+                .fillMaxSize()
                 .padding(padding)
-                .fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
-                SearchAndFilterSection(
-                    query = state.searchQuery,
-                    onQueryChange = viewModel::onSearchQueryChange,
-                    selectedType = state.activeFilter,
-                    onTypeSelected = viewModel::onFilterChange
+            // Barra de Busca e Botão de Filtro (Estilo Feedback)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                QuestuaTextField(
+                    value = state.searchQuery,
+                    onValueChange = viewModel::onSearchQueryChange,
+                    placeholder = "Buscar título ou SKU...",
+                    label = null,
+                    leadingIcon = Icons.Default.Search,
+                    trailingIcon = if (state.searchQuery.isNotEmpty()) {
+                        {
+                            IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                Icon(Icons.Default.Close, contentDescription = "Limpar")
+                            }
+                        }
+                    } else null,
+                    modifier = Modifier.weight(1f)
                 )
-            }
 
-            item {
-                Text(
-                    text = "Produtos Ativos (${state.products.size})",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            if (state.isLoading && state.products.isEmpty()) {
-                item {
-                    Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                val hasActiveFilters = state.activeFilter != null
+                FilledTonalIconButton(
+                    onClick = { showFilterSheet = true },
+                    colors = if (hasActiveFilters) IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ) else IconButtonDefaults.filledTonalIconButtonColors()
+                ) {
+                    Box {
+                        Icon(Icons.Default.Tune, contentDescription = "Filtros")
+                        if (hasActiveFilters) {
+                            Badge(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .align(Alignment.TopEnd),
+                                containerColor = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
-            } else if (state.products.isEmpty()) {
+            }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 item {
-                    Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.ShoppingCart, contentDescription = null, tint = Color.Gray, modifier = Modifier.size(48.dp))
-                            Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Produtos Ativos (${state.products.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                if (state.isLoading && state.products.isEmpty()) {
+                    item {
+                        Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator()
+                        }
+                    }
+                } else if (state.products.isEmpty()) {
+                    item {
+                        Box(Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                             Text("Nenhum produto encontrado.", color = Color.Gray)
                         }
                     }
+                } else {
+                    items(state.products) { product ->
+                        ProductItem(
+                            product = product,
+                            onClick = {
+                                navController.navigate(Screen.AdminMonetizationDetail.passId(product.id))
+                            }
+                        )
+                    }
                 }
-            } else {
-                items(state.products) { product ->
-                    ProductItem(
-                        product = product,
-                        onClick = {
-                            navController.navigate(Screen.AdminMonetizationDetail.passId(product.id))
-                        }
+
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Histórico Recente de Transações",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
-            }
 
-            item {
-                Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider()
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Histórico Recente de Transações",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
+                if (state.transactions.isEmpty()) {
+                    item {
+                        Text(
+                            "Nenhuma transação registrada.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
+                } else {
+                    items(state.transactions) { transaction ->
+                        ListItem(
+                            headlineContent = { Text("ID: ${transaction.stripePaymentIntentId.take(8)}...") },
+                            supportingContent = { Text("${transaction.currency} ${(transaction.amountCents / 100.0)} • ${transaction.status}") },
+                            leadingContent = { Icon(Icons.Default.AttachMoney, null, tint = MaterialTheme.colorScheme.secondary) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                        )
+                        HorizontalDivider(thickness = 0.5.dp)
+                    }
+                }
+                item { Spacer(modifier = Modifier.height(80.dp)) }
+            }
+        }
+
+        if (showFilterSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showFilterSheet = false },
+                sheetState = sheetState
+            ) {
+                MonetizationFilterSheetContent(
+                    selectedType = state.activeFilter,
+                    onTypeSelected = viewModel::onFilterChange,
+                    onDismiss = { showFilterSheet = false }
                 )
             }
-
-            if (state.transactions.isEmpty()) {
-                item {
-                    Text(
-                        "Nenhuma transação registrada.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
-                }
-            } else {
-                items(state.transactions) { transaction ->
-                    ListItem(
-                        headlineContent = { Text("ID: ${transaction.stripePaymentIntentId.take(8)}...") },
-                        supportingContent = { Text("${transaction.currency} ${(transaction.amountCents / 100.0)} • ${transaction.status}") },
-                        leadingContent = { Icon(Icons.Default.AttachMoney, null, tint = MaterialTheme.colorScheme.secondary) },
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                    )
-                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
-                }
-            }
-            item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 }
@@ -179,31 +232,84 @@ fun ProductItem(product: Product, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchAndFilterSection(query: String, onQueryChange: (String) -> Unit, selectedType: TargetType?, onTypeSelected: (TargetType?) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedTextField(
-            value = query, onValueChange = onQueryChange, modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Buscar por título ou SKU...") },
-            leadingIcon = { Icon(Icons.Default.Search, null) },
-            trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { onQueryChange("") }) { Icon(Icons.Default.Close, null) } },
-            singleLine = true, shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-            )
+fun MonetizationFilterSheetContent(
+    selectedType: TargetType?,
+    onTypeSelected: (TargetType?) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 24.dp)
+            .padding(bottom = 48.dp)
+            .fillMaxWidth()
+    ) {
+        Text(
+            "Filtros",
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 24.dp)
         )
-        Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = selectedType == null, onClick = { onTypeSelected(null) }, label = { Text("Todos") })
-            TargetType.values().forEach { type ->
-                FilterChip(selected = selectedType == type, onClick = { onTypeSelected(type) }, label = { Text(type.name) })
+
+        Text(
+            text = "Vínculo de Conteúdo",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                FilterChip(
+                    selected = selectedType == null,
+                    onClick = { onTypeSelected(null) },
+                    label = { Text("Todos") }
+                )
+            }
+            items(TargetType.entries) { type ->
+                val isSelected = selectedType == type
+                FilterChip(
+                    selected = isSelected,
+                    onClick = { onTypeSelected(type) },
+                    label = { Text(type.name) },
+                    leadingIcon = if (isSelected) {
+                        { Icon(Icons.Default.Check, null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            OutlinedButton(
+                onClick = { onTypeSelected(null) },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Limpar")
+            }
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Ver Resultados")
             }
         }
     }
 }
 
 @Composable
-fun ProductFormDialog(productToEdit: Product? = null, onDismiss: () -> Unit, onConfirm: (String, String, String, Int, String, TargetType, String) -> Unit, viewModel: AdminMonetizationViewModel) {
+fun ProductFormDialog(
+    productToEdit: Product? = null,
+    onDismiss: () -> Unit,
+    onConfirm: (String, String, String, Int, String, TargetType, String) -> Unit,
+    viewModel: AdminMonetizationViewModel
+) {
     var sku by remember { mutableStateOf(productToEdit?.sku ?: "") }
     var title by remember { mutableStateOf(productToEdit?.title ?: "") }
     var description by remember { mutableStateOf(productToEdit?.description ?: "") }
@@ -214,67 +320,134 @@ fun ProductFormDialog(productToEdit: Product? = null, onDismiss: () -> Unit, onC
     var targetNameDisplay by remember { mutableStateOf(viewModel.state.selectedTargetName ?: "") }
 
     LaunchedEffect(viewModel.state.selectedTargetName) {
-        if (viewModel.state.selectedTargetName != null) targetNameDisplay = viewModel.state.selectedTargetName!!
-        else if (productToEdit != null && targetNameDisplay.isEmpty()) targetNameDisplay = "Item Atual (ID: ${productToEdit.targetId.take(8)}...)"
+        if (viewModel.state.selectedTargetName != null) {
+            targetNameDisplay = viewModel.state.selectedTargetName!!
+        } else if (productToEdit != null && targetNameDisplay.isEmpty()) {
+            targetNameDisplay = "Item Atual (ID: ${productToEdit.targetId.take(8)}...)"
+        }
     }
 
     if (viewModel.state.showTargetSelector) {
-        TargetSelectionDialog(items = viewModel.state.selectorItems, onDismiss = { viewModel.closeTargetSelector() }, onSelect = { item ->
-            targetId = item.id
-            targetNameDisplay = item.name
-            viewModel.closeTargetSelector()
-        })
+        TargetSelectionDialog(
+            items = viewModel.state.selectorItems,
+            onDismiss = { viewModel.closeTargetSelector() },
+            onSelect = { item ->
+                targetId = item.id
+                targetNameDisplay = item.name
+                viewModel.closeTargetSelector()
+            }
+        )
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (productToEdit == null) "Novo Produto" else "Editar Produto") },
         text = {
-            Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 QuestuaTextField(value = sku, onValueChange = { sku = it }, label = "SKU", modifier = Modifier.fillMaxWidth())
                 QuestuaTextField(value = title, onValueChange = { title = it }, label = "Título", modifier = Modifier.fillMaxWidth())
                 QuestuaTextField(value = description, onValueChange = { description = it }, label = "Descrição", modifier = Modifier.fillMaxWidth())
+
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuestuaTextField(value = priceStr, onValueChange = { if (it.all { c -> c.isDigit() }) priceStr = it }, label = "Preço (centavos)", modifier = Modifier.weight(1f))
+                    QuestuaTextField(
+                        value = priceStr,
+                        onValueChange = { if (it.all { char -> char.isDigit() }) priceStr = it },
+                        label = "Preço (centavos)",
+                        modifier = Modifier.weight(1f)
+                    )
                     QuestuaTextField(value = currency, onValueChange = { currency = it.uppercase() }, label = "Moeda", modifier = Modifier.width(100.dp))
                 }
-                Text("Conteúdo", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-                Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+                HorizontalDivider()
+                Text("Vincular Conteúdo", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     TargetType.values().forEach { type ->
-                        FilterChip(selected = targetType == type, onClick = { if (type != targetType) { targetType = type; targetId = ""; targetNameDisplay = "" } }, label = { Text(type.name) })
+                        FilterChip(
+                            selected = targetType == type,
+                            onClick = {
+                                if (type != targetType) {
+                                    targetType = type
+                                    targetId = ""
+                                    targetNameDisplay = ""
+                                }
+                            },
+                            label = { Text(type.name) }
+                        )
                     }
                 }
-                OutlinedCard(onClick = { viewModel.openTargetSelector(targetType) }, modifier = Modifier.fillMaxWidth()) {
-                    Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(text = if (targetId.isEmpty()) "Selecionar..." else targetNameDisplay, modifier = Modifier.weight(1f))
+
+                OutlinedCard(
+                    onClick = { viewModel.openTargetSelector(targetType) },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = if (targetId.isEmpty()) "Selecione..." else targetNameDisplay, modifier = Modifier.weight(1f))
                         Icon(Icons.Default.Search, null)
                     }
                 }
             }
         },
         confirmButton = {
-            QuestuaButton(text = if (productToEdit == null) "Criar" else "Salvar", enabled = targetId.isNotEmpty() && sku.isNotBlank() && title.isNotBlank(), onClick = {
-                onConfirm(sku, title, description, priceStr.toIntOrNull() ?: 0, currency, targetType, targetId)
-            }, modifier = Modifier.width(120.dp))
+            QuestuaButton(
+                text = if (productToEdit == null) "Criar" else "Salvar",
+                enabled = targetId.isNotEmpty() && sku.isNotBlank() && title.isNotBlank(),
+                onClick = {
+                    val price = priceStr.toIntOrNull() ?: 0
+                    onConfirm(sku, title, description, price, currency, targetType, targetId)
+                },
+                modifier = Modifier.width(120.dp)
+            )
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancelar") }
+        }
     )
 }
 
 @Composable
-fun TargetSelectionDialog(items: List<SelectorItem>, onDismiss: () -> Unit, onSelect: (SelectorItem) -> Unit) {
-    var query by remember { mutableStateOf("") }
-    val filtered = remember(items, query) { items.filter { it.name.contains(query, true) || it.id.contains(query) } }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Selecione o Item") }, text = {
-        Column(modifier = Modifier.height(400.dp)) {
-            OutlinedTextField(value = query, onValueChange = { query = it }, label = { Text("Buscar...") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            Spacer(Modifier.height(8.dp))
-            LazyColumn {
-                items(filtered) { item ->
-                    ListItem(headlineContent = { Text(item.name) }, supportingContent = { Text(item.detail) }, modifier = Modifier.clickable { onSelect(item) }.fillMaxWidth())
-                    HorizontalDivider()
+fun TargetSelectionDialog(
+    items: List<SelectorItem>,
+    onDismiss: () -> Unit,
+    onSelect: (SelectorItem) -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    val filteredItems = remember(items, searchQuery) {
+        items.filter { it.name.contains(searchQuery, ignoreCase = true) || it.id.contains(searchQuery) }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Selecione o Item") },
+        text = {
+            Column(modifier = Modifier.height(400.dp)) {
+                OutlinedTextField(value = searchQuery, onValueChange = { searchQuery = it }, label = { Text("Buscar na lista...") }, modifier = Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Search, null) }, singleLine = true)
+                Spacer(modifier = Modifier.height(8.dp))
+                LazyColumn {
+                    items(filteredItems) { item ->
+                        ListItem(
+                            headlineContent = { Text(item.name) },
+                            supportingContent = { Text("${item.detail} • ID: ${item.id.take(6)}...") },
+                            modifier = Modifier.clickable { onSelect(item) }.fillMaxWidth()
+                        )
+                        HorizontalDivider()
+                    }
                 }
             }
-        }
-    }, confirmButton = {}, dismissButton = { TextButton(onClick = onDismiss) { Text("Fechar") } })
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Fechar") } }
+    )
 }

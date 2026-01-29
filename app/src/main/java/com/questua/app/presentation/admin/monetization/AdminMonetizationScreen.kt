@@ -24,6 +24,7 @@ import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.enums.TargetType
 import com.questua.app.domain.model.Product
 import com.questua.app.presentation.admin.components.AdminBottomNavBar
+import com.questua.app.presentation.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,9 +34,6 @@ fun AdminMonetizationScreen(
 ) {
     val state = viewModel.state
 
-    // --- MODAIS ---
-
-    // Modal de Criação/Edição de Produto
     if (state.showProductDialog) {
         ProductFormDialog(
             productToEdit = state.productToEdit,
@@ -46,8 +44,6 @@ fun AdminMonetizationScreen(
             viewModel = viewModel
         )
     }
-
-    // --- TELA PRINCIPAL ---
 
     Scaffold(
         topBar = {
@@ -70,7 +66,6 @@ fun AdminMonetizationScreen(
         }
     ) { padding ->
 
-        // Usamos uma única LazyColumn para permitir que toda a tela role junto
         LazyColumn(
             modifier = Modifier
                 .padding(padding)
@@ -79,7 +74,6 @@ fun AdminMonetizationScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
 
-            // 1. Seção de Busca e Filtros
             item {
                 SearchAndFilterSection(
                     query = state.searchQuery,
@@ -89,7 +83,6 @@ fun AdminMonetizationScreen(
                 )
             }
 
-            // 2. Cabeçalho de Produtos
             item {
                 Text(
                     text = "Produtos Ativos (${state.products.size})",
@@ -99,7 +92,6 @@ fun AdminMonetizationScreen(
                 )
             }
 
-            // 3. Lista de Produtos (ou Loading/Empty)
             if (state.isLoading && state.products.isEmpty()) {
                 item {
                     Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
@@ -121,12 +113,14 @@ fun AdminMonetizationScreen(
                     ProductItem(
                         product = product,
                         onEdit = { viewModel.openEditDialog(product) },
-                        onDelete = { viewModel.deleteProduct(product.id) }
+                        onDelete = { viewModel.deleteProduct(product.id) },
+                        onClick = {
+                            navController.navigate(Screen.AdminMonetizationDetail.passId(product.id))
+                        }
                     )
                 }
             }
 
-            // 4. Divisor e Transações
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                 HorizontalDivider()
@@ -167,13 +161,10 @@ fun AdminMonetizationScreen(
                 }
             }
 
-            // Espaço extra no final para não cobrir com o FAB
             item { Spacer(modifier = Modifier.height(80.dp)) }
         }
     }
 }
-
-// --- COMPONENTES AUXILIARES ---
 
 @Composable
 fun SearchAndFilterSection(
@@ -183,7 +174,6 @@ fun SearchAndFilterSection(
     onTypeSelected: (TargetType?) -> Unit
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Barra de Busca
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
@@ -205,12 +195,10 @@ fun SearchAndFilterSection(
             )
         )
 
-        // Chips de Filtro
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Chip "Todos"
             FilterChip(
                 selected = selectedType == null,
                 onClick = { onTypeSelected(null) },
@@ -220,7 +208,6 @@ fun SearchAndFilterSection(
                 } else null
             )
 
-            // Chips dinâmicos do Enum
             TargetType.values().forEach { type ->
                 FilterChip(
                     selected = selectedType == type,
@@ -239,10 +226,13 @@ fun SearchAndFilterSection(
 fun ProductItem(
     product: Product,
     onEdit: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
     ) {
         Row(
@@ -276,7 +266,6 @@ fun ProductItem(
                 )
             }
 
-            // Botões de Ação
             Row {
                 IconButton(onClick = onEdit) {
                     Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
@@ -296,7 +285,6 @@ fun ProductFormDialog(
     onConfirm: (String, String, String, Int, String, TargetType, String) -> Unit,
     viewModel: AdminMonetizationViewModel
 ) {
-    // Estados do Formulário
     var sku by remember { mutableStateOf(productToEdit?.sku ?: "") }
     var title by remember { mutableStateOf(productToEdit?.title ?: "") }
     var description by remember { mutableStateOf(productToEdit?.description ?: "") }
@@ -304,11 +292,9 @@ fun ProductFormDialog(
     var currency by remember { mutableStateOf(productToEdit?.currency ?: "BRL") }
     var targetType by remember { mutableStateOf(productToEdit?.targetType ?: TargetType.CITY) }
 
-    // Estados do Seletor de Alvo
     var targetId by remember { mutableStateOf(productToEdit?.targetId ?: "") }
     var targetNameDisplay by remember { mutableStateOf(viewModel.state.selectedTargetName ?: "") }
 
-    // Efeito para atualizar o nome exibido quando selecionado no modal filho
     LaunchedEffect(viewModel.state.selectedTargetName) {
         if (viewModel.state.selectedTargetName != null) {
             targetNameDisplay = viewModel.state.selectedTargetName!!
@@ -317,7 +303,6 @@ fun ProductFormDialog(
         }
     }
 
-    // Renderiza o seletor de alvo se ativado
     val state = viewModel.state
     if (state.showTargetSelector) {
         TargetSelectionDialog(
@@ -375,7 +360,6 @@ fun ProductFormDialog(
                     )
                 }
 
-                // Atalhos de Moeda
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("BRL", "USD", "EUR").forEach { curr ->
                         FilterChip(
@@ -389,7 +373,6 @@ fun ProductFormDialog(
                 HorizontalDivider()
                 Text("Vincular Conteúdo", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 
-                // Chips de Tipo de Alvo
                 Row(
                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -400,7 +383,6 @@ fun ProductFormDialog(
                             onClick = {
                                 if (type != targetType) {
                                     targetType = type
-                                    // Reseta seleção ao mudar tipo para evitar inconsistência
                                     targetId = ""
                                     targetNameDisplay = ""
                                 }
@@ -410,7 +392,6 @@ fun ProductFormDialog(
                     }
                 }
 
-                // Botão de Seleção do Alvo
                 OutlinedCard(
                     onClick = { viewModel.openTargetSelector(targetType) },
                     modifier = Modifier.fillMaxWidth(),
@@ -445,7 +426,6 @@ fun ProductFormDialog(
         confirmButton = {
             QuestuaButton(
                 text = if (productToEdit == null) "Criar" else "Salvar",
-                // Validação simples: campos obrigatórios
                 enabled = targetId.isNotEmpty() && sku.isNotBlank() && title.isNotBlank() && currency.isNotBlank(),
                 onClick = {
                     val price = priceStr.toIntOrNull() ?: 0
@@ -470,7 +450,6 @@ fun TargetSelectionDialog(
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
-    // Filtro local na lista retornada
     val filteredItems = remember(items, searchQuery) {
         if (searchQuery.isBlank()) items
         else items.filter {
@@ -515,7 +494,7 @@ fun TargetSelectionDialog(
                 }
             }
         },
-        confirmButton = {}, // Sem botão de confirmação, seleção é imediata
+        confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Fechar") }
         }

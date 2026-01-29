@@ -32,6 +32,12 @@ sealed class Screen(val route: String) {
     object AdminFeedbackList : Screen("admin_feedback_list_screen")
     object AdminMonetization : Screen("admin_monetization_screen")
 
+    object AdminMonetizationDetail : Screen("admin_monetization_detail/{productId}") {
+        fun passId(productId: String): String {
+            return "admin_monetization_detail/$productId"
+        }
+    }
+
     object AdminContentDetail : Screen("admin_content_detail/{contentType}") {
         fun passType(contentType: String): String {
             return "admin_content_detail/$contentType"

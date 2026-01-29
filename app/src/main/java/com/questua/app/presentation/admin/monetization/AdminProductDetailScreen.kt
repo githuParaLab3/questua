@@ -1,5 +1,6 @@
 package com.questua.app.presentation.admin.monetization
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.questua.app.core.ui.components.QuestuaButton
+import com.questua.app.domain.enums.TransactionStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -95,11 +97,7 @@ fun AdminProductDetailScreen(
 
                 // Card de Preço
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Preço", fontWeight = FontWeight.SemiBold)
                         Text("${product.currency} ${String.format("%.2f", product.priceCents / 100.0)}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge)
                     }
@@ -116,23 +114,12 @@ fun AdminProductDetailScreen(
                 }
 
                 // Botões de Ação
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    QuestuaButton(
-                        text = "Editar Produto",
-                        onClick = { showEditDialog = true },
-                        modifier = Modifier.weight(1f)
-                    )
-
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    QuestuaButton(text = "Editar Produto", onClick = { showEditDialog = true }, modifier = Modifier.weight(1f))
                     Button(
                         onClick = { showDeleteConfirm = true },
                         modifier = Modifier.weight(1f).height(50.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer
-                        ),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.Delete, null)
@@ -143,40 +130,62 @@ fun AdminProductDetailScreen(
 
                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-                // Seção de Transações Associadas
-                Text(
-                    text = "Vendas deste Produto",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                // SEÇÃO DE TRANSAÇÕES
+                Text("Transações deste Produto", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+
+                // Busca
+                OutlinedTextField(
+                    value = state.transactionQuery,
+                    onValueChange = viewModel::onTransactionQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Buscar ID da transação...") },
+                    leadingIcon = { Icon(Icons.Default.Search, null) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
                 )
+
+                // Filtros por Status (Chips)
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = state.selectedStatus == null,
+                        onClick = { viewModel.onStatusSelected(null) },
+                        label = { Text("Todos") }
+                    )
+                    TransactionStatus.values().forEach { status ->
+                        FilterChip(
+                            selected = state.selectedStatus == status,
+                            onClick = { viewModel.onStatusSelected(status) },
+                            label = { Text(status.name) }
+                        )
+                    }
+                }
 
                 if (state.isTransactionsLoading) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-                } else if (state.transactions.isEmpty()) {
-                    Text(
-                        "Nenhuma venda registrada para este produto.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    )
+                } else if (state.filteredTransactions.isEmpty()) {
+                    Text("Nenhuma transação encontrada.", color = Color.Gray, modifier = Modifier.padding(vertical = 8.dp))
                 } else {
-                    state.transactions.forEach { transaction ->
+                    state.filteredTransactions.forEach { transaction ->
                         ListItem(
                             headlineContent = { Text("ID: ${transaction.stripePaymentIntentId.take(12)}...") },
-                            supportingContent = { Text("Status: ${transaction.status}") },
+                            supportingContent = {
+                                Text("Status: ${transaction.status.name}", color = when(transaction.status) {
+                                    TransactionStatus.SUCCEEDED -> Color(0xFF2E7D32)
+                                    TransactionStatus.FAILED -> Color.Red
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                })
+                            },
                             trailingContent = {
-                                Text(
-                                    "${transaction.currency} ${String.format("%.2f", transaction.amountCents / 100.0)}",
-                                    fontWeight = FontWeight.Bold
-                                )
+                                Text("${transaction.currency} ${String.format("%.2f", transaction.amountCents / 100.0)}", fontWeight = FontWeight.Bold)
                             },
                             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
                         HorizontalDivider(thickness = 0.5.dp)
                     }
                 }
-
                 Spacer(modifier = Modifier.height(24.dp))
             }
         }

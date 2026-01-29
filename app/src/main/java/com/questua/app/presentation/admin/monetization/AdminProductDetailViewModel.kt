@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.domain.enums.TargetType
+import com.questua.app.domain.enums.TransactionStatus
 import com.questua.app.domain.model.Product
 import com.questua.app.domain.model.TransactionRecord
 import com.questua.app.domain.usecase.admin.sales.DeleteProductUseCase
@@ -21,7 +22,10 @@ import javax.inject.Inject
 
 data class ProductDetailState(
     val product: Product? = null,
-    val transactions: List<TransactionRecord> = emptyList(),
+    val allTransactions: List<TransactionRecord> = emptyList(),
+    val filteredTransactions: List<TransactionRecord> = emptyList(),
+    val transactionQuery: String = "",
+    val selectedStatus: TransactionStatus? = null, // Novo: Filtro por status
     val isLoading: Boolean = false,
     val isTransactionsLoading: Boolean = false,
     val error: String? = null
@@ -46,13 +50,29 @@ class AdminProductDetailViewModel @Inject constructor(
         loadTransactionHistory()
     }
 
+    fun onTransactionQueryChange(newQuery: String) {
+        state = state.copy(transactionQuery = newQuery)
+        applyFilters()
+    }
+
+    fun onStatusSelected(status: TransactionStatus?) {
+        state = state.copy(selectedStatus = status)
+        applyFilters()
+    }
+
+    private fun applyFilters() {
+        val filtered = state.allTransactions.filter { transaction ->
+            val matchesQuery = transaction.stripePaymentIntentId.contains(state.transactionQuery, ignoreCase = true)
+            val matchesStatus = state.selectedStatus == null || transaction.status == state.selectedStatus
+            matchesQuery && matchesStatus
+        }
+        state = state.copy(filteredTransactions = filtered)
+    }
+
     fun loadProduct() {
         getProductsUseCase().onEach { result ->
             state = when (result) {
-                is Resource.Success -> {
-                    val foundProduct = result.data?.find { it.id == productId }
-                    state.copy(product = foundProduct, isLoading = false)
-                }
+                is Resource.Success -> state.copy(product = result.data?.find { it.id == productId }, isLoading = false)
                 is Resource.Error -> state.copy(error = result.message, isLoading = false)
                 is Resource.Loading -> state.copy(isLoading = true)
             }
@@ -63,9 +83,8 @@ class AdminProductDetailViewModel @Inject constructor(
         getTransactionHistoryUseCase().onEach { result ->
             state = when (result) {
                 is Resource.Success -> {
-                    // Filtra transações que pertencem a este produto
-                    val filtered = result.data?.filter { it.productId == productId } ?: emptyList()
-                    state.copy(transactions = filtered, isTransactionsLoading = false)
+                    val transactions = result.data?.filter { it.productId == productId } ?: emptyList()
+                    state.copy(allTransactions = transactions, filteredTransactions = transactions, isTransactionsLoading = false)
                 }
                 is Resource.Error -> state.copy(isTransactionsLoading = false)
                 is Resource.Loading -> state.copy(isTransactionsLoading = true)
@@ -79,17 +98,9 @@ class AdminProductDetailViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    fun saveProduct(
-        sku: String, title: String, description: String,
-        priceCents: Int, currency: String, targetType: TargetType, targetId: String
-    ) {
+    fun saveProduct(sku: String, title: String, description: String, priceCents: Int, currency: String, targetType: TargetType, targetId: String) {
         val currentProduct = state.product ?: return
-        val updatedProduct = currentProduct.copy(
-            sku = sku, title = title, description = description,
-            priceCents = priceCents, currency = currency,
-            targetType = targetType, targetId = targetId
-        )
-
+        val updatedProduct = currentProduct.copy(sku = sku, title = title, description = description, priceCents = priceCents, currency = currency, targetType = targetType, targetId = targetId)
         updateProductUseCase(updatedProduct).onEach { result ->
             if (result is Resource.Success) loadProduct()
         }.launchIn(viewModelScope)

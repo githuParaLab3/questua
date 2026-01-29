@@ -91,8 +91,12 @@ fun AdminLanguageScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { isCreating = true }) {
-                Icon(Icons.Default.Add, null)
+            FloatingActionButton(
+                onClick = { isCreating = true },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Adicionar Idioma")
             }
         }
     ) { padding ->

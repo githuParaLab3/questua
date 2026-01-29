@@ -14,6 +14,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class AdminLanguageState(
@@ -56,9 +57,9 @@ class AdminLanguageViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    fun saveLanguage(id: String?, name: String, code: String) {
-        val flow = if (id == null) repository.createLanguage(name, code)
-        else repository.updateLanguage(id, name, code)
+    fun saveLanguage(id: String?, name: String, code: String, imageFile: File?) {
+        val flow = if (id == null) repository.createLanguage(name, code, imageFile)
+        else repository.updateLanguage(id, name, code, imageFile)
 
         flow.onEach { result ->
             if (result is Resource.Success) fetchLanguages()

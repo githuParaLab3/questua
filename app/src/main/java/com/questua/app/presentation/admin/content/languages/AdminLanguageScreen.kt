@@ -79,7 +79,6 @@ fun AdminLanguageScreen(
                 }
             )
         },
-        bottomBar = { AdminBottomNavBar(navController) },
         floatingActionButton = {
             FloatingActionButton(onClick = { isCreating = true }) {
                 Icon(Icons.Default.Add, null)

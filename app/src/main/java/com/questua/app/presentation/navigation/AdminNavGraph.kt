@@ -8,6 +8,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.questua.app.presentation.admin.AdminGeneralManagementScreen
 import com.questua.app.presentation.admin.content.ContentDetailScreen
+import com.questua.app.presentation.admin.content.languages.AdminLanguageScreen
 import com.questua.app.presentation.admin.feedback.AdminFeedbackScreen
 import com.questua.app.presentation.admin.feedback.AdminReportDetailScreen
 import com.questua.app.presentation.admin.logs.AiLogsScreen
@@ -24,9 +25,6 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
         composable(route = Screen.AdminHome.route) {
             AdminGeneralManagementScreen(
                 navController = navController,
-                onNavigateToDetail = { type ->
-                    navController.navigate(Screen.AdminContentDetail.passType(type))
-                },
                 onNavigateToLogs = {
                     navController.navigate(Screen.AdminLogs.route)
                 },
@@ -88,6 +86,10 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("userId") { type = NavType.StringType })
         ) {
             UserDetailScreen(navController = navController)
+        }
+
+        composable(route = Screen.AdminLanguages.route) {
+            AdminLanguageScreen(navController = navController)
         }
     }
 }

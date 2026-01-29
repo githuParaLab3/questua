@@ -57,4 +57,6 @@ sealed class Screen(val route: String) {
             return "admin_user_detail/$userId"
         }
     }
+
+    data object AdminLanguages : Screen("admin_languages")
 }

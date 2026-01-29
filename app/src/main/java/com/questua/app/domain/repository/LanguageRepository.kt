@@ -7,4 +7,7 @@ import kotlinx.coroutines.flow.Flow
 interface LanguageRepository {
     fun getAvailableLanguages(query: String? = null): Flow<Resource<List<Language>>>
     fun getLanguageById(id: String): Flow<Resource<Language>>
+    fun createLanguage(name: String, code: String): Flow<Resource<Language>>
+    fun updateLanguage(id: String, name: String, code: String): Flow<Resource<Language>>
+    fun deleteLanguage(id: String): Flow<Resource<Unit>>
 }

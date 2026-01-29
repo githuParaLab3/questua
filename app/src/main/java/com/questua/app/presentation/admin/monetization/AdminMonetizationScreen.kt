@@ -34,6 +34,11 @@ fun AdminMonetizationScreen(
 ) {
     val state = viewModel.state
 
+    // CORREÇÃO: Força o recarregamento dos dados sempre que entrar na tela
+    LaunchedEffect(Unit) {
+        viewModel.loadData()
+    }
+
     if (state.showProductDialog) {
         ProductFormDialog(
             productToEdit = null,
@@ -182,7 +187,11 @@ fun SearchAndFilterSection(query: String, onQueryChange: (String) -> Unit, selec
             placeholder = { Text("Buscar por título ou SKU...") },
             leadingIcon = { Icon(Icons.Default.Search, null) },
             trailingIcon = { if (query.isNotEmpty()) IconButton(onClick = { onQueryChange("") }) { Icon(Icons.Default.Close, null) } },
-            singleLine = true, shape = RoundedCornerShape(12.dp)
+            singleLine = true, shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface
+            )
         )
         Row(modifier = Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = selectedType == null, onClick = { onTypeSelected(null) }, label = { Text("Todos") })

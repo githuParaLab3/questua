@@ -4,10 +4,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -22,6 +21,40 @@ fun AdminProductDetailScreen(
     viewModel: AdminProductDetailViewModel = hiltViewModel()
 ) {
     val state = viewModel.state
+    var showEditDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    if (showEditDialog && state.product != null) {
+        ProductFormDialog(
+            productToEdit = state.product,
+            onDismiss = { showEditDialog = false },
+            onConfirm = { sku, title, desc, price, curr, type, tId ->
+                viewModel.saveProduct(sku, title, desc, price, curr, type, tId)
+                showEditDialog = false
+            },
+            viewModel = hiltViewModel<AdminMonetizationViewModel>()
+        )
+    }
+
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Excluir Produto") },
+            text = { Text("Tem certeza que deseja excluir '${state.product?.title}'? Esta ação é irreversível.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.deleteProduct { navController.popBackStack() }
+                        showDeleteConfirm = false
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Excluir") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Cancelar") }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -31,14 +64,20 @@ fun AdminProductDetailScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
                     }
+                },
+                actions = {
+                    IconButton(onClick = { showEditDialog = true }) {
+                        Icon(Icons.Default.Edit, contentDescription = "Editar", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton(onClick = { showDeleteConfirm = true }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Excluir", tint = MaterialTheme.colorScheme.error)
+                    }
                 }
             )
         }
     ) { padding ->
         if (state.isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         } else if (state.product != null) {
             val product = state.product
             Column(
@@ -51,49 +90,26 @@ fun AdminProductDetailScreen(
             ) {
                 ElevatedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
-                        Text(
-                            text = product.title,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "SKU: ${product.sku}",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.secondary
-                        )
+                        Text(product.title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                        Text("SKU: ${product.sku}", color = MaterialTheme.colorScheme.secondary, style = MaterialTheme.typography.bodyMedium)
                         Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = product.description ?: "",
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                        Text(product.description ?: "Sem descrição.", style = MaterialTheme.typography.bodyLarge)
                     }
                 }
 
                 Card(modifier = Modifier.fillMaxWidth()) {
-                    Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(Modifier.padding(16.dp).fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Preço", fontWeight = FontWeight.SemiBold)
-                        Text(
-                            text = "${product.currency} ${String.format("%.2f", product.priceCents / 100.0)}",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        Text("${product.currency} ${String.format("%.2f", product.priceCents / 100.0)}", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleLarge)
                     }
                 }
 
                 OutlinedCard(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Link, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Vínculo", fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(Modifier.height(8.dp))
+                        Text("Conteúdo Vinculado", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.height(4.dp))
                         Text("Tipo: ${product.targetType.name}")
-                        Text("ID Alvo: ${product.targetId}")
+                        Text("ID Alvo: ${product.targetId}", style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }

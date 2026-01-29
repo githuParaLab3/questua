@@ -8,7 +8,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -30,6 +30,7 @@ import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.core.ui.components.ErrorDialog
 import com.questua.app.core.ui.components.LoadingSpinner
+import com.questua.app.core.ui.components.QuestuaButton
 import com.questua.app.domain.enums.ReportStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,9 +43,7 @@ fun AdminReportDetailScreen(
 
     LaunchedEffect(state.successMessage) {
         state.successMessage?.let { message ->
-            navController.previousBackStackEntry
-                ?.savedStateHandle
-                ?.set("feedback_success_message", message)
+            navController.previousBackStackEntry?.savedStateHandle?.set("feedback_success_message", message)
             navController.popBackStack()
         }
     }
@@ -52,59 +51,16 @@ fun AdminReportDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Detalhes do Report") },
+                title = { Text("Detalhes do Feedback", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
                     }
                 }
             )
-        },
-        bottomBar = {
-            if (state.report != null) {
-                BottomAppBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Button(
-                            onClick = { viewModel.deleteReport() },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.errorContainer,
-                                contentColor = MaterialTheme.colorScheme.onErrorContainer
-                            ),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Excluir")
-                        }
-
-                        if (state.report?.status == ReportStatus.OPEN) {
-                            Button(
-                                onClick = { viewModel.resolveReport() },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Resolver")
-                            }
-                        }
-                    }
-                }
-            }
         }
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (state.isLoading) {
                 LoadingSpinner()
             } else {
@@ -113,127 +69,82 @@ fun AdminReportDetailScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp)
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            val statusColor = if (report.status == ReportStatus.RESOLVED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                            Surface(
-                                color = statusColor.copy(alpha = 0.1f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    text = report.status.name,
-                                    color = statusColor,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                                )
-                            }
-                            Spacer(modifier = Modifier.weight(1f))
-                            Text(
-                                text = report.createdAt.take(10),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        Text("TIPO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                        Text(report.type.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text("REPORT ID", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                        Text(report.id, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("USER ID", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                        Text(report.userId, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text("DESCRIÇÃO", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                                Spacer(modifier = Modifier.height(8.dp))
+                        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val statusColor = if (report.status == ReportStatus.RESOLVED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                    Badge(containerColor = statusColor) {
+                                        Text(report.status.name, modifier = Modifier.padding(4.dp))
+                                    }
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Text(report.createdAt.take(10), style = MaterialTheme.typography.bodySmall)
+                                }
+                                Spacer(Modifier.height(16.dp))
+                                Text("DESCRIÇÃO", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                                 Text(report.description, style = MaterialTheme.typography.bodyLarge)
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(24.dp))
-
                         if (!report.screenshotUrl.isNullOrBlank()) {
-                            Text("SCREENSHOT ANEXADO", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("ANEXO", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
                                     .data(report.screenshotUrl.toFullImageUrl())
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "Screenshot do erro",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 400.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Color.Black.copy(alpha = 0.1f)),
+                                    .crossfade(true).build(),
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp).clip(RoundedCornerShape(12.dp)).background(Color.Black.copy(alpha = 0.05f)),
                                 contentScale = ContentScale.Fit
                             )
-                            Spacer(modifier = Modifier.height(24.dp))
                         }
 
-                        if (report.deviceInfo != null) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.1f))
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.PhoneAndroid, contentDescription = null, tint = MaterialTheme.colorScheme.secondary)
-                                        Spacer(modifier = Modifier.width(8.dp))
-                                        Text("Informações do Dispositivo", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
-                                    }
-                                    Spacer(modifier = Modifier.height(16.dp))
-
-                                    val info = report.deviceInfo
-                                    DeviceInfoRow("Modelo", info.deviceModel ?: "N/A")
-                                    DeviceInfoRow("Android", info.androidVersion ?: "N/A")
-                                    DeviceInfoRow("App Version", report.appVersion ?: "N/A")
-                                    DeviceInfoRow("Tela", "${info.screenWidth}x${info.screenHeight}")
+                        OutlinedCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text("DADOS TÉCNICOS", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                DetailItem("Tipo", report.type.name)
+                                DetailItem("User ID", report.userId.take(12) + "...")
+                                report.deviceInfo?.let {
+                                    DetailItem("Dispositivo", it.deviceModel ?: "N/A")
+                                    DetailItem("Android", it.androidVersion ?: "N/A")
                                 }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(80.dp))
-                    }
-                } ?: run {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Report não encontrado ou excluído.")
+                        Spacer(Modifier.weight(1f))
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            if (report.status == ReportStatus.OPEN) {
+                                QuestuaButton(
+                                    text = "Resolver",
+                                    onClick = { viewModel.resolveReport() },
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Button(
+                                onClick = { viewModel.deleteReport() },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer),
+                                modifier = Modifier.weight(1f).height(50.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Excluir")
+                            }
+                        }
                     }
                 }
             }
-
-            state.error?.let {
-                ErrorDialog(message = it, onDismiss = { viewModel.clearError() })
-            }
         }
+        state.error?.let { ErrorDialog(message = it, onDismiss = { viewModel.clearError() }) }
     }
 }
 
 @Composable
-fun DeviceInfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
+private fun DetailItem(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
     }
-    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
 }

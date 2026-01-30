@@ -31,36 +31,34 @@ class AdminRepositoryImpl @Inject constructor(
     private val productApi: ProductApi,
     private val uploadApi: UploadApi,
     private val achievementApi: AchievementApi,
-    private val sceneDialogueApi: SceneDialogueApi
+    private val sceneDialogueApi: SceneDialogueApi,
+    private val aiGenerationApi: AiGenerationApi
 ) : AdminRepository, SafeApiCall() {
 
     override fun generateQuestPoint(cityId: String, theme: String): Flow<Resource<QuestPoint>> = flow {
         emit(Resource.Loading())
-        val request = GenerateQuestPointRequestDTO(cityId = cityId, theme = theme)
-        val result = safeApiCall { aiApi.generateQuestPoint(request) }
+        val result = safeApiCall { aiApi.generateQuestPoint(GenerateQuestPointRequestDTO(cityId, theme)) }
         if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
         else emit(Resource.Error(result.message ?: "Erro na geração"))
     }
 
     override fun generateQuest(questPointId: String, context: String, difficulty: Int): Flow<Resource<Quest>> = flow {
         emit(Resource.Loading())
-        val request = GenerateQuestRequestDTO(questPointId = questPointId, context = context, difficultyLevel = difficulty)
-        val result = safeApiCall { aiApi.generateQuest(request) }
+        val result = safeApiCall { aiApi.generateQuest(GenerateQuestRequestDTO(questPointId, context, difficulty)) }
         if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
         else emit(Resource.Error(result.message ?: "Erro na geração"))
     }
 
     override fun generateCharacter(archetype: String): Flow<Resource<CharacterEntity>> = flow {
         emit(Resource.Loading())
-        val request = GenerateCharacterRequestDTO(archetype = archetype)
-        val result = safeApiCall { aiApi.generateCharacter(request) }
+        val result = safeApiCall { aiApi.generateCharacter(GenerateCharacterRequestDTO(archetype)) }
         if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
         else emit(Resource.Error(result.message ?: "Erro na geração"))
     }
 
-    override fun generateDialogue(speakerId: String, context: String, inputMode: String): Flow<Resource<SceneDialogue>> = flow {
+    override fun generateDialogue(speakerId: String, context: String, questId: String?, inputMode: String): Flow<Resource<SceneDialogue>> = flow {
         emit(Resource.Loading())
-        val request = GenerateDialogueRequestDTO(speakerCharacterId = speakerId, context = context, inputMode = inputMode)
+        val request = GenerateDialogueRequestDTO(questId = questId, speakerCharacterId = speakerId, context = context, inputMode = inputMode)
         val result = safeApiCall { aiApi.generateDialogue(request) }
         if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
         else emit(Resource.Error(result.message ?: "Erro na geração"))
@@ -68,8 +66,7 @@ class AdminRepositoryImpl @Inject constructor(
 
     override fun generateAchievement(trigger: String, difficulty: String): Flow<Resource<Achievement>> = flow {
         emit(Resource.Loading())
-        val request = GenerateAchievementRequestDTO(triggerAction = trigger, difficulty = difficulty)
-        val result = safeApiCall { aiApi.generateAchievement(request) }
+        val result = safeApiCall { aiApi.generateAchievement(GenerateAchievementRequestDTO(trigger, difficulty)) }
         if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
         else emit(Resource.Error(result.message ?: "Erro na geração"))
     }

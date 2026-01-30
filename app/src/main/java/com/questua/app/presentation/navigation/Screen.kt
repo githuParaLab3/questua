@@ -99,4 +99,5 @@ sealed class Screen(val route: String) {
     object AdminAchievementDetail : Screen("admin_achievement_detail/{achievementId}") {
         fun passId(id: String) = "admin_achievement_detail/$id"
     }
+    object AiGeneration : Screen("ai_generation")
 }

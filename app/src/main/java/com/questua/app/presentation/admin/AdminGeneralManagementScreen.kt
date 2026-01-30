@@ -39,7 +39,6 @@ fun AdminGeneralManagementScreen(
     val state by viewModel.state.collectAsState()
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // ATUALIZAÇÃO DINÂMICA AO ENTRAR EM FOCO (RESUME)
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -76,7 +75,16 @@ fun AdminGeneralManagementScreen(
                 }
             )
         },
-        bottomBar = { AdminBottomNavBar(navController) }
+        bottomBar = { AdminBottomNavBar(navController) },
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = { navController.navigate(Screen.AiGeneration.route) },
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary
+            ) {
+                Icon(Icons.Default.AutoAwesome, contentDescription = "Gerar com IA")
+            }
+        }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -111,7 +119,6 @@ fun AdminGeneralManagementScreen(
                                 "cities" -> navController.navigate(Screen.AdminCities.route)
                                 "quests" -> navController.navigate(Screen.AdminQuests.route)
                                 "dialogues" -> navController.navigate(Screen.AdminDialogues.route)
-                                else -> { /* navegação padrão ou erro */ }
                             }
                         }
                     )

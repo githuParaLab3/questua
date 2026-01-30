@@ -10,6 +10,7 @@ import com.questua.app.presentation.admin.AdminGeneralManagementScreen
 import com.questua.app.presentation.admin.content.ContentDetailScreen
 import com.questua.app.presentation.admin.content.achievements.AdminAchievementDetailScreen
 import com.questua.app.presentation.admin.content.achievements.AdminAchievementScreen
+import com.questua.app.presentation.admin.content.ai.AiContentGenerationScreen
 import com.questua.app.presentation.admin.content.characters.AdminCharacterDetailScreen
 import com.questua.app.presentation.admin.content.characters.AdminCharacterScreen
 import com.questua.app.presentation.admin.content.cities.AdminCityScreen
@@ -175,6 +176,17 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("achievementId") { type = NavType.StringType })
         ) {
             AdminAchievementDetailScreen(navController = navController)
+        }
+        composable(Screen.AiGeneration.route) {
+            AiContentGenerationScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToDetail = { route ->
+                    // A rota retornada pelo ViewModel é "tipo/id", ex: "quest_point/uuid"
+                    navController.navigate("admin_content_detail/$route") {
+                        popUpTo(Screen.AiGeneration.route) { inclusive = true }
+                    }
+                }
+            )
         }
 
     }

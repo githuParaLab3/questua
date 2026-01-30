@@ -1,5 +1,6 @@
 package com.questua.app.presentation.admin.content.dialogues
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -14,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -22,6 +24,7 @@ import androidx.navigation.NavController
 import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.enums.InputMode
 import com.questua.app.domain.model.SceneDialogue
+import com.questua.app.presentation.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,9 +34,7 @@ fun AdminDialogueScreen(
 ) {
     val state = viewModel.state
     val lifecycleOwner = LocalLifecycleOwner.current
-    var showFormDialog by remember { mutableStateOf<SceneDialogue?>(null) }
     var isCreating by remember { mutableStateOf(false) }
-    var dialogueToDelete by remember { mutableStateOf<SceneDialogue?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -43,30 +44,14 @@ fun AdminDialogueScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    if (isCreating || showFormDialog != null) {
+    if (isCreating) {
         DialogueFormDialog(
-            dialogue = showFormDialog,
-            onDismiss = { isCreating = false; showFormDialog = null },
+            dialogue = null,
+            onDismiss = { isCreating = false },
             onConfirm = { text, desc, bg, speaker, expects, mode, next ->
-                viewModel.saveDialogue(showFormDialog?.id, text, desc, bg, speaker, expects, mode, next)
+                viewModel.saveDialogue(null, text, desc, bg, speaker, expects, mode, next)
                 isCreating = false
-                showFormDialog = null
             }
-        )
-    }
-
-    if (dialogueToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { dialogueToDelete = null },
-            title = { Text("Excluir Diálogo") },
-            text = { Text("Deseja excluir este diálogo?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteDialogue(dialogueToDelete!!.id)
-                    dialogueToDelete = null
-                }) { Text("Excluir", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { dialogueToDelete = null }) { Text("Cancelar") } }
         )
     }
 
@@ -83,7 +68,7 @@ fun AdminDialogueScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { isCreating = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Novo Diálogo")
+                Icon(Icons.Default.Add, "Novo Diálogo")
             }
         }
     ) { padding ->
@@ -91,7 +76,7 @@ fun AdminDialogueScreen(
             QuestuaTextField(
                 value = state.searchQuery,
                 onValueChange = viewModel::onSearchQueryChange,
-                placeholder = "Pesquisar texto...",
+                placeholder = "Pesquisar diálogo...",
                 leadingIcon = Icons.Default.Search,
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             )
@@ -102,17 +87,17 @@ fun AdminDialogueScreen(
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(state.dialogues) { dialogue ->
                         ListItem(
-                            headlineContent = { Text(dialogue.textContent.take(50) + "...", fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text("ID: ${dialogue.id}") },
+                            modifier = Modifier.clickable {
+                                navController.navigate(Screen.AdminDialogueDetail.passId(dialogue.id))
+                            },
+                            headlineContent = {
+                                Text(dialogue.textContent, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
+                            },
+                            supportingContent = {
+                                Text("Mode: ${dialogue.inputMode} • Speaker: ${dialogue.speakerCharacterId ?: "None"}")
+                            },
                             trailingContent = {
-                                Row {
-                                    IconButton(onClick = { showFormDialog = dialogue }) {
-                                        Icon(Icons.Default.Edit, tint = MaterialTheme.colorScheme.primary, contentDescription = null)
-                                    }
-                                    IconButton(onClick = { dialogueToDelete = dialogue }) {
-                                        Icon(Icons.Default.Delete, tint = MaterialTheme.colorScheme.error, contentDescription = null)
-                                    }
-                                }
+                                Icon(Icons.Default.ChevronRight, tint = MaterialTheme.colorScheme.outline, contentDescription = null)
                             }
                         )
                         HorizontalDivider(thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
@@ -129,34 +114,41 @@ fun DialogueFormDialog(
     onDismiss: () -> Unit,
     onConfirm: (String, String, String, String?, Boolean, InputMode, String?) -> Unit
 ) {
-    var textContent by remember { mutableStateOf(dialogue?.textContent ?: "") }
-    var description by remember { mutableStateOf(dialogue?.description ?: "") }
-    var backgroundUrl by remember { mutableStateOf(dialogue?.backgroundUrl ?: "") }
+    var text by remember { mutableStateOf(dialogue?.textContent ?: "") }
+    var desc by remember { mutableStateOf(dialogue?.description ?: "") }
+    var bg by remember { mutableStateOf(dialogue?.backgroundUrl ?: "") }
     var speakerId by remember { mutableStateOf(dialogue?.speakerCharacterId ?: "") }
-    var expectsResponse by remember { mutableStateOf(dialogue?.expectsUserResponse ?: false) }
-    var inputMode by remember { mutableStateOf(dialogue?.inputMode ?: InputMode.TEXT) }
+    var expects by remember { mutableStateOf(dialogue?.expectsUserResponse ?: false) }
+    var mode by remember { mutableStateOf(dialogue?.inputMode ?: InputMode.TEXT) }
     var nextId by remember { mutableStateOf(dialogue?.nextDialogueId ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (dialogue == null) "Novo Diálogo" else "Editar Diálogo") },
         text = {
-            Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()), Arrangement.spacedBy(8.dp)) {
-                QuestuaTextField(value = textContent, onValueChange = { textContent = it }, label = "Texto")
-                QuestuaTextField(value = description, onValueChange = { description = it }, label = "Descrição")
-                QuestuaTextField(value = backgroundUrl, onValueChange = { backgroundUrl = it }, label = "URL BG")
-                QuestuaTextField(value = speakerId, onValueChange = { speakerId = it }, label = "ID Falante")
-                QuestuaTextField(value = nextId, onValueChange = { nextId = it }, label = "ID Próximo")
+            Column(
+                modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                QuestuaTextField(value = text, onValueChange = { text = it }, label = "Texto do Diálogo")
+                QuestuaTextField(value = desc, onValueChange = { desc = it }, label = "Descrição Interna")
+                QuestuaTextField(value = bg, onValueChange = { bg = it }, label = "URL Background")
+                QuestuaTextField(value = speakerId, onValueChange = { speakerId = it }, label = "Speaker ID (Opcional)")
+                QuestuaTextField(value = nextId, onValueChange = { nextId = it }, label = "Next Dialogue ID (Opcional)")
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = expectsResponse, onCheckedChange = { expectsResponse = it })
-                    Text("Espera resposta?")
+                    Checkbox(checked = expects, onCheckedChange = { expects = it })
+                    Text("Espera resposta do usuário")
                 }
             }
         },
         confirmButton = {
-            Button(onClick = {
-                onConfirm(textContent, description, backgroundUrl, speakerId.takeIf { it.isNotBlank() }, expectsResponse, inputMode, nextId.takeIf { it.isNotBlank() })
-            }) { Text("Salvar") }
+            Button(
+                onClick = {
+                    onConfirm(text, desc, bg, speakerId.takeIf { it.isNotBlank() }, expects, mode, nextId.takeIf { it.isNotBlank() })
+                },
+                enabled = text.isNotBlank() && bg.isNotBlank()
+            ) { Text("Salvar") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
     )

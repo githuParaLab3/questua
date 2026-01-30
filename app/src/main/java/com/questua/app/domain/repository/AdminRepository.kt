@@ -21,10 +21,16 @@ interface AdminRepository {
     fun updateCity(city: City): Flow<Resource<City>>
     fun deleteCity(cityId: String): Flow<Resource<Unit>>
 
-    fun createQuestPoint(questPoint: QuestPoint): Flow<Resource<QuestPoint>>
-    fun updateQuestPoint(questPoint: QuestPoint): Flow<Resource<QuestPoint>>
-    fun deleteQuestPoint(questPointId: String): Flow<Resource<Unit>>
-
+    fun getQuestPoints(query: String? = null): Flow<Resource<List<QuestPoint>>>
+    fun deleteQuestPoint(id: String): Flow<Resource<Unit>>
+    fun saveQuestPoint(
+        id: String?,
+        cityId: String,
+        title: String,
+        description: String, // Usamos 'description' no domínio para consistência
+        lat: Double,
+        lon: Double
+    ): Flow<Resource<QuestPoint>>
     fun createQuest(quest: Quest): Flow<Resource<Quest>>
     fun updateQuest(quest: Quest): Flow<Resource<Quest>>
     fun deleteQuest(questId: String): Flow<Resource<Unit>>

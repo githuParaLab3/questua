@@ -129,51 +129,48 @@ class AdminRepositoryImpl @Inject constructor(
         else emit(Resource.Error(result.message ?: "Erro ao apagar cidade"))
     }
 
-    override fun createQuestPoint(questPoint: QuestPoint): Flow<Resource<QuestPoint>> = flow {
+    override fun getQuestPoints(query: String?): Flow<Resource<List<QuestPoint>>> = flow {
         emit(Resource.Loading())
-        val dto = QuestPointRequestDTO(
-            cityId = questPoint.cityId,
-            title = questPoint.title,
-            descriptionQpoint = questPoint.description,
-            difficulty = questPoint.difficulty.toShort(),
-            lat = questPoint.lat,
-            lon = questPoint.lon,
-            isPremium = questPoint.isPremium,
-            isPublished = questPoint.isPublished,
-            imageUrl = questPoint.imageUrl,
-            iconUrl = questPoint.iconUrl,
-            unlockRequirement = questPoint.unlockRequirement
-        )
-        val result = safeApiCall { questPointApi.create(dto) }
-        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
-        else emit(Resource.Error(result.message ?: "Erro ao criar ponto"))
+        val response = safeApiCall { questPointApi.list(size = 100) }
+        if (response is Resource.Success) {
+            val domainList = response.data?.content?.map { it.toDomain() } ?: emptyList()
+            emit(Resource.Success(domainList))
+        } else if (response is Resource.Error) {
+            emit(Resource.Error(response.message ?: "Erro ao listar"))
+        }
     }
 
-    override fun updateQuestPoint(questPoint: QuestPoint): Flow<Resource<QuestPoint>> = flow {
+    override fun deleteQuestPoint(id: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
-        val dto = QuestPointRequestDTO(
-            cityId = questPoint.cityId,
-            title = questPoint.title,
-            descriptionQpoint = questPoint.description,
-            difficulty = questPoint.difficulty.toShort(),
-            lat = questPoint.lat,
-            lon = questPoint.lon,
-            isPremium = questPoint.isPremium,
-            isPublished = questPoint.isPublished,
-            imageUrl = questPoint.imageUrl,
-            iconUrl = questPoint.iconUrl,
-            unlockRequirement = questPoint.unlockRequirement
-        )
-        val result = safeApiCall { questPointApi.update(questPoint.id, dto) }
-        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
-        else emit(Resource.Error(result.message ?: "Erro ao atualizar ponto"))
+        emit(safeApiCall { questPointApi.delete(id) })
     }
 
-    override fun deleteQuestPoint(questPointId: String): Flow<Resource<Unit>> = flow {
+    override fun saveQuestPoint(
+        id: String?,
+        cityId: String,
+        title: String,
+        description: String,
+        lat: Double,
+        lon: Double
+    ): Flow<Resource<QuestPoint>> = flow {
         emit(Resource.Loading())
-        val result = safeApiCall { questPointApi.delete(questPointId) }
-        if (result is Resource.Success) emit(Resource.Success(Unit))
-        else emit(Resource.Error(result.message ?: "Erro ao apagar ponto"))
+
+        val dto = QuestPointRequestDTO(
+            cityId = cityId,
+            title = title,
+            descriptionQpoint = description, // Mapeamento correto para o DTO
+            lat = lat,
+            lon = lon
+        )
+
+        val apiResult = if (id == null) safeApiCall { questPointApi.create(dto) }
+        else safeApiCall { questPointApi.update(id, dto) }
+
+        if (apiResult is Resource.Success) {
+            apiResult.data?.toDomain()?.let { emit(Resource.Success(it)) }
+        } else if (apiResult is Resource.Error) {
+            emit(Resource.Error(apiResult.message ?: "Erro ao salvar"))
+        }
     }
 
     override fun createQuest(quest: Quest): Flow<Resource<Quest>> = flow {

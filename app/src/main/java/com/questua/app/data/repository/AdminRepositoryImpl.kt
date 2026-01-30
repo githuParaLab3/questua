@@ -5,6 +5,7 @@ import com.questua.app.core.network.SafeApiCall
 import com.questua.app.data.mapper.toDomain
 import com.questua.app.data.remote.api.*
 import com.questua.app.data.remote.dto.*
+import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.enums.TargetType
 import com.questua.app.domain.enums.UserRole
 import com.questua.app.domain.model.*
@@ -28,7 +29,8 @@ class AdminRepositoryImpl @Inject constructor(
     private val userApi: UserAccountApi,
     private val transactionApi: TransactionRecordApi,
     private val productApi: ProductApi,
-    private val uploadApi: UploadApi
+    private val uploadApi: UploadApi,
+    private val achievementApi: AchievementApi
 ) : AdminRepository, SafeApiCall() {
 
     override fun generateQuestPoint(cityId: String, theme: String): Flow<Resource<QuestPoint>> = flow {
@@ -551,6 +553,54 @@ class AdminRepositoryImpl @Inject constructor(
             is Resource.Success -> emit(Resource.Success(result.data!!.toDomain()))
             is Resource.Error -> emit(Resource.Error(result.message ?: "Erro ao atualizar"))
             is Resource.Loading -> emit(Resource.Loading())
+        }
+    }
+
+    override fun getAchievements(query: String?): Flow<Resource<List<Achievement>>> = flow {
+        emit(Resource.Loading())
+        val response = safeApiCall { achievementApi.list(size = 100) }
+        if (response is Resource.Success) {
+            val domainList = response.data?.content?.map { it.toDomain() } ?: emptyList()
+            emit(Resource.Success(domainList))
+        } else if (response is Resource.Error) {
+            emit(Resource.Error(response.message ?: "Erro ao listar"))
+        }
+    }
+
+    override fun deleteAchievement(id: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        emit(safeApiCall { achievementApi.delete(id) })
+    }
+
+    override fun saveAchievement(
+        id: String?,
+        name: String,
+        description: String,
+        iconUrl: String,
+        xpReward: Int,
+        keyName: String,
+        rarity: RarityType
+    ): Flow<Resource<Achievement>> = flow {
+        emit(Resource.Loading())
+
+        val dto = AchievementRequestDTO(
+            nameAchievement = name,
+            descriptionAchievement = description,
+            iconUrl = iconUrl,
+            xpReward = xpReward,
+            keyName = keyName,
+            rarity = rarity // Agora o tipo coincide com o esperado pelo DTO
+        )
+
+        val apiResult = if (id == null) safeApiCall { achievementApi.create(dto) }
+        else safeApiCall { achievementApi.update(id!!, dto) }
+
+        when (apiResult) {
+            is Resource.Success -> {
+                apiResult.data?.toDomain()?.let { emit(Resource.Success(it)) }
+            }
+            is Resource.Error -> emit(Resource.Error(apiResult.message ?: "Erro ao salvar"))
+            else -> Unit
         }
     }
 }

@@ -106,6 +106,7 @@ fun AdminGeneralManagementScreen(
                             when (category.id) {
                                 "languages" -> navController.navigate(Screen.AdminLanguages.route)
                                 "characters" -> navController.navigate(Screen.AdminCharacters.route)
+                                "achievements" -> navController.navigate(Screen.AdminAchievements.route)
                                 // As demais rotas serão adicionadas conforme implementação
                                 else -> { /* navegação padrão ou erro */ }
                             }

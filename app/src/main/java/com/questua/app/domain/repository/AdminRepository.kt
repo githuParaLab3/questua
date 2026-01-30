@@ -1,6 +1,7 @@
 package com.questua.app.domain.repository
 
 import com.questua.app.core.common.Resource
+import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.enums.TargetType
 import com.questua.app.domain.enums.UserRole
 import com.questua.app.domain.model.*
@@ -83,4 +84,16 @@ interface AdminRepository {
         voiceUrl: String?,
         persona: Persona? = null
     ): Flow<Resource<CharacterEntity>>
+
+    fun getAchievements(query: String? = null): Flow<Resource<List<Achievement>>>
+    fun deleteAchievement(id: String): Flow<Resource<Unit>>
+    fun saveAchievement(
+        id: String?,
+        name: String,
+        description: String,
+        iconUrl: String,
+        xpReward: Int,
+        keyName: String,
+        rarity: RarityType
+    ): Flow<Resource<Achievement>>
 }

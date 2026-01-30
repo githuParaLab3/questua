@@ -172,51 +172,54 @@ class AdminRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun createQuest(quest: Quest): Flow<Resource<Quest>> = flow {
+    override fun getQuests(query: String?): Flow<Resource<List<Quest>>> = flow {
         emit(Resource.Loading())
-        val dto = QuestRequestDTO(
-            questPointId = quest.questPointId,
-            title = quest.title,
-            descriptionQuest = quest.description,
-            difficulty = quest.difficulty.toShort(),
-            orderIndex = quest.orderIndex.toShort(),
-            xpValue = quest.xpValue,
-            isPremium = quest.isPremium,
-            isPublished = quest.isPublished,
-            firstDialogueId = quest.firstDialogueId,
-            unlockRequirement = quest.unlockRequirement,
-            learningFocus = quest.learningFocus
-        )
-        val result = safeApiCall { questApi.create(dto) }
-        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
-        else emit(Resource.Error(result.message ?: "Erro ao criar missão"))
+        val response = safeApiCall<PageResponse<QuestResponseDTO>> {
+            questApi.getAll(page = 0, size = 100)
+        }
+        if (response is Resource.Success) {
+            val domainList = response.data?.content?.map { it.toDomain() } ?: emptyList()
+            emit(Resource.Success(domainList))
+        } else if (response is Resource.Error) {
+            emit(Resource.Error(response.message ?: "Erro ao listar quests"))
+        }
     }
 
-    override fun updateQuest(quest: Quest): Flow<Resource<Quest>> = flow {
+    override fun deleteQuest(id: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
-        val dto = QuestRequestDTO(
-            questPointId = quest.questPointId,
-            title = quest.title,
-            descriptionQuest = quest.description,
-            difficulty = quest.difficulty.toShort(),
-            orderIndex = quest.orderIndex.toShort(),
-            xpValue = quest.xpValue,
-            isPremium = quest.isPremium,
-            isPublished = quest.isPublished,
-            firstDialogueId = quest.firstDialogueId,
-            unlockRequirement = quest.unlockRequirement,
-            learningFocus = quest.learningFocus
-        )
-        val result = safeApiCall { questApi.update(quest.id, dto) }
-        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
-        else emit(Resource.Error(result.message ?: "Erro ao atualizar missão"))
+        emit(safeApiCall { questApi.delete(id) })
     }
 
-    override fun deleteQuest(questId: String): Flow<Resource<Unit>> = flow {
+    override fun saveQuest(
+        id: String?,
+        questPointId: String,
+        title: String,
+        description: String,
+        difficulty: Int,
+        orderIndex: Int,
+        xpValue: Int,
+        isPremium: Boolean,
+        isPublished: Boolean
+    ): Flow<Resource<Quest>> = flow {
         emit(Resource.Loading())
-        val result = safeApiCall { questApi.delete(questId) }
-        if (result is Resource.Success) emit(Resource.Success(Unit))
-        else emit(Resource.Error(result.message ?: "Erro ao apagar missão"))
+        val dto = QuestRequestDTO(
+            questPointId = questPointId,
+            title = title,
+            descriptionQuest = description,
+            difficulty = difficulty.toShort(),
+            orderIndex = orderIndex.toShort(),
+            xpValue = xpValue,
+            isPremium = isPremium,
+            isPublished = isPublished
+        )
+        val result = if (id == null) safeApiCall<QuestResponseDTO> { questApi.create(dto) }
+        else safeApiCall<QuestResponseDTO> { questApi.update(id, dto) }
+
+        if (result is Resource.Success) {
+            result.data?.toDomain()?.let { emit(Resource.Success(it)) }
+        } else if (result is Resource.Error) {
+            emit(Resource.Error(result.message ?: "Erro ao salvar"))
+        }
     }
     override fun getCharacters(query: String?): Flow<Resource<List<CharacterEntity>>> = flow {
         emit(Resource.Loading())

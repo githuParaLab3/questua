@@ -40,9 +40,19 @@ interface AdminRepository {
         lat: Double,
         lon: Double
     ): Flow<Resource<QuestPoint>>
-    fun createQuest(quest: Quest): Flow<Resource<Quest>>
-    fun updateQuest(quest: Quest): Flow<Resource<Quest>>
-    fun deleteQuest(questId: String): Flow<Resource<Unit>>
+    fun getQuests(query: String? = null): Flow<Resource<List<Quest>>>
+    fun deleteQuest(id: String): Flow<Resource<Unit>>
+    fun saveQuest(
+        id: String?,
+        questPointId: String,
+        title: String,
+        description: String,
+        difficulty: Int,
+        orderIndex: Int,
+        xpValue: Int,
+        isPremium: Boolean,
+        isPublished: Boolean
+    ): Flow<Resource<Quest>>
 
     fun getAllReports(page: Int, size: Int): Flow<Resource<List<Report>>>
     fun getReportById(id: String): Flow<Resource<Report>>

@@ -13,6 +13,7 @@ import com.questua.app.presentation.admin.content.characters.AdminCharacterScree
 import com.questua.app.presentation.admin.content.cities.AdminCityScreen
 import com.questua.app.presentation.admin.content.languages.AdminLanguageScreen
 import com.questua.app.presentation.admin.content.questpoints.AdminQuestPointScreen
+import com.questua.app.presentation.admin.content.quests.AdminQuestScreen
 import com.questua.app.presentation.admin.feedback.AdminFeedbackScreen
 import com.questua.app.presentation.admin.feedback.AdminReportDetailScreen
 import com.questua.app.presentation.admin.logs.AiLogsScreen
@@ -110,6 +111,10 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
 
         composable(route = Screen.AdminCities.route) {
             AdminCityScreen(navController = navController)
+        }
+
+        composable(route = Screen.AdminQuests.route) {
+            AdminQuestScreen(navController = navController)
         }
 
     }

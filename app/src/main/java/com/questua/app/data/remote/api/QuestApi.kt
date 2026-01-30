@@ -7,7 +7,7 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface QuestApi {
-    @GET("/quests")
+    @GET("quests")
     suspend fun getAll(
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null

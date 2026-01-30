@@ -220,42 +220,60 @@ class AdminRepositoryImpl @Inject constructor(
         if (result is Resource.Success) emit(Resource.Success(Unit))
         else emit(Resource.Error(result.message ?: "Erro ao apagar missão"))
     }
-
-    override fun createCharacter(character: CharacterEntity): Flow<Resource<CharacterEntity>> = flow {
+    override fun getCharacters(query: String?): Flow<Resource<List<CharacterEntity>>> = flow {
         emit(Resource.Loading())
-        val dto = CharacterEntityRequestDTO(
-            nameCharacter = character.name,
-            avatarUrl = character.avatarUrl,
-            persona = character.persona,
-            spriteSheet = character.spriteSheet,
-            voiceUrl = character.voiceUrl,
-            isAiGenerated = character.isAiGenerated
-        )
-        val result = safeApiCall { characterApi.create(dto) }
-        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
-        else emit(Resource.Error(result.message ?: "Erro ao criar personagem"))
+        val response = safeApiCall { characterApi.list(size = 100) }
+        when (response) {
+            is Resource.Success -> {
+                val domainList = response.data?.content?.map { it.toDomain() } ?: emptyList()
+                emit(Resource.Success(domainList))
+            }
+            is Resource.Error -> emit(Resource.Error(response.message ?: "Erro ao listar"))
+            else -> Unit
+        }
     }
 
-    override fun updateCharacter(character: CharacterEntity): Flow<Resource<CharacterEntity>> = flow {
+    override fun deleteCharacter(id: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
-        val dto = CharacterEntityRequestDTO(
-            nameCharacter = character.name,
-            avatarUrl = character.avatarUrl,
-            persona = character.persona,
-            spriteSheet = character.spriteSheet,
-            voiceUrl = character.voiceUrl,
-            isAiGenerated = character.isAiGenerated
-        )
-        val result = safeApiCall { characterApi.update(character.id, dto) }
-        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
-        else emit(Resource.Error(result.message ?: "Erro ao atualizar personagem"))
+        emit(safeApiCall { characterApi.delete(id) })
     }
 
-    override fun deleteCharacter(characterId: String): Flow<Resource<Unit>> = flow {
+    override fun saveCharacter(
+        id: String?,
+        name: String,
+        avatarUrl: String,
+        isAi: Boolean,
+        voiceUrl: String?,
+        persona: Persona?
+    ): Flow<Resource<CharacterEntity>> = flow {
         emit(Resource.Loading())
-        val result = safeApiCall { characterApi.delete(characterId) }
-        if (result is Resource.Success) emit(Resource.Success(Unit))
-        else emit(Resource.Error(result.message ?: "Erro ao apagar personagem"))
+
+        val dto = CharacterEntityRequestDTO(
+            nameCharacter = name,
+            avatarUrl = avatarUrl,
+            isAiGenerated = isAi,
+            voiceUrl = voiceUrl,
+            persona = persona
+        )
+
+        val apiResult = if (id == null) {
+            safeApiCall { characterApi.create(dto) }
+        } else {
+            safeApiCall { characterApi.update(id, dto) }
+        }
+
+        when (apiResult) {
+            is Resource.Success -> {
+                val data = apiResult.data?.toDomain()
+                if (data != null) {
+                    emit(Resource.Success(data))
+                } else {
+                    emit(Resource.Error("Erro ao processar dados do servidor"))
+                }
+            }
+            is Resource.Error -> emit(Resource.Error(apiResult.message ?: "Erro ao salvar"))
+            else -> Unit
+        }
     }
 
     override fun getAllReports(page: Int, size: Int): Flow<Resource<List<Report>>> = flow {

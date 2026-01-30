@@ -8,6 +8,7 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.questua.app.presentation.admin.AdminGeneralManagementScreen
 import com.questua.app.presentation.admin.content.ContentDetailScreen
+import com.questua.app.presentation.admin.content.characters.AdminCharacterScreen
 import com.questua.app.presentation.admin.content.languages.AdminLanguageScreen
 import com.questua.app.presentation.admin.feedback.AdminFeedbackScreen
 import com.questua.app.presentation.admin.feedback.AdminReportDetailScreen
@@ -90,6 +91,10 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
 
         composable(route = Screen.AdminLanguages.route) {
             AdminLanguageScreen(navController = navController)
+        }
+
+        composable(route = Screen.AdminCharacters.route) {
+            AdminCharacterScreen(navController = navController)
         }
     }
 }

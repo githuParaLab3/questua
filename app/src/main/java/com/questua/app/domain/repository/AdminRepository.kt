@@ -28,10 +28,6 @@ interface AdminRepository {
     fun updateQuest(quest: Quest): Flow<Resource<Quest>>
     fun deleteQuest(questId: String): Flow<Resource<Unit>>
 
-    fun createCharacter(character: CharacterEntity): Flow<Resource<CharacterEntity>>
-    fun updateCharacter(character: CharacterEntity): Flow<Resource<CharacterEntity>>
-    fun deleteCharacter(characterId: String): Flow<Resource<Unit>>
-
     fun getAllReports(page: Int, size: Int): Flow<Resource<List<Report>>>
     fun getReportById(id: String): Flow<Resource<Report>>
     fun updateReport(report: Report): Flow<Resource<Report>>
@@ -75,4 +71,16 @@ interface AdminRepository {
     fun getAllQuests(page: Int, size: Int): Flow<Resource<List<Quest>>>
     fun getAllQuestPoints(page: Int, size: Int): Flow<Resource<List<QuestPoint>>>
     fun updateProduct(product: Product): Flow<Resource<Product>>
+
+    // Adicione à interface AdminRepository
+    fun getCharacters(query: String? = null): Flow<Resource<List<CharacterEntity>>>
+    fun deleteCharacter(id: String): Flow<Resource<Unit>>
+    fun saveCharacter(
+        id: String?,
+        name: String,
+        avatarUrl: String,
+        isAi: Boolean,
+        voiceUrl: String?,
+        persona: Persona? = null
+    ): Flow<Resource<CharacterEntity>>
 }

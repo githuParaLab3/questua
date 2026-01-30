@@ -59,4 +59,6 @@ sealed class Screen(val route: String) {
     }
 
     data object AdminLanguages : Screen("admin_languages")
+
+    data object AdminCharacters : Screen("admin_characters")
 }

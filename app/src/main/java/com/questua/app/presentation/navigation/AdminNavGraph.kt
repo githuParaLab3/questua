@@ -8,7 +8,9 @@ import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.questua.app.presentation.admin.AdminGeneralManagementScreen
 import com.questua.app.presentation.admin.content.ContentDetailScreen
+import com.questua.app.presentation.admin.content.achievements.AdminAchievementDetailScreen
 import com.questua.app.presentation.admin.content.achievements.AdminAchievementScreen
+import com.questua.app.presentation.admin.content.characters.AdminCharacterDetailScreen
 import com.questua.app.presentation.admin.content.characters.AdminCharacterScreen
 import com.questua.app.presentation.admin.content.cities.AdminCityScreen
 import com.questua.app.presentation.admin.content.dialogues.AdminDialogueScreen
@@ -156,6 +158,23 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("dialogueId") { type = NavType.StringType })
         ) {
             AdminDialogueDetailScreen(navController = navController)
+        }
+
+        composable(
+            route = Screen.AdminCharacterDetail.route,
+            arguments = listOf(
+                navArgument("characterId") {
+                    type = NavType.StringType
+                }
+            )
+        ) {
+            AdminCharacterDetailScreen(navController = navController)
+        }
+        composable(
+            route = Screen.AdminAchievementDetail.route,
+            arguments = listOf(navArgument("achievementId") { type = NavType.StringType })
+        ) {
+            AdminAchievementDetailScreen(navController = navController)
         }
 
     }

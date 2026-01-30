@@ -1,5 +1,6 @@
 package com.questua.app.presentation.admin.content.questpoints
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,6 +22,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.model.QuestPoint
+import com.questua.app.presentation.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,9 +32,7 @@ fun AdminQuestPointScreen(
 ) {
     val state = viewModel.state
     val lifecycleOwner = LocalLifecycleOwner.current
-    var showFormDialog by remember { mutableStateOf<QuestPoint?>(null) }
     var isCreating by remember { mutableStateOf(false) }
-    var pointToDelete by remember { mutableStateOf<QuestPoint?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -42,30 +42,22 @@ fun AdminQuestPointScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    if (isCreating || showFormDialog != null) {
+    if (isCreating) {
         QuestPointFormDialog(
-            point = showFormDialog,
-            onDismiss = { isCreating = false; showFormDialog = null },
-            onConfirm = { cityId, title, desc, lat, lon ->
-                viewModel.savePoint(showFormDialog?.id, cityId, title, desc, lat, lon)
+            questPoint = null,
+            onDismiss = { isCreating = false },
+            onConfirm = { name, cityId, lat, lon, desc, _ ->
+                // CORREÇÃO: Passando explicitamente para os argumentos corretos do ViewModel
+                viewModel.savePoint(
+                    id = null,
+                    cityId = cityId,
+                    title = name, // 'name' da UI vai para 'title' do ViewModel/Model
+                    desc = desc,
+                    lat = lat,
+                    lon = lon
+                )
                 isCreating = false
-                showFormDialog = null
             }
-        )
-    }
-
-    if (pointToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { pointToDelete = null },
-            title = { Text("Excluir Ponto") },
-            text = { Text("Deseja excluir '${pointToDelete?.title}'?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deletePoint(pointToDelete!!.id)
-                    pointToDelete = null
-                }) { Text("Excluir", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { pointToDelete = null }) { Text("Cancelar") } }
         )
     }
 
@@ -95,27 +87,45 @@ fun AdminQuestPointScreen(
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             )
 
+            // Exibição de erro para debug se a criação falhar
+            state.error?.let {
+                Text(
+                    text = it,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
             if (state.isLoading) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
             } else {
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(state.points) { point ->
                         ListItem(
+                            modifier = Modifier.clickable {
+                                navController.navigate(Screen.AdminQuestPointDetail.passId(point.id))
+                            },
                             headlineContent = { Text(point.title, fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text("${point.lat}, ${point.lon}") },
-                            leadingContent = { Icon(Icons.Default.Place, tint = MaterialTheme.colorScheme.primary, contentDescription = null) },
+                            supportingContent = { Text("Lat: ${point.lat}, Lon: ${point.lon}") },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.Place,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    contentDescription = null
+                                )
+                            },
                             trailingContent = {
-                                Row {
-                                    IconButton(onClick = { showFormDialog = point }) {
-                                        Icon(Icons.Default.Edit, tint = MaterialTheme.colorScheme.primary, contentDescription = null)
-                                    }
-                                    IconButton(onClick = { pointToDelete = point }) {
-                                        Icon(Icons.Default.Delete, tint = MaterialTheme.colorScheme.error, contentDescription = null)
-                                    }
-                                }
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    tint = MaterialTheme.colorScheme.outline,
+                                    contentDescription = null
+                                )
                             }
                         )
-                        HorizontalDivider(thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
+                        HorizontalDivider(
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                     }
                 }
             }
@@ -125,35 +135,46 @@ fun AdminQuestPointScreen(
 
 @Composable
 fun QuestPointFormDialog(
-    point: QuestPoint?,
+    questPoint: QuestPoint?,
     onDismiss: () -> Unit,
-    onConfirm: (String, String, String, Double, Double) -> Unit
+    onConfirm: (String, String, Double, Double, String, String?) -> Unit
 ) {
-    var cityId by remember { mutableStateOf(point?.cityId ?: "") }
-    var title by remember { mutableStateOf(point?.title ?: "") }
-    var description by remember { mutableStateOf(point?.description ?: "") } // Corrigido para 'description' do modelo de domínio
-    var lat by remember { mutableStateOf(point?.lat?.toString() ?: "0.0") }
-    var lon by remember { mutableStateOf(point?.lon?.toString() ?: "0.0") }
+    // CORREÇÃO: No model QuestPoint o campo é 'title', não 'name'
+    var name by remember { mutableStateOf(questPoint?.title ?: "") }
+    var cityId by remember { mutableStateOf(questPoint?.cityId ?: "") }
+    var lat by remember { mutableStateOf(questPoint?.lat?.toString() ?: "") }
+    var lon by remember { mutableStateOf(questPoint?.lon?.toString() ?: "") }
+    var desc by remember { mutableStateOf(questPoint?.description ?: "") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (point == null) "Novo Ponto" else "Editar Ponto") },
+        title = { Text(if (questPoint == null) "Novo Ponto" else "Editar Ponto") },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                QuestuaTextField(value = cityId, onValueChange = { cityId = it }, label = "ID da Cidade")
-                QuestuaTextField(value = title, onValueChange = { title = it }, label = "Título")
-                QuestuaTextField(value = description, onValueChange = { description = it }, label = "Descrição")
+                QuestuaTextField(value = name, onValueChange = { name = it }, label = "Nome/Título")
+                QuestuaTextField(value = cityId, onValueChange = { cityId = it }, label = "ID da Cidade (UUID)")
                 QuestuaTextField(value = lat, onValueChange = { lat = it }, label = "Latitude")
                 QuestuaTextField(value = lon, onValueChange = { lon = it }, label = "Longitude")
+                QuestuaTextField(value = desc, onValueChange = { desc = it }, label = "Descrição")
             }
         },
         confirmButton = {
-            Button(onClick = {
-                onConfirm(cityId, title, description, lat.toDoubleOrNull() ?: 0.0, lon.toDoubleOrNull() ?: 0.0)
-            }) { Text("Salvar") }
+            Button(
+                onClick = {
+                    onConfirm(
+                        name,
+                        cityId,
+                        lat.toDoubleOrNull() ?: 0.0,
+                        lon.toDoubleOrNull() ?: 0.0,
+                        desc,
+                        null
+                    )
+                },
+                enabled = name.isNotBlank() && cityId.isNotBlank()
+            ) { Text("Salvar") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
     )

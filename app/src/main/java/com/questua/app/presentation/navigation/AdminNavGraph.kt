@@ -24,6 +24,7 @@ import com.questua.app.presentation.admin.monetization.AdminProductDetailScreen
 import com.questua.app.presentation.admin.users.UserDetailScreen
 import com.questua.app.presentation.admin.users.UserManagementScreen
 import com.questua.app.presentation.admin.content.cities.AdminCityDetailScreen
+import com.questua.app.presentation.admin.content.questpoints.AdminQuestPointDetailScreen
 import com.questua.app.presentation.admin.content.quests.AdminQuestDetailScreen
 
 fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
@@ -141,6 +142,13 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("questId") { type = NavType.StringType })
         ) {
             AdminQuestDetailScreen(navController = navController)
+        }
+
+        composable(
+            route = Screen.AdminQuestPointDetail.route,
+            arguments = listOf(navArgument("pointId") { type = NavType.StringType })
+        ) {
+            AdminQuestPointDetailScreen(navController = navController)
         }
 
     }

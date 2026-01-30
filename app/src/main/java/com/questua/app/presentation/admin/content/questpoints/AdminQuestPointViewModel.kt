@@ -55,7 +55,15 @@ class AdminQuestPointViewModel @Inject constructor(
     }
 
     fun savePoint(id: String?, cityId: String, title: String, desc: String, lat: Double, lon: Double) {
-        repository.saveQuestPoint(id, cityId, title, desc, lat, lon).onEach { result ->
+        // Certifique-se que a ordem aqui é a mesma da interface AdminRepository
+        repository.saveQuestPoint(
+            id = id,
+            cityId = cityId,
+            title = title,
+            description = desc,
+            lat = lat,
+            lon = lon
+        ).onEach { result ->
             if (result is Resource.Success) fetchPoints()
             else if (result is Resource.Error) state = state.copy(error = result.message)
         }.launchIn(viewModelScope)

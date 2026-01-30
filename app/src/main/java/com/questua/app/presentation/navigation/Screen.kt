@@ -65,4 +65,6 @@ sealed class Screen(val route: String) {
     data object AdminAchievements : Screen("admin_achievements")
 
     data object AdminQuestPoints : Screen("admin_quest_points")
+
+    data object AdminCities : Screen("admin_cities")
 }

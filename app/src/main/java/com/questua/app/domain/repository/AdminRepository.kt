@@ -17,9 +17,18 @@ interface AdminRepository {
 
     fun getAiLogs(page: Int, size: Int): Flow<Resource<List<AiGenerationLog>>>
 
-    fun createCity(city: City): Flow<Resource<City>>
-    fun updateCity(city: City): Flow<Resource<City>>
-    fun deleteCity(cityId: String): Flow<Resource<Unit>>
+    fun getCities(query: String? = null): Flow<Resource<List<City>>>
+    fun deleteCity(id: String): Flow<Resource<Unit>>
+    fun saveCity(
+        id: String?,
+        name: String,
+        countryCode: String,
+        description: String,
+        languageId: String,
+        lat: Double,
+        lon: Double,
+        imageUrl: String? = null
+    ): Flow<Resource<City>>
 
     fun getQuestPoints(query: String? = null): Flow<Resource<List<QuestPoint>>>
     fun deleteQuestPoint(id: String): Flow<Resource<Unit>>

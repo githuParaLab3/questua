@@ -108,6 +108,7 @@ fun AdminGeneralManagementScreen(
                                 "characters" -> navController.navigate(Screen.AdminCharacters.route)
                                 "achievements" -> navController.navigate(Screen.AdminAchievements.route)
                                 "quest_points" -> navController.navigate(Screen.AdminQuestPoints.route)
+                                "cities" -> navController.navigate(Screen.AdminCities.route)
                                 // As demais rotas serão adicionadas conforme implementação
                                 else -> { /* navegação padrão ou erro */ }
                             }

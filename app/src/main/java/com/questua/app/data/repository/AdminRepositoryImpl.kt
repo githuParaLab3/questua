@@ -80,53 +80,52 @@ class AdminRepositoryImpl @Inject constructor(
         else emit(Resource.Error(result.message ?: "Erro ao carregar logs"))
     }
 
-    override fun createCity(city: City): Flow<Resource<City>> = flow {
+    override fun getCities(query: String?): Flow<Resource<List<City>>> = flow {
         emit(Resource.Loading())
-        val dto = CityRequestDTO(
-            cityName = city.name,
-            countryCode = city.countryCode,
-            descriptionCity = city.description,
-            languageId = city.languageId,
-            lat = city.lat,
-            lon = city.lon,
-            isPremium = city.isPremium,
-            isPublished = city.isPublished,
-            imageUrl = city.imageUrl,
-            iconUrl = city.iconUrl,
-            boundingPolygon = city.boundingPolygon,
-            unlockRequirement = city.unlockRequirement
-        )
-        val result = safeApiCall { cityApi.create(dto) }
-        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
-        else emit(Resource.Error(result.message ?: "Erro ao criar cidade"))
+        val response = safeApiCall { cityApi.list(size = 100) }
+        if (response is Resource.Success) {
+            val domainList = response.data?.content?.map { it.toDomain() } ?: emptyList()
+            emit(Resource.Success(domainList))
+        } else if (response is Resource.Error) {
+            emit(Resource.Error(response.message ?: "Erro ao listar cidades"))
+        }
     }
 
-    override fun updateCity(city: City): Flow<Resource<City>> = flow {
+    override fun deleteCity(id: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
-        val dto = CityRequestDTO(
-            cityName = city.name,
-            countryCode = city.countryCode,
-            descriptionCity = city.description,
-            languageId = city.languageId,
-            lat = city.lat,
-            lon = city.lon,
-            isPremium = city.isPremium,
-            isPublished = city.isPublished,
-            imageUrl = city.imageUrl,
-            iconUrl = city.iconUrl,
-            boundingPolygon = city.boundingPolygon,
-            unlockRequirement = city.unlockRequirement
-        )
-        val result = safeApiCall { cityApi.update(city.id, dto) }
-        if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
-        else emit(Resource.Error(result.message ?: "Erro ao atualizar cidade"))
+        emit(safeApiCall { cityApi.delete(id) })
     }
 
-    override fun deleteCity(cityId: String): Flow<Resource<Unit>> = flow {
+    override fun saveCity(
+        id: String?,
+        name: String,
+        countryCode: String,
+        description: String,
+        languageId: String,
+        lat: Double,
+        lon: Double,
+        imageUrl: String?
+    ): Flow<Resource<City>> = flow {
         emit(Resource.Loading())
-        val result = safeApiCall { cityApi.delete(cityId) }
-        if (result is Resource.Success) emit(Resource.Success(Unit))
-        else emit(Resource.Error(result.message ?: "Erro ao apagar cidade"))
+
+        val dto = CityRequestDTO(
+            cityName = name,
+            descriptionCity = description,
+            countryCode = countryCode,
+            languageId = languageId,
+            lat = lat,
+            lon = lon,
+            imageUrl = imageUrl
+        )
+
+        val apiResult = if (id == null) safeApiCall { cityApi.create(dto) }
+        else safeApiCall { cityApi.update(id, dto) }
+
+        if (apiResult is Resource.Success) {
+            apiResult.data?.toDomain()?.let { emit(Resource.Success(it)) }
+        } else if (apiResult is Resource.Error) {
+            emit(Resource.Error(apiResult.message ?: "Erro ao salvar"))
+        }
     }
 
     override fun getQuestPoints(query: String?): Flow<Resource<List<QuestPoint>>> = flow {

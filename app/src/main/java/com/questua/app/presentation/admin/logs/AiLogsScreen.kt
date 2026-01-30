@@ -6,8 +6,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -16,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.questua.app.domain.enums.AiGenerationStatus
+import com.questua.app.domain.enums.AiTargetType
 import com.questua.app.domain.model.AiGenerationLog
 import com.questua.app.presentation.navigation.Screen
 
@@ -26,6 +28,9 @@ fun AiLogsScreen(
     viewModel: AdminAiLogsViewModel = hiltViewModel()
 ) {
     val state = viewModel.state
+    val logs = viewModel.filteredLogs
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
 
     Scaffold(
         topBar = {
@@ -34,6 +39,19 @@ fun AiLogsScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showFilterSheet = true }) {
+                        BadgedBox(
+                            badge = {
+                                if (state.selectedStatus != null || state.selectedTarget != null) {
+                                    Badge()
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.FilterList, contentDescription = "Filtrar")
+                        }
                     }
                 }
             )
@@ -48,9 +66,14 @@ fun AiLogsScreen(
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else if (state.error != null && state.logs.isEmpty()) {
                 Text(
-                    text = state.error ?: "Erro desconhecido",
+                    text = state.error,
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.align(Alignment.Center).padding(16.dp)
+                )
+            } else if (logs.isEmpty()) {
+                Text(
+                    text = "Nenhum log corresponde aos filtros.",
+                    modifier = Modifier.align(Alignment.Center)
                 )
             } else {
                 LazyColumn(
@@ -58,7 +81,7 @@ fun AiLogsScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(state.logs) { log ->
+                    items(logs) { log ->
                         AiLogItem(
                             log = log,
                             onClick = {
@@ -69,6 +92,101 @@ fun AiLogsScreen(
                 }
             }
         }
+
+        if (showFilterSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showFilterSheet = false },
+                sheetState = sheetState
+            ) {
+                FilterSheetContent(
+                    selectedStatus = state.selectedStatus,
+                    selectedTarget = state.selectedTarget,
+                    onStatusSelected = viewModel::onStatusFilterSelected,
+                    onTargetSelected = viewModel::onTargetFilterSelected,
+                    onClear = {
+                        viewModel.clearFilters()
+                        showFilterSheet = false
+                    },
+                    onApply = { showFilterSheet = false }
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun FilterSheetContent(
+    selectedStatus: AiGenerationStatus?,
+    selectedTarget: AiTargetType?,
+    onStatusSelected: (AiGenerationStatus?) -> Unit,
+    onTargetSelected: (AiTargetType?) -> Unit,
+    onClear: () -> Unit,
+    onApply: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .navigationBarsPadding()
+    ) {
+        Text("Filtrar Logs", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text("Status da Geração", style = MaterialTheme.typography.labelLarge)
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AiGenerationStatus.entries.forEach { status ->
+                FilterChip(
+                    selected = selectedStatus == status,
+                    onClick = { onStatusSelected(if (selectedStatus == status) null else status) },
+                    label = { Text(status.name) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text("Tipo de Alvo", style = MaterialTheme.typography.labelLarge)
+        FlowRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            AiTargetType.entries.forEach { target ->
+                FilterChip(
+                    selected = selectedTarget == target,
+                    onClick = { onTargetSelected(if (selectedTarget == target) null else target) },
+                    label = { Text(target.name) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            OutlinedButton(
+                onClick = onClear,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Limpar")
+            }
+            Button(
+                onClick = onApply,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Aplicar")
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 

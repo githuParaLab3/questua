@@ -56,8 +56,7 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
 
         composable(route = Screen.AdminLogs.route) {
             AiLogsScreen(
-                navController = navController,
-                onNavigateBack = { navController.popBackStack() }
+                navController = navController
             )
         }
 

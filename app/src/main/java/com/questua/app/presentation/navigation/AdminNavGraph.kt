@@ -23,6 +23,7 @@ import com.questua.app.presentation.admin.monetization.AdminMonetizationScreen
 import com.questua.app.presentation.admin.monetization.AdminProductDetailScreen
 import com.questua.app.presentation.admin.users.UserDetailScreen
 import com.questua.app.presentation.admin.users.UserManagementScreen
+import com.questua.app.presentation.admin.content.cities.AdminCityDetailScreen
 
 fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
     navigation(
@@ -126,6 +127,12 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
             arguments = listOf(navArgument("logId") { type = NavType.StringType })
         ) {
             AdminLogDetailScreen(navController = navController)
+        }
+        composable(
+            route = Screen.AdminCityDetail.route,
+            arguments = listOf(navArgument("cityId") { type = NavType.StringType })
+        ) {
+            AdminCityDetailScreen(navController = navController)
         }
 
     }

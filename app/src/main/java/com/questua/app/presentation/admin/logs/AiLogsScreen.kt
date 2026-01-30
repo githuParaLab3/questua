@@ -6,7 +6,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,54 +42,89 @@ fun AiLogsScreen(
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
-                },
-                actions = {
-                    IconButton(onClick = { showFilterSheet = true }) {
-                        BadgedBox(
-                            badge = {
-                                if (state.selectedStatus != null || state.selectedTarget != null) {
-                                    Badge()
-                                }
-                            }
-                        ) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Filtrar")
-                        }
-                    }
                 }
             )
         }
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (state.isLoading && state.logs.isEmpty()) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (state.error != null && state.logs.isEmpty()) {
-                Text(
-                    text = state.error,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.align(Alignment.Center).padding(16.dp)
-                )
-            } else if (logs.isEmpty()) {
-                Text(
-                    text = "Nenhum log corresponde aos filtros.",
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(logs) { log ->
-                        AiLogItem(
-                            log = log,
-                            onClick = {
-                                navController.navigate(Screen.AdminLogDetail.passId(log.id))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = state.searchQuery,
+                    onValueChange = viewModel::onSearchQueryChanged,
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Buscar...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        if (state.searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.onSearchQueryChanged("") }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Limpar")
                             }
-                        )
+                        }
+                    },
+                    singleLine = true,
+                    shape = MaterialTheme.shapes.medium
+                )
+
+                Surface(
+                    onClick = { showFilterSheet = true },
+                    modifier = Modifier.size(56.dp),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    tonalElevation = 2.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        BadgedBox(
+                            badge = {
+                                if (state.selectedStatus != null || state.selectedTarget != null) {
+                                    Badge(modifier = Modifier.offset(x = (-4).dp, y = 4.dp))
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FilterList,
+                                contentDescription = "Filtros",
+                                tint = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        }
+                    }
+                }
+            }
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (state.isLoading && state.logs.isEmpty()) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else if (state.error != null && state.logs.isEmpty()) {
+                    Text(
+                        text = state.error,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.align(Alignment.Center).padding(16.dp)
+                    )
+                } else if (logs.isEmpty()) {
+                    Text(
+                        text = "Nenhum resultado encontrado.",
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(logs) { log ->
+                            AiLogItem(log = log, onClick = {
+                                navController.navigate(Screen.AdminLogDetail.passId(log.id))
+                            })
+                        }
                     }
                 }
             }
@@ -130,14 +167,12 @@ private fun FilterSheetContent(
             .padding(16.dp)
             .navigationBarsPadding()
     ) {
-        Text("Filtrar Logs", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text("Opções de Filtro", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(24.dp))
 
-        Text("Status da Geração", style = MaterialTheme.typography.labelLarge)
+        Text("Status", style = MaterialTheme.typography.labelLarge)
         FlowRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AiGenerationStatus.entries.forEach { status ->
@@ -151,11 +186,9 @@ private fun FilterSheetContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Text("Tipo de Alvo", style = MaterialTheme.typography.labelLarge)
+        Text("Tipo de Geração (Target)", style = MaterialTheme.typography.labelLarge)
         FlowRow(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 8.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             AiTargetType.entries.forEach { target ->
@@ -169,20 +202,11 @@ private fun FilterSheetContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            OutlinedButton(
-                onClick = onClear,
-                modifier = Modifier.weight(1f)
-            ) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            OutlinedButton(onClick = onClear, modifier = Modifier.weight(1f)) {
                 Text("Limpar")
             }
-            Button(
-                onClick = onApply,
-                modifier = Modifier.weight(1f)
-            ) {
+            Button(onClick = onApply, modifier = Modifier.weight(1f)) {
                 Text("Aplicar")
             }
         }
@@ -192,35 +216,16 @@ private fun FilterSheetContent(
 
 @Composable
 fun AiLogItem(log: AiGenerationLog, onClick: () -> Unit) {
-    ElevatedCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-    ) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth().clickable { onClick() }) {
         ListItem(
-            headlineContent = {
-                Text(
-                    text = "Alvo: ${log.targetType}",
-                    fontWeight = FontWeight.Bold
-                )
-            },
+            headlineContent = { Text("Alvo: ${log.targetType}", fontWeight = FontWeight.Bold) },
             supportingContent = {
                 Column {
-                    Text(
-                        text = log.prompt,
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = log.createdAt,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.outline
-                    )
+                    Text(log.prompt, maxLines = 1, style = MaterialTheme.typography.bodySmall)
+                    Text(log.createdAt, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                 }
             },
-            trailingContent = {
-                StatusBadge(status = log.status)
-            },
+            trailingContent = { StatusBadge(status = log.status) },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
     }

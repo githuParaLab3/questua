@@ -21,7 +21,8 @@ data class AdminAiLogsState(
     val logs: List<AiGenerationLog> = emptyList(),
     val error: String? = null,
     val selectedStatus: AiGenerationStatus? = null,
-    val selectedTarget: AiTargetType? = null
+    val selectedTarget: AiTargetType? = null,
+    val searchQuery: String = ""
 )
 
 @HiltViewModel
@@ -36,11 +37,19 @@ class AdminAiLogsViewModel @Inject constructor(
         state.logs.filter { log ->
             val matchStatus = state.selectedStatus == null || log.status == state.selectedStatus
             val matchTarget = state.selectedTarget == null || log.targetType == state.selectedTarget
-            matchStatus && matchTarget
+            val matchQuery = state.searchQuery.isEmpty() ||
+                    log.prompt.contains(state.searchQuery, ignoreCase = true) ||
+                    log.id.contains(state.searchQuery, ignoreCase = true)
+
+            matchStatus && matchTarget && matchQuery
         }
     }
 
     init { fetchLogs() }
+
+    fun onSearchQueryChanged(query: String) {
+        state = state.copy(searchQuery = query)
+    }
 
     fun onStatusFilterSelected(status: AiGenerationStatus?) {
         state = state.copy(selectedStatus = status)
@@ -51,7 +60,7 @@ class AdminAiLogsViewModel @Inject constructor(
     }
 
     fun clearFilters() {
-        state = state.copy(selectedStatus = null, selectedTarget = null)
+        state = state.copy(selectedStatus = null, selectedTarget = null, searchQuery = "")
     }
 
     fun fetchLogs() {

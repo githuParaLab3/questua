@@ -17,6 +17,7 @@ import com.questua.app.presentation.admin.content.questpoints.AdminQuestPointScr
 import com.questua.app.presentation.admin.content.quests.AdminQuestScreen
 import com.questua.app.presentation.admin.feedback.AdminFeedbackScreen
 import com.questua.app.presentation.admin.feedback.AdminReportDetailScreen
+import com.questua.app.presentation.admin.logs.AdminLogDetailScreen
 import com.questua.app.presentation.admin.logs.AiLogsScreen
 import com.questua.app.presentation.admin.monetization.AdminMonetizationScreen
 import com.questua.app.presentation.admin.monetization.AdminProductDetailScreen
@@ -119,6 +120,12 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
 
         composable(route = Screen.AdminDialogues.route) {
             AdminDialogueScreen(navController = navController)
+        }
+        composable(
+            route = Screen.AdminLogDetail.route,
+            arguments = listOf(navArgument("logId") { type = NavType.StringType })
+        ) {
+            AdminLogDetailScreen(navController = navController)
         }
 
     }

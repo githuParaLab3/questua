@@ -30,7 +30,8 @@ class AdminRepositoryImpl @Inject constructor(
     private val transactionApi: TransactionRecordApi,
     private val productApi: ProductApi,
     private val uploadApi: UploadApi,
-    private val achievementApi: AchievementApi
+    private val achievementApi: AchievementApi,
+    private val sceneDialogueApi: SceneDialogueApi
 ) : AdminRepository, SafeApiCall() {
 
     override fun generateQuestPoint(cityId: String, theme: String): Flow<Resource<QuestPoint>> = flow {
@@ -601,5 +602,58 @@ class AdminRepositoryImpl @Inject constructor(
             is Resource.Error -> emit(Resource.Error(apiResult.message ?: "Erro ao salvar"))
             else -> Unit
         }
+    }
+    override fun getDialogues(query: String?): Flow<Resource<List<SceneDialogue>>> = flow {
+        emit(Resource.Loading())
+        // CORREÇÃO: Usando 'list' com argumentos nomeados para pular o Map de filtros
+        val response = safeApiCall<PageResponse<SceneDialogueResponseDTO>> {
+            sceneDialogueApi.list(page = 0, size = 100)
+        }
+        if (response is Resource.Success) {
+            val domainList = response.data?.content?.map { it.toDomain() } ?: emptyList()
+            emit(Resource.Success(domainList))
+        } else if (response is Resource.Error) {
+            emit(Resource.Error(response.message ?: "Erro ao listar diálogos"))
+        }
+    }
+
+    override fun saveDialogue(
+        id: String?,
+        textContent: String,
+        description: String,
+        backgroundUrl: String,
+        speakerCharacterId: String?,
+        expectsUserResponse: Boolean,
+        inputMode: com.questua.app.domain.enums.InputMode,
+        nextDialogueId: String?
+    ): Flow<Resource<SceneDialogue>> = flow {
+        emit(Resource.Loading())
+
+        val dto = SceneDialogueRequestDTO(
+            textContent = textContent,
+            descriptionDialogue = description, // Garanta que no seu DTO o nome seja este
+            backgroundUrl = backgroundUrl,
+            speakerCharacterId = speakerCharacterId,
+            expectsUserResponse = expectsUserResponse,
+            inputMode = inputMode,
+            nextDialogueId = nextDialogueId
+        )
+
+        val apiResult = if (id == null) {
+            safeApiCall<SceneDialogueResponseDTO> { sceneDialogueApi.create(dto) }
+        } else {
+            safeApiCall<SceneDialogueResponseDTO> { sceneDialogueApi.update(id, dto) }
+        }
+
+        if (apiResult is Resource.Success) {
+            apiResult.data?.toDomain()?.let { emit(Resource.Success(it)) }
+        } else if (apiResult is Resource.Error) {
+            emit(Resource.Error(apiResult.message ?: "Erro ao salvar diálogo"))
+        }
+    }
+
+    override fun deleteDialogue(id: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        emit(safeApiCall { sceneDialogueApi.delete(id) })
     }
 }

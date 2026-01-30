@@ -110,7 +110,7 @@ fun AdminGeneralManagementScreen(
                                 "quest_points" -> navController.navigate(Screen.AdminQuestPoints.route)
                                 "cities" -> navController.navigate(Screen.AdminCities.route)
                                 "quests" -> navController.navigate(Screen.AdminQuests.route)
-                                // As demais rotas serão adicionadas conforme implementação
+                                "dialogues" -> navController.navigate(Screen.AdminDialogues.route)
                                 else -> { /* navegação padrão ou erro */ }
                             }
                         }

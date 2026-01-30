@@ -121,4 +121,17 @@ interface AdminRepository {
         keyName: String,
         rarity: RarityType
     ): Flow<Resource<Achievement>>
+
+    fun getDialogues(query: String? = null): Flow<Resource<List<SceneDialogue>>>
+    fun deleteDialogue(id: String): Flow<Resource<Unit>>
+    fun saveDialogue(
+        id: String?,
+        textContent: String,
+        description: String,
+        backgroundUrl: String,
+        speakerCharacterId: String?,
+        expectsUserResponse: Boolean,
+        inputMode: com.questua.app.domain.enums.InputMode,
+        nextDialogueId: String?
+    ): Flow<Resource<SceneDialogue>>
 }

@@ -180,10 +180,13 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
         composable(Screen.AiGeneration.route) {
             AiContentGenerationScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToDetail = { route ->
-                    // A rota retornada pelo ViewModel é "tipo/id", ex: "quest_point/uuid"
-                    navController.navigate("admin_content_detail/$route") {
-                        popUpTo(Screen.AiGeneration.route) { inclusive = true }
+                onNavigateToDetail = { routeData ->
+                    try {
+                        navController.navigate("admin_content_detail/$routeData") {
+                            popUpTo(Screen.AiGeneration.route) { inclusive = true }
+                        }
+                    } catch (e: Exception) {
+                        println("Erro de navegação: ${e.message}")
                     }
                 }
             )

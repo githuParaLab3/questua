@@ -81,4 +81,8 @@ sealed class Screen(val route: String) {
     object AdminCityDetail : Screen("admin_city_detail/{cityId}") {
         fun passId(cityId: String) = "admin_city_detail/$cityId"
     }
+
+    object AdminQuestDetail : Screen("admin_quest_detail/{questId}") {
+        fun passId(id: String) = "admin_quest_detail/$id"
+    }
 }

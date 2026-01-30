@@ -1,5 +1,6 @@
 package com.questua.app.presentation.admin.content.quests
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,6 +22,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.model.Quest
+import com.questua.app.presentation.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,9 +32,7 @@ fun AdminQuestScreen(
 ) {
     val state = viewModel.state
     val lifecycleOwner = LocalLifecycleOwner.current
-    var showFormDialog by remember { mutableStateOf<Quest?>(null) }
     var isCreating by remember { mutableStateOf(false) }
-    var questToDelete by remember { mutableStateOf<Quest?>(null) }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -42,33 +42,14 @@ fun AdminQuestScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    if (isCreating || showFormDialog != null) {
+    if (isCreating) {
         QuestFormDialog(
-            quest = showFormDialog,
-            onDismiss = {
-                isCreating = false
-                showFormDialog = null
-            },
+            quest = null,
+            onDismiss = { isCreating = false },
             onConfirm = { pId, t, d, diff, ord, xp, prem, pub ->
-                viewModel.saveQuest(showFormDialog?.id, pId, t, d, diff, ord, xp, prem, pub)
+                viewModel.saveQuest(null, pId, t, d, diff, ord, xp, prem, pub)
                 isCreating = false
-                showFormDialog = null
             }
-        )
-    }
-
-    if (questToDelete != null) {
-        AlertDialog(
-            onDismissRequest = { questToDelete = null },
-            title = { Text("Excluir Quest") },
-            text = { Text("Deseja excluir '${questToDelete?.title}'?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.deleteQuest(questToDelete!!.id)
-                    questToDelete = null
-                }) { Text("Excluir", color = MaterialTheme.colorScheme.error) }
-            },
-            dismissButton = { TextButton(onClick = { questToDelete = null }) { Text("Cancelar") } }
         )
     }
 
@@ -111,19 +92,26 @@ fun AdminQuestScreen(
                 LazyColumn(Modifier.fillMaxSize()) {
                     items(state.quests) { quest ->
                         ListItem(
+                            modifier = Modifier.clickable {
+                                navController.navigate(Screen.AdminQuestDetail.passId(quest.id))
+                            },
                             headlineContent = { Text(quest.title, fontWeight = FontWeight.SemiBold) },
                             supportingContent = {
                                 Text("Ordem: ${quest.orderIndex} • XP: ${quest.xpValue} • Dif: ${quest.difficulty}")
                             },
+                            leadingContent = {
+                                Icon(
+                                    Icons.Default.Assignment, // Ou Icons.Default.Assignment dependendo da disponibilidade
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    contentDescription = null
+                                )
+                            },
                             trailingContent = {
-                                Row {
-                                    IconButton(onClick = { showFormDialog = quest }) {
-                                        Icon(Icons.Default.Edit, tint = MaterialTheme.colorScheme.primary, contentDescription = null)
-                                    }
-                                    IconButton(onClick = { questToDelete = quest }) {
-                                        Icon(Icons.Default.Delete, tint = MaterialTheme.colorScheme.error, contentDescription = null)
-                                    }
-                                }
+                                Icon(
+                                    Icons.Default.ChevronRight,
+                                    tint = MaterialTheme.colorScheme.outline,
+                                    contentDescription = null
+                                )
                             }
                         )
                         HorizontalDivider(thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))

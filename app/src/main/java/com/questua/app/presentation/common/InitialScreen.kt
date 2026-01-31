@@ -1,11 +1,12 @@
 package com.questua.app.presentation.common
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border // <--- ADICIONE ESTE IMPORT
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -14,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -34,97 +36,153 @@ fun InitialScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Slate900)
+            // Substituído o azul sólido por um gradiente vertical profundo
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(
+                        Color(0xFF1E293B), // Slate 800 (Um pouco mais suave que o 900)
+                        Slate900           // Slate 900 base
+                    )
+                )
+            )
     ) {
+        // Elemento decorativo: Brilho de "Sol/Aventura" no topo
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(Amber400.copy(alpha = 0.08f), Color.Transparent),
+                    center = Offset(size.width * 0.5f, size.height * 0.2f),
+                    radius = 500.dp.toPx()
+                )
+            )
+        }
+
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Conteúdo Superior (Logo e Texto)
             Column(
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 32.dp),
+                    .weight(1.6f)
+                    .padding(horizontal = 40.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 // Logo Container
-                Box(
-                    modifier = Modifier
-                        .size(96.dp)
-                        .rotate(45f)
-                        .background(
-                            brush = Brush.linearGradient(listOf(Amber400, Amber600)),
-                            shape = RoundedCornerShape(24.dp)
-                        )
-                        .border(4.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Public,
-                        contentDescription = null,
+                Box(contentAlignment = Alignment.Center) {
+                    Box(
                         modifier = Modifier
-                            .size(48.dp)
-                            .rotate(-45f),
-                        tint = Slate900
+                            .size(110.dp)
+                            .rotate(45f)
+                            .background(
+                                color = Amber400.copy(alpha = 0.15f),
+                                shape = RoundedCornerShape(32.dp)
+                            )
                     )
+
+                    Box(
+                        modifier = Modifier
+                            .size(96.dp)
+                            .rotate(45f)
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(Amber400, Amber600)
+                                ),
+                                shape = RoundedCornerShape(28.dp)
+                            )
+                            .border(2.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(28.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Explore,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .rotate(-45f),
+                            tint = Slate900
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(40.dp))
+                Spacer(modifier = Modifier.height(48.dp))
 
                 Text(
                     text = "Questua",
                     style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Black,
-                        fontSize = 48.sp,
-                        letterSpacing = (-1).sp
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 52.sp,
+                        letterSpacing = (-1.5).sp
                     ),
-                    color = Color(0xFFFFFBEB)
+                    color = Color.White
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                // Detalhe Amber abaixo do nome
+                Box(
+                    modifier = Modifier
+                        .padding(top = 4.dp)
+                        .height(3.dp)
+                        .width(40.dp)
+                        .background(Amber400, RoundedCornerShape(50))
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
                     text = "Aprenda idiomas explorando o mundo",
                     style = MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = 18.sp,
-                        lineHeight = 28.sp
+                        fontSize = 19.sp,
+                        lineHeight = 28.sp,
+                        fontWeight = FontWeight.Medium
                     ),
                     textAlign = TextAlign.Center,
-                    color = Slate200.copy(alpha = 0.9f)
+                    color = Slate200.copy(alpha = 0.85f)
                 )
             }
 
-            // Card Inferior (Botões)
+            // Card Inferior Branco/Surface
             Surface(
                 modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
-                shape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp),
-                shadowElevation = 24.dp
+                color = MaterialTheme.colorScheme.surface,
+                shape = RoundedCornerShape(topStart = 42.dp, topEnd = 42.dp),
+                shadowElevation = 32.dp
             ) {
                 Column(
-                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 40.dp, bottom = 48.dp),
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .padding(horizontal = 28.dp)
+                        .padding(top = 32.dp, bottom = 40.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .width(48.dp)
-                            .height(4.dp)
-                            .background(Slate200, RoundedCornerShape(50))
-                            .align(Alignment.CenterHorizontally)
+                            .width(42.dp)
+                            .height(5.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.outlineVariant,
+                                shape = RoundedCornerShape(50)
+                            )
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     QuestuaButton(
                         text = "Começar Aventura",
-                        onClick = onNavigateToRegister
+                        onClick = onNavigateToRegister,
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
                     )
 
                     QuestuaButton(
-                        text = "Já tenho conta",
+                        text = "Já possuo uma conta",
                         onClick = onNavigateToLogin,
-                        isSecondary = true
+                        isSecondary = true,
+                        modifier = Modifier.fillMaxWidth().height(56.dp)
+                    )
+
+                    Text(
+                        text = "Ao entrar você concorda com nossos Termos",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                     )
                 }
             }

@@ -23,11 +23,5 @@ data class City(
 
 @Serializable
 data class BoundingPolygon(
-    val coordinates: List<GeoPoint>
-)
-
-@Serializable
-data class GeoPoint(
-    val lat: Double,
-    val lon: Double
+    val coordinates: List<List<Double>> = emptyList()
 )

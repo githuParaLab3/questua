@@ -92,40 +92,75 @@ class AdminRepositoryImpl @Inject constructor(
     override fun deleteCity(id: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         emit(safeApiCall { cityApi.delete(id) })
+
+
+    }
+
+    override fun uploadFile(file: java.io.File, folder: String): Flow<Resource<String>> = flow {
+        emit(Resource.Loading())
+        val requestFile = file.asRequestBody("image/*".toMediaTypeOrNull())
+        val body = MultipartBody.Part.createFormData("file", file.name, requestFile)
+        val response = safeApiCall { uploadApi.uploadArchive(body, folder) }
+
+        if (response is Resource.Success) {
+            val url = response.data?.get("url")
+            if (url != null) emit(Resource.Success(url))
+            else emit(Resource.Error("URL não retornada pelo servidor"))
+        } else {
+            emit(Resource.Error(response.message ?: "Falha no upload"))
+        }
     }
 
     override fun saveCity(
         id: String?,
-        name: String,
+        cityName: String,
         countryCode: String,
-        description: String,
+        descriptionCity: String,
         languageId: String,
+        boundingPolygon: BoundingPolygon?,
         lat: Double,
         lon: Double,
-        imageUrl: String?
+        imageUrl: String?,
+        iconUrl: String?,
+        isPremium: Boolean,
+        unlockRequirement: UnlockRequirement?,
+        isAiGenerated: Boolean,
+        isPublished: Boolean
     ): Flow<Resource<City>> = flow {
         emit(Resource.Loading())
 
         val dto = CityRequestDTO(
-            cityName = name,
-            descriptionCity = description,
+            cityName = cityName,
             countryCode = countryCode,
+            descriptionCity = descriptionCity,
             languageId = languageId,
+            boundingPolygon = boundingPolygon,
             lat = lat,
             lon = lon,
-            imageUrl = imageUrl
+            imageUrl = imageUrl,
+            iconUrl = iconUrl,
+            isPremium = isPremium,
+            unlockRequirement = unlockRequirement,
+            isAiGenerated = isAiGenerated,
+            isPublished = isPublished
         )
 
-        val apiResult = if (id == null) safeApiCall { cityApi.create(dto) }
-        else safeApiCall { cityApi.update(id, dto) }
+        val apiResult = if (id == null) {
+            safeApiCall { cityApi.create(dto) }
+        } else {
+            safeApiCall { cityApi.update(id, dto) }
+        }
 
-        if (apiResult is Resource.Success) {
-            apiResult.data?.toDomain()?.let { emit(Resource.Success(it)) }
-        } else if (apiResult is Resource.Error) {
-            emit(Resource.Error(apiResult.message ?: "Erro ao salvar"))
+        when (apiResult) {
+            is Resource.Success -> {
+                apiResult.data?.toDomain()?.let { emit(Resource.Success(it)) }
+            }
+            is Resource.Error -> {
+                emit(Resource.Error(apiResult.message ?: "Erro ao salvar cidade"))
+            }
+            else -> Unit
         }
     }
-
     override fun getQuestPoints(query: String?): Flow<Resource<List<QuestPoint>>> = flow {
         emit(Resource.Loading())
         val response = safeApiCall { questPointApi.list(size = 100) }

@@ -23,7 +23,25 @@ interface AdminRepository {
     fun getAiLogs(page: Int, size: Int): Flow<Resource<List<AiGenerationLog>>>
     fun getCities(query: String? = null): Flow<Resource<List<City>>>
     fun deleteCity(id: String): Flow<Resource<Unit>>
-    fun saveCity(id: String?, name: String, countryCode: String, description: String, languageId: String, lat: Double, lon: Double, imageUrl: String? = null): Flow<Resource<City>>
+
+    fun uploadFile(file: java.io.File, folder: String): kotlinx.coroutines.flow.Flow<com.questua.app.core.common.Resource<String>>
+    fun saveCity(
+        id: String?,
+        cityName: String,
+        countryCode: String,
+        descriptionCity: String,
+        languageId: String,
+        boundingPolygon: BoundingPolygon?,
+        lat: Double,
+        lon: Double,
+        imageUrl: String?,
+        iconUrl: String?,
+        isPremium: Boolean,
+        unlockRequirement: UnlockRequirement?,
+        isAiGenerated: Boolean,
+        isPublished: Boolean
+    ): Flow<Resource<City>>
+
     fun getQuestPoints(query: String? = null): Flow<Resource<List<QuestPoint>>>
     fun deleteQuestPoint(id: String): Flow<Resource<Unit>>
     fun saveQuestPoint(id: String?, cityId: String, title: String, description: String, lat: Double, lon: Double): Flow<Resource<QuestPoint>>

@@ -7,82 +7,96 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
-import com.questua.app.domain.model.City
+import com.questua.app.domain.model.*
 import com.questua.app.domain.repository.AdminRepository
+import com.questua.app.domain.repository.LanguageRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class AdminCityDetailState(
     val isLoading: Boolean = false,
     val city: City? = null,
+    val languages: List<Language> = emptyList(),
     val error: String? = null,
     val isDeleted: Boolean = false
 )
 
 @HiltViewModel
 class AdminCityDetailViewModel @Inject constructor(
-    private val repository: AdminRepository,
+    private val adminRepository: AdminRepository,
+    private val languageRepository: LanguageRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
     var state by mutableStateOf(AdminCityDetailState())
         private set
 
-    private val cityId: String = checkNotNull(savedStateHandle["cityId"])
+    private val cityId: String? = savedStateHandle["cityId"]
 
     init {
-        fetchCityDetails()
+        cityId?.let { refresh(it) }
     }
 
-    fun fetchCityDetails() {
-        repository.getCities(query = cityId).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success<List<City>> -> {
-                    val foundCity = result.data?.find { it.id == cityId }
-                    state.copy(
-                        city = foundCity,
-                        isLoading = false,
-                        error = if (foundCity == null) "Cidade não encontrada" else null
-                    )
-                }
-                is Resource.Error<List<City>> -> state.copy(error = result.message, isLoading = false)
-            }
-        }.launchIn(viewModelScope)
+    fun refresh(id: String = cityId!!) {
+        fetchCityDetails(id)
+        fetchLanguages()
     }
 
-    fun saveCity(
-        id: String?,
-        name: String,
-        code: String,
-        desc: String,
-        langId: String,
-        lat: Double,
-        lon: Double,
-        url: String?
-    ) {
-        repository.saveCity(id, name, code, desc, langId, lat, lon, url).onEach { result ->
+    private fun fetchCityDetails(id: String) {
+        adminRepository.getCities(query = id).onEach { result ->
             state = when (result) {
                 is Resource.Loading -> state.copy(isLoading = true)
                 is Resource.Success -> {
-                    fetchCityDetails()
-                    state.copy(isLoading = false)
+                    val found = result.data?.find { it.id == id }
+                    state.copy(city = found, isLoading = false, error = if (found == null) "Cidade não encontrada" else null)
                 }
                 is Resource.Error -> state.copy(error = result.message, isLoading = false)
             }
         }.launchIn(viewModelScope)
     }
 
-    fun deleteCity() {
-        repository.deleteCity(cityId).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success<Unit> -> state.copy(isDeleted = true, isLoading = false)
-                is Resource.Error<Unit> -> state.copy(error = result.message, isLoading = false)
-            }
+    fun fetchLanguages() {
+        languageRepository.getAvailableLanguages().onEach { result ->
+            if (result is Resource.Success) state = state.copy(languages = result.data ?: emptyList())
         }.launchIn(viewModelScope)
+    }
+
+    fun updateCity(
+        cityName: String, countryCode: String, descriptionCity: String,
+        languageId: String, boundingPolygon: BoundingPolygon?, lat: Double, lon: Double,
+        imageFile: File?, iconFile: File?, isPremium: Boolean,
+        unlockRequirement: UnlockRequirement?, isAiGenerated: Boolean, isPublished: Boolean
+    ) {
+        viewModelScope.launch {
+            var finalImageUrl = state.city?.imageUrl
+            var finalIconUrl = state.city?.iconUrl
+
+            imageFile?.let {
+                adminRepository.uploadFile(it, "cities").collect { res -> if (res is Resource.Success) finalImageUrl = res.data }
+            }
+            iconFile?.let {
+                adminRepository.uploadFile(it, "icons").collect { res -> if (res is Resource.Success) finalIconUrl = res.data }
+            }
+
+            adminRepository.saveCity(
+                cityId, cityName, countryCode, descriptionCity, languageId,
+                boundingPolygon, lat, lon, finalImageUrl, finalIconUrl, isPremium,
+                unlockRequirement, isAiGenerated, isPublished
+            ).collect { result ->
+                if (result is Resource.Success) fetchCityDetails(cityId!!)
+            }
+        }
+    }
+
+    fun deleteCity() {
+        cityId?.let { id ->
+            adminRepository.deleteCity(id).onEach { result ->
+                if (result is Resource.Success) state = state.copy(isDeleted = true)
+            }.launchIn(viewModelScope)
+        }
     }
 }

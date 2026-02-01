@@ -12,6 +12,7 @@ import com.questua.app.presentation.auth.RegisterScreen
 import com.questua.app.presentation.common.InitialScreen
 import com.questua.app.presentation.exploration.city.CityDetailScreen
 import com.questua.app.presentation.exploration.questpoint.QuestPointScreen
+import com.questua.app.presentation.game.DialogueScreen
 import com.questua.app.presentation.game.QuestIntroScreen
 import com.questua.app.presentation.languages.LanguagesListScreen
 import com.questua.app.presentation.main.MainScreen
@@ -173,7 +174,8 @@ fun SetupNavGraph(
         ) {
             QuestIntroScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onStartGameplay = {
+                onStartGameplay = { questId ->
+                    navController.navigate(Screen.Dialogue.passId(questId))
                 }
             )
         }
@@ -190,6 +192,20 @@ fun SetupNavGraph(
                 onUnlockSuccess = {
                     // Recarrega a tela anterior ou navega para o conteúdo desbloqueado
                     navController.popBackStack()
+                }
+            )
+        }
+
+        composable(
+            route = Screen.Dialogue.route,
+            arguments = listOf(navArgument("questId") { type = NavType.StringType })
+        ) {
+            DialogueScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onQuestCompleted = { questId ->
+                    navController.navigate(Screen.QuestResult.passId(questId)) {
+                        popUpTo(Screen.QuestIntro.passId(questId)) { inclusive = true }
+                    }
                 }
             )
         }

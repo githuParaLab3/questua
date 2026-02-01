@@ -124,4 +124,16 @@ sealed class Screen(val route: String) {
             return "unlock_preview/$contentId/$contentType"
         }
     }
+
+    object Dialogue : Screen("dialogue_screen/{questId}") {
+        fun passId(questId: String): String {
+            return "dialogue_screen/$questId"
+        }
+    }
+
+    object QuestResult : Screen("quest_result_screen/{questId}") {
+        fun passId(questId: String): String {
+            return "quest_result_screen/$questId"
+        }
+    }
 }

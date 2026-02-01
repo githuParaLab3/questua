@@ -15,7 +15,8 @@ class ContentRepositoryImpl @Inject constructor(
     private val cityApi: CityApi,
     private val questPointApi: QuestPointApi,
     private val questApi: QuestApi,
-    private val sceneDialogueApi: SceneDialogueApi
+    private val sceneDialogueApi: SceneDialogueApi,
+    private val characterEntityApi: CharacterEntityApi // Adicionada a injeção da API de Personagens
 ) : ContentRepository, SafeApiCall() {
 
     override fun getCities(languageId: String): Flow<Resource<List<City>>> = flow {
@@ -72,6 +73,17 @@ class ContentRepositoryImpl @Inject constructor(
         val result = safeApiCall { sceneDialogueApi.getById(dialogueId) }
         if (result is Resource.Success) emit(Resource.Success(result.data!!.toDomain()))
         else emit(Resource.Error(result.message ?: "Erro ao buscar diálogo"))
+    }
+
+    // Implementação do método que faltava
+    override fun getCharacterDetails(characterId: String): Flow<Resource<CharacterEntity>> = flow {
+        emit(Resource.Loading())
+        val result = safeApiCall { characterEntityApi.getById(characterId) }
+        if (result is Resource.Success) {
+            emit(Resource.Success(result.data!!.toDomain()))
+        } else {
+            emit(Resource.Error(result.message ?: "Erro ao buscar detalhes do personagem"))
+        }
     }
 
     override fun getUnlockPreview(contentId: String, type: String): Flow<Resource<UnlockRequirement>> = flow {
@@ -169,7 +181,6 @@ class ContentRepositoryImpl @Inject constructor(
                     val get = safeApiCall { cityApi.getById(contentId) }
                     if (get is Resource.Success) {
                         val current = get.data!!
-                        val update = current.copy(isPublished = true)
                         // Precisa converter ResponseDTO -> RequestDTO. Simplificado aqui:
                         val req = CityRequestDTO(current.cityName, current.countryCode, current.descriptionCity, current.languageId, current.boundingPolygon, current.lat, current.lon, current.imageUrl, current.iconUrl, current.isPremium, current.unlockRequirement, current.isAiGenerated, true)
                         safeApiCall { cityApi.update(contentId, req) } is Resource.Success

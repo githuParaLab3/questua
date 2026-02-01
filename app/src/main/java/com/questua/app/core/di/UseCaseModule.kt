@@ -155,4 +155,22 @@ object UseCaseModule {
     @Provides
     @ViewModelScoped
     fun provideDeleteUserUseCase(repo: AdminRepository) = DeleteUserUseCase(repo)
+
+    // --- Adicione estas linhas na seção EXPLORATION ou GAMEPLAY ---
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetCharacterDetailsUseCase(repo: ContentRepository) = GetCharacterDetailsUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideCompleteQuestUseCase(repo: GameRepository) = CompleteQuestUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetUnlockPreviewUseCase(repo: ContentRepository) = GetUnlockPreviewUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideUnlockContentUseCase(repo: ContentRepository) = UnlockContentUseCase(repo)
 }

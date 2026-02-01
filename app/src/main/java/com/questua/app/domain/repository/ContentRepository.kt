@@ -5,6 +5,8 @@ import com.questua.app.domain.model.*
 import kotlinx.coroutines.flow.Flow
 
 interface ContentRepository {
+
+    fun getCharacterDetails(characterId: String): Flow<Resource<CharacterEntity>>
     fun getCities(languageId: String): Flow<Resource<List<City>>>
     fun getCityDetails(cityId: String): Flow<Resource<City>>
     fun getQuestPoints(cityId: String): Flow<Resource<List<QuestPoint>>>

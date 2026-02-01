@@ -1,5 +1,6 @@
 package com.questua.app.presentation.game
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,6 +11,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -31,6 +33,10 @@ import com.questua.app.core.ui.components.QuestuaButton
 import com.questua.app.core.ui.theme.Amber500
 import com.questua.app.core.ui.theme.Green500
 import com.questua.app.domain.enums.ProgressStatus
+import kotlinx.coroutines.flow.collectLatest
+
+// As classes QuestIntroUiEvent estão no arquivo do ViewModel (mesmo pacote),
+// então o import é automático ou desnecessário se o pacote for igual.
 
 @Composable
 fun QuestIntroScreen(
@@ -41,6 +47,20 @@ fun QuestIntroScreen(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    // O compilador agora vai encontrar QuestIntroUiEvent corretamente
+    LaunchedEffect(key1 = true) {
+        viewModel.uiEvent.collectLatest { event ->
+            when(event) {
+                is QuestIntroUiEvent.NavigateToGame -> {
+                    onStartGameplay(event.questId)
+                }
+                is QuestIntroUiEvent.ShowError -> {
+                    Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -56,8 +76,9 @@ fun QuestIntroScreen(
                                 ProgressStatus.IN_PROGRESS -> "Continuar Missão"
                                 else -> "Iniciar Missão"
                             },
+                            // CORREÇÃO: Chamada sem parâmetros (sem chaves {})
                             onClick = {
-                                viewModel.onStartQuestClicked(onStartGameplay)
+                                viewModel.onStartQuestClicked()
                             },
                             modifier = Modifier.fillMaxWidth()
                         )

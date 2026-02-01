@@ -11,11 +11,19 @@ import com.questua.app.domain.model.UserQuest
 import com.questua.app.domain.usecase.quest.GetQuestIntroUseCase
 import com.questua.app.domain.usecase.quest.StartQuestUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+// --- CLASSE DE EVENTOS (Deve estar fora da class ViewModel) ---
+sealed class QuestIntroUiEvent {
+    data class NavigateToGame(val questId: String) : QuestIntroUiEvent()
+    data class ShowError(val message: String) : QuestIntroUiEvent()
+}
 
 data class QuestIntroState(
     val isLoading: Boolean = false,
@@ -36,6 +44,10 @@ class QuestIntroViewModel @Inject constructor(
     private val _state = MutableStateFlow(QuestIntroState())
     val state = _state.asStateFlow()
 
+    // Canal de comunicação para a UI (Navegação, Toasts)
+    private val _uiEvent = Channel<QuestIntroUiEvent>()
+    val uiEvent = _uiEvent.receiveAsFlow()
+
     private val questId: String? = savedStateHandle["questId"]
 
     init {
@@ -48,6 +60,7 @@ class QuestIntroViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = tokenManager.userId.first() ?: return@launch
 
+            // Busca os dados da Quest e do UserQuest (progresso)
             getQuestIntroUseCase(questId, userId).collect { result ->
                 when (result) {
                     is Resource.Loading -> _state.value = _state.value.copy(isLoading = true)
@@ -67,26 +80,32 @@ class QuestIntroViewModel @Inject constructor(
         }
     }
 
-    fun onStartQuestClicked(onSuccess: (String) -> Unit) {
+    // Método corrigido: NÃO recebe parâmetros
+    fun onStartQuestClicked() {
         val quest = state.value.quest ?: return
 
         viewModelScope.launch {
             val userId = tokenManager.userId.first() ?: return@launch
 
+            // Se a quest já foi iniciada anteriormente, apenas navega
             if (state.value.userQuest != null) {
-                onSuccess(quest.id)
+                _uiEvent.send(QuestIntroUiEvent.NavigateToGame(quest.id))
                 return@launch
             }
 
             _state.value = _state.value.copy(isLoading = true)
-            startQuestUseCase(quest.id, userId).collect { result ->
+
+            // Inicia a quest no backend
+            startQuestUseCase(userId, quest.id).collect { result ->
                 when(result) {
                     is Resource.Success -> {
                         _state.value = _state.value.copy(isLoading = false)
-                        onSuccess(quest.id)
+                        // Sucesso: Envia evento para navegar
+                        _uiEvent.send(QuestIntroUiEvent.NavigateToGame(quest.id))
                     }
                     is Resource.Error -> {
                         _state.value = _state.value.copy(isLoading = false, error = result.message)
+                        _uiEvent.send(QuestIntroUiEvent.ShowError(result.message ?: "Erro desconhecido"))
                     }
                     is Resource.Loading -> {}
                 }

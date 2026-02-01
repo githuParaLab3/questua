@@ -118,4 +118,10 @@ sealed class Screen(val route: String) {
             return "quest_intro_screen/$questId"
         }
     }
+
+    object UnlockPreview : Screen("unlock_preview/{contentId}/{contentType}") {
+        fun passArgs(contentId: String, contentType: String): String {
+            return "unlock_preview/$contentId/$contentType"
+        }
+    }
 }

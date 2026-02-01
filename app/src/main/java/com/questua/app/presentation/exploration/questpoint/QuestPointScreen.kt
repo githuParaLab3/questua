@@ -40,7 +40,8 @@ import com.questua.app.core.ui.theme.Slate500
 @Composable
 fun QuestPointScreen(
     onNavigateBack: () -> Unit,
-    onQuestClick: (String) -> Unit, // Renomeado para refletir a navegação para a Intro
+    onQuestClick: (String) -> Unit,
+    onNavigateToUnlock: (String, String) -> Unit, // Novo callback para desbloqueio
     viewModel: QuestPointViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -180,8 +181,11 @@ fun QuestPointScreen(
                         QuestItemCard(
                             item = questItem,
                             onClick = {
-                                if (questItem.status != QuestStatus.LOCKED) {
-                                    // Agora chama onQuestClick para ir à tela de introdução
+                                if (questItem.status == QuestStatus.LOCKED) {
+                                    // Se bloqueado, vai para a tela de preview de desbloqueio
+                                    onNavigateToUnlock(questItem.quest.id, "QUEST")
+                                } else {
+                                    // Se disponível, vai para o jogo/intro
                                     onQuestClick(questItem.quest.id)
                                 }
                             }
@@ -220,7 +224,7 @@ fun QuestItemCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable(enabled = item.status != QuestStatus.LOCKED, onClick = onClick),
+            .clickable(onClick = onClick), // Removida a verificação 'enabled', agora sempre clicável
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = if (item.status == QuestStatus.LOCKED) 0.dp else 2.dp)

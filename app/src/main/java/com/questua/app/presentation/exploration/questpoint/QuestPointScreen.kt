@@ -40,7 +40,7 @@ import com.questua.app.core.ui.theme.Slate500
 @Composable
 fun QuestPointScreen(
     onNavigateBack: () -> Unit,
-    onStartQuest: (String) -> Unit,
+    onQuestClick: (String) -> Unit, // Renomeado para refletir a navegação para a Intro
     viewModel: QuestPointViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -49,7 +49,7 @@ fun QuestPointScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(text = "") }, // Título transparente, usaremos o header
+                title = { Text(text = "") },
                 navigationIcon = {
                     IconButton(
                         onClick = onNavigateBack,
@@ -181,7 +181,8 @@ fun QuestPointScreen(
                             item = questItem,
                             onClick = {
                                 if (questItem.status != QuestStatus.LOCKED) {
-                                    onStartQuest(questItem.quest.id)
+                                    // Agora chama onQuestClick para ir à tela de introdução
+                                    onQuestClick(questItem.quest.id)
                                 }
                             }
                         )

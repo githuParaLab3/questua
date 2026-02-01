@@ -112,4 +112,10 @@ sealed class Screen(val route: String) {
             return "quest_point_screen/$pointId"
         }
     }
+
+    object QuestIntro : Screen("quest_intro_screen/{questId}") {
+        fun passId(questId: String): String {
+            return "quest_intro_screen/$questId"
+        }
+    }
 }

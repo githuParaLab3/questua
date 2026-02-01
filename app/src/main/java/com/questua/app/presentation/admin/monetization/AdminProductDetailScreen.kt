@@ -1,5 +1,6 @@
 package com.questua.app.presentation.admin.monetization
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,6 +20,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.questua.app.core.ui.components.QuestuaButton
 import com.questua.app.domain.enums.TransactionStatus
+import com.questua.app.presentation.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,6 +126,9 @@ fun AdminProductDetailScreen(
                 } else {
                     state.filteredTransactions.forEach { transaction ->
                         ListItem(
+                            modifier = Modifier.clickable {
+                                navController.navigate(Screen.AdminTransactionDetail.passId(transaction.id))
+                            },
                             headlineContent = { Text("ID: ${transaction.stripePaymentIntentId.take(8)}...") },
                             supportingContent = { Text(transaction.status.name) },
                             trailingContent = { Text("${transaction.currency} ${String.format("%.2f", transaction.amountCents / 100.0)}", fontWeight = FontWeight.Bold) },

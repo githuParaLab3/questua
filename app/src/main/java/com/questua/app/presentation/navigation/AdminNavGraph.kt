@@ -30,6 +30,7 @@ import com.questua.app.presentation.admin.content.cities.AdminCityDetailScreen
 import com.questua.app.presentation.admin.content.dialogues.AdminDialogueDetailScreen
 import com.questua.app.presentation.admin.content.questpoints.AdminQuestPointDetailScreen
 import com.questua.app.presentation.admin.content.quests.AdminQuestDetailScreen
+import com.questua.app.presentation.admin.monetization.AdminTransactionDetailScreen
 
 fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
     navigation(
@@ -189,6 +190,15 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
                         println("Erro de navegação: ${e.message}")
                     }
                 }
+            )
+        }
+
+        composable(
+            route = Screen.AdminTransactionDetail.route,
+            arguments = listOf(navArgument("transactionId") { type = NavType.StringType })
+        ) {
+            AdminTransactionDetailScreen(
+                onBack = { navController.popBackStack() }
             )
         }
 

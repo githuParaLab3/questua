@@ -133,6 +133,9 @@ fun AdminMonetizationScreen(
 
                 items(state.transactions) { transaction ->
                     ListItem(
+                        modifier = Modifier.clickable {
+                            navController.navigate(Screen.AdminTransactionDetail.passId(transaction.id))
+                        },
                         headlineContent = { Text("ID: ${transaction.stripePaymentIntentId.take(8)}...") },
                         supportingContent = { Text("${transaction.currency} ${(transaction.amountCents / 100.0)} • ${transaction.status}") },
                         leadingContent = { Icon(Icons.Default.AttachMoney, null, tint = MaterialTheme.colorScheme.secondary) },

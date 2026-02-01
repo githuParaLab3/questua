@@ -1,6 +1,7 @@
 package com.questua.app.presentation.exploration.city
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -8,6 +9,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,7 +21,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -31,12 +36,13 @@ import com.questua.app.R
 import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.components.QuestuaButton
+import com.questua.app.core.ui.theme.Amber500
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CityDetailScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToQuestPoint: (String) -> Unit, // Callback para navegar para o Ponto
+    onNavigateToQuestPoint: (String) -> Unit,
     viewModel: CityViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -56,6 +62,38 @@ fun CityDetailScreen(
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)
                 )
             )
+        },
+        bottomBar = {
+            // Botão Inferior Dinâmico
+            if (!state.isLoading && state.city != null) {
+                Surface(
+                    tonalElevation = 8.dp,
+                    shadowElevation = 8.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .padding(bottom = 16.dp) // Safety margin
+                    ) {
+                        QuestuaButton(
+                            text = if (state.hasActiveProgress && state.suggestedPoint != null) {
+                                "Continuar ${state.suggestedPoint?.title}"
+                            } else {
+                                "Começar Exploração"
+                            },
+                            onClick = {
+                                state.suggestedPoint?.let { point ->
+                                    onNavigateToQuestPoint(point.id)
+                                }
+                            },
+                            leadingIcon = if (state.hasActiveProgress) Icons.Default.PlayArrow else Icons.Default.Map,
+                            enabled = state.suggestedPoint != null
+                        )
+                    }
+                }
+            }
         }
     ) { paddingValues ->
         Box(
@@ -71,7 +109,8 @@ fun CityDetailScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(scrollState)
-                            .padding(bottom = 16.dp)
+                            // Padding extra embaixo para o conteúdo não ficar escondido atrás da BottomBar
+                            .padding(bottom = 100.dp)
                     ) {
                         // Header com Imagem
                         Box(
@@ -125,9 +164,9 @@ fun CityDetailScreen(
                             )
                         }
 
-                        // Mapa Interno
+                        // Mapa Interativo
                         Text(
-                            text = "Pontos de Interesse",
+                            text = "Mapa de Missões",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             color = MaterialTheme.colorScheme.primary
@@ -136,7 +175,7 @@ fun CityDetailScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(300.dp)
+                                .height(350.dp) // Aumentei um pouco a altura para melhor interação
                                 .padding(horizontal = 16.dp)
                                 .clip(RoundedCornerShape(16.dp))
                         ) {
@@ -158,7 +197,8 @@ fun CityDetailScreen(
                                 MapUiSettings(
                                     zoomControlsEnabled = true,
                                     scrollGesturesEnabled = true,
-                                    rotationGesturesEnabled = false
+                                    rotationGesturesEnabled = false,
+                                    mapToolbarEnabled = false
                                 )
                             }
 
@@ -169,40 +209,65 @@ fun CityDetailScreen(
                                 uiSettings = mapUiSettings
                             ) {
                                 state.questPoints.forEach { point ->
-                                    Marker(
+                                    MarkerInfoWindow(
                                         state = MarkerState(position = LatLng(point.lat, point.lon)),
-                                        title = point.title,
-                                        snippet = "Toque para ver detalhes",
                                         icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE),
                                         onInfoWindowClick = {
-                                            // AQUI: Ao clicar na info window do marcador, navega para o QuestPointScreen
                                             onNavigateToQuestPoint(point.id)
                                         }
-                                    )
+                                    ) {
+                                        // Custom Info Window Content
+                                        Card(
+                                            modifier = Modifier
+                                                .width(200.dp)
+                                                .wrapContentHeight(),
+                                            shape = RoundedCornerShape(12.dp),
+                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(12.dp),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ) {
+                                                Text(
+                                                    text = point.title,
+                                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Spacer(modifier = Modifier.height(4.dp))
+
+                                                // Nível de Dificuldade com Estrelas
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    repeat(point.difficulty) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Star,
+                                                            contentDescription = null,
+                                                            tint = Amber500,
+                                                            modifier = Modifier.size(12.dp)
+                                                        )
+                                                    }
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                    Text(
+                                                        text = "Nível ${point.difficulty}",
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.secondary
+                                                    )
+                                                }
+
+                                                Spacer(modifier = Modifier.height(8.dp))
+
+                                                Text(
+                                                    text = "Toque para abrir",
+                                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                                    color = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        // Botão Explorar
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            QuestuaButton(
-                                text = "Começar Exploração",
-                                onClick = {
-                                    // AQUI: Ao clicar no botão, pega o primeiro ponto e navega
-                                    state.questPoints.firstOrNull()?.let { firstPoint ->
-                                        onNavigateToQuestPoint(firstPoint.id)
-                                    }
-                                },
-                                leadingIcon = Icons.Default.Map,
-                                enabled = state.questPoints.isNotEmpty()
-                            )
                         }
                     }
                 }

@@ -6,19 +6,23 @@ import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.domain.model.City
 import com.questua.app.domain.model.QuestPoint
+import com.questua.app.domain.repository.ContentRepository
 import com.questua.app.domain.usecase.exploration.GetCityDetailsUseCase
 import com.questua.app.domain.usecase.exploration.GetCityQuestPointsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.zip
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-data class CityDetailState(
+data class CityState(
     val isLoading: Boolean = false,
     val city: City? = null,
     val questPoints: List<QuestPoint> = emptyList(),
+    val suggestedPoint: QuestPoint? = null,
+    val hasActiveProgress: Boolean = false,
     val error: String? = null
 )
 
@@ -26,13 +30,13 @@ data class CityDetailState(
 class CityViewModel @Inject constructor(
     private val getCityDetailsUseCase: GetCityDetailsUseCase,
     private val getCityQuestPointsUseCase: GetCityQuestPointsUseCase,
+    // private val gameRepository: GameRepository, // Futuro: Usar para checar progresso real
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(CityDetailState())
+    private val _state = MutableStateFlow(CityState())
     val state = _state.asStateFlow()
 
-    // Pega o ID da cidade passado pela navegação
     private val cityId: String? = savedStateHandle["cityId"]
 
     init {
@@ -40,37 +44,74 @@ class CityViewModel @Inject constructor(
     }
 
     fun loadCityData() {
-        if (cityId == null) {
-            _state.value = _state.value.copy(error = "Cidade não identificada")
-            return
-        }
+        if (cityId == null) return
 
         viewModelScope.launch {
-            _state.value = _state.value.copy(isLoading = true)
+            _state.value = _state.value.copy(isLoading = true, error = null)
 
-            // Carrega Detalhes e Pontos em paralelo
-            getCityDetailsUseCase(cityId).zip(getCityQuestPointsUseCase(cityId)) { cityRes, pointsRes ->
-                Pair(cityRes, pointsRes)
-            }.collect { (cityRes, pointsRes) ->
-                val isLoading = cityRes is Resource.Loading || pointsRes is Resource.Loading
-                val error = cityRes.message ?: pointsRes.message
+            // Combina as duas chamadas para atualizar o estado apenas quando ambas terminarem (ou fluírem)
+            combine(
+                getCityDetailsUseCase(cityId),
+                getCityQuestPointsUseCase(cityId)
+            ) { cityResult, pointsResult ->
 
-                if (!isLoading) {
-                    if (cityRes is Resource.Success) {
-                        _state.value = _state.value.copy(
-                            isLoading = false,
-                            city = cityRes.data,
-                            questPoints = pointsRes.data ?: emptyList(),
-                            error = null
-                        )
-                    } else {
-                        _state.value = _state.value.copy(
-                            isLoading = false,
-                            error = error ?: "Erro ao carregar cidade"
+                var newState = _state.value
+
+                // Processa Cidade
+                when (cityResult) {
+                    is Resource.Success -> newState = newState.copy(city = cityResult.data)
+                    is Resource.Error -> newState = newState.copy(error = cityResult.message)
+                    is Resource.Loading -> Unit
+                }
+
+                // Processa Pontos
+                when (pointsResult) {
+                    is Resource.Success -> {
+                        val points = pointsResult.data ?: emptyList()
+                        newState = newState.copy(questPoints = points)
+
+                        // Lógica de "Sugestão de Ponto"
+                        val (suggested, hasProgress) = determineSuggestedPoint(points)
+                        newState = newState.copy(
+                            suggestedPoint = suggested,
+                            hasActiveProgress = hasProgress
                         )
                     }
+                    is Resource.Error -> newState = newState.copy(error = pointsResult.message)
+                    is Resource.Loading -> Unit
                 }
+
+                // Define loading final
+                val stillLoading = cityResult is Resource.Loading || pointsResult is Resource.Loading
+                newState.copy(isLoading = stillLoading)
+
+            }.collect { updatedState ->
+                _state.value = updatedState
             }
         }
+    }
+
+    private fun determineSuggestedPoint(points: List<QuestPoint>): Pair<QuestPoint?, Boolean> {
+        if (points.isEmpty()) return Pair(null, false)
+
+        // Ordena por dificuldade (assumindo que dificuldade menor = início)
+        val sortedPoints = points.sortedBy { it.difficulty }
+
+        // TODO: Implementar verificação real de progresso do usuário
+        // Aqui checaríamos no GameRepository se o usuário tem alguma quest "IN_PROGRESS"
+        // em algum desses pontos.
+
+        // Exemplo de lógica futura:
+        /*
+        val activePoint = sortedPoints.find { point ->
+            gameRepository.hasUserStartedPoint(point.id)
+        }
+        if (activePoint != null) {
+            return Pair(activePoint, true)
+        }
+        */
+
+        // Padrão: Retorna o primeiro ponto (mais fácil) e flag false (significa "Começar")
+        return Pair(sortedPoints.firstOrNull(), false)
     }
 }

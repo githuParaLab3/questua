@@ -11,6 +11,7 @@ import com.questua.app.presentation.auth.LoginScreen
 import com.questua.app.presentation.auth.RegisterScreen
 import com.questua.app.presentation.common.InitialScreen
 import com.questua.app.presentation.exploration.city.CityDetailScreen
+import com.questua.app.presentation.exploration.questpoint.QuestPointScreen
 import com.questua.app.presentation.languages.LanguagesListScreen
 import com.questua.app.presentation.main.MainScreen
 import com.questua.app.presentation.onboarding.LanguageSelectionScreen
@@ -132,7 +133,21 @@ fun SetupNavGraph(
         ) {
             CityDetailScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToQuestPoint = { /* TODO: Navegar para detalhes da Quest */ }
+                onNavigateToQuestPoint = { pointId ->
+                    navController.navigate(Screen.QuestPoint.passId(pointId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.QuestPoint.route,
+            arguments = listOf(navArgument("pointId") { type = NavType.StringType })
+        ) {
+            QuestPointScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onStartQuest = { questId ->
+                    // TODO: Navegar para a tela de introdução ou diálogo da Quest
+                }
             )
         }
 

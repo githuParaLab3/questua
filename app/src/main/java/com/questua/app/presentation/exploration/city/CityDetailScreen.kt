@@ -36,7 +36,7 @@ import com.questua.app.core.ui.components.QuestuaButton
 @Composable
 fun CityDetailScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToQuestPoint: (String) -> Unit,
+    onNavigateToQuestPoint: (String) -> Unit, // Callback para navegar para o Ponto
     viewModel: CityViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -172,9 +172,10 @@ fun CityDetailScreen(
                                     Marker(
                                         state = MarkerState(position = LatLng(point.lat, point.lon)),
                                         title = point.title,
-                                        snippet = "Toque para ver a missão",
+                                        snippet = "Toque para ver detalhes",
                                         icon = BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE),
                                         onInfoWindowClick = {
+                                            // AQUI: Ao clicar na info window do marcador, navega para o QuestPointScreen
                                             onNavigateToQuestPoint(point.id)
                                         }
                                     )
@@ -194,6 +195,7 @@ fun CityDetailScreen(
                             QuestuaButton(
                                 text = "Começar Exploração",
                                 onClick = {
+                                    // AQUI: Ao clicar no botão, pega o primeiro ponto e navega
                                     state.questPoints.firstOrNull()?.let { firstPoint ->
                                         onNavigateToQuestPoint(firstPoint.id)
                                     }

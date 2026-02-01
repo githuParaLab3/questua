@@ -6,9 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.LocationCity
-import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,7 +23,6 @@ import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
 import com.questua.app.R
 import com.questua.app.core.ui.components.LoadingSpinner
-import com.questua.app.core.ui.components.QuestuaButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,29 +43,13 @@ fun WorldMapScreen(
             mapStyleOptions = try {
                 MapStyleOptions.loadRawResourceStyle(context, R.raw.map_style)
             } catch (e: Exception) { null },
-            isMyLocationEnabled = false,
             maxZoomPreference = 12f,
             minZoomPreference = 2f
         )
     }
 
     val mapUiSettings = remember {
-        MapUiSettings(
-            zoomControlsEnabled = false,
-            mapToolbarEnabled = false,
-            myLocationButtonEnabled = false
-        )
-    }
-
-    var selectedCityUiModel by remember { mutableStateOf<CityUiModel?>(null) }
-
-    LaunchedEffect(state.cities) {
-        if (state.cities.isNotEmpty() && cameraPositionState.position.zoom < 3f) {
-            val first = state.cities.first().city
-            cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                LatLng(first.lat, first.lon), 4f
-            )
-        }
+        MapUiSettings(zoomControlsEnabled = false, mapToolbarEnabled = false)
     }
 
     Scaffold(
@@ -81,64 +61,111 @@ fun WorldMapScreen(
                         IconButton(onClick = onNavigateBack) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
-                    )
+                    }
                 )
             }
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
                 properties = mapProperties,
                 uiSettings = mapUiSettings,
-                onMapClick = { selectedCityUiModel = null }
+                onMapClick = { viewModel.clearSelection() }
             ) {
                 state.cities.forEach { cityUi ->
-                    val icon = bitmapDescriptorFromVector(
-                        context,
-                        if (cityUi.isUnlocked) R.drawable.ic_city_unlocked else R.drawable.ic_city_locked
-                    )
-
-                    Marker(
-                        state = MarkerState(position = LatLng(cityUi.city.lat, cityUi.city.lon)),
-                        title = cityUi.city.name,
-                        icon = icon,
+                    MarkerInfoWindowContent(
+                        state = rememberMarkerState(position = LatLng(cityUi.city.lat, cityUi.city.lon)),
+                        icon = bitmapDescriptorFromVector(
+                            context,
+                            if (cityUi.isUnlocked) R.drawable.ic_city_unlocked else R.drawable.ic_city_locked
+                        ),
                         onClick = {
-                            selectedCityUiModel = cityUi
-                            true
+                            viewModel.loadCityProgress(cityUi.city.id)
+                            false
                         }
-                    )
+                    ) {
+                        CustomCityInfoWindow(
+                            cityUi = cityUi,
+                            progress = state.selectedCityProgress,
+                            onAction = {
+                                if (cityUi.isUnlocked) onNavigateToCity(cityUi.city.id)
+                                else viewModel.unlockCity(cityUi.city.id)
+                            }
+                        )
+                    }
                 }
             }
 
             if (state.isLoading) {
                 LoadingSpinner()
             }
+        }
+    }
+}
 
-            selectedCityUiModel?.let { cityUi ->
-                CityInfoCard(
-                    cityUiModel = cityUi,
-                    onClose = { selectedCityUiModel = null },
-                    onActionClick = {
-                        if (cityUi.isUnlocked) {
-                            onNavigateToCity(cityUi.city.id)
-                        } else {
-                            viewModel.unlockCity(cityUi.city.id)
-                        }
-                    },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp)
-                        .fillMaxWidth()
+@Composable
+fun CustomCityInfoWindow(
+    cityUi: CityUiModel,
+    progress: CityProgress?,
+    onAction: () -> Unit
+) {
+    Card(
+        modifier = Modifier.width(220.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = cityUi.city.name,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            if (cityUi.isUnlocked) {
+                if (progress != null) {
+                    Text(
+                        text = "Progresso: ${progress.completedQuests}/${progress.totalQuests} missões",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { progress.percentage },
+                        modifier = Modifier.fillMaxWidth().height(6.dp),
+                        strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    val buttonText = if (progress.completedQuests == 0) "Explorar pontos culturais" else "Continuar jornada"
+
+                    Button(
+                        onClick = onAction,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(buttonText, style = MaterialTheme.typography.labelMedium)
+                    }
+                } else {
+                    Text("Carregando progresso...", style = MaterialTheme.typography.bodySmall)
+                }
+            } else {
+                Text(
+                    text = cityUi.city.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Button(
+                    onClick = onAction,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                ) {
+                    Text("Desbloquear")
+                }
             }
         }
     }
@@ -150,63 +177,5 @@ fun bitmapDescriptorFromVector(context: android.content.Context, vectorResId: In
         val bitmap = Bitmap.createBitmap(intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888)
         draw(Canvas(bitmap))
         BitmapDescriptorFactory.fromBitmap(bitmap)
-    }
-}
-
-@Composable
-fun CityInfoCard(
-    cityUiModel: CityUiModel,
-    onClose: () -> Unit,
-    onActionClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = if (cityUiModel.isUnlocked) Icons.Default.LocationCity else Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = if (cityUiModel.isUnlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = cityUiModel.city.name,
-                        style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                IconButton(onClick = onClose) {
-                    Icon(Icons.Default.Close, contentDescription = "Fechar")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = cityUiModel.city.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 3
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            QuestuaButton(
-                text = if (cityUiModel.isUnlocked) "Explorar Cidade" else "Desbloquear",
-                onClick = onActionClick,
-                isSecondary = !cityUiModel.isUnlocked
-            )
-        }
     }
 }

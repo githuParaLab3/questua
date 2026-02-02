@@ -1,12 +1,14 @@
 package com.questua.app.presentation.game
 
-import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.ExitToApp
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -14,119 +16,145 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.questua.app.core.ui.components.QuestuaButton
+import com.questua.app.domain.model.SkillAssessment
 
 @Composable
 fun QuestResultScreen(
-    onReplay: (String) -> Unit,
-    onExit: () -> Unit,
+    onNavigateToQuest: (String) -> Unit,
+    onNavigateBackToPoint: (String) -> Unit,
     viewModel: QuestResultViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 
     Scaffold(
-        containerColor = Color(0xFF121212) // Dark theme background
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            // Success Icon
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = Color(0xFF4CAF50),
-                modifier = Modifier.size(100.dp)
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Missão Concluída!",
-                style = MaterialTheme.typography.headlineLarge,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(48.dp))
-
-            // Stats Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E1E1E)),
-                shape = RoundedCornerShape(24.dp),
-                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                modifier = Modifier.fillMaxWidth()
+        if (state.isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(32.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
-                ) {
-                    ResultStatRow(
-                        icon = Icons.Default.Star,
-                        label = "XP Adquirido",
-                        value = "+${state.xpEarned}",
-                        valueColor = Color(0xFFFFC107)
+                // --- Cabeçalho de Sucesso ---
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = Color(0xFF4CAF50), // Verde Sucesso
+                        modifier = Modifier.size(80.dp)
                     )
-
-                    Divider(color = Color.White.copy(alpha = 0.1f))
-
-                    ResultStatRow(
-                        icon = Icons.Default.CheckCircle,
-                        label = "Acertos",
-                        value = "${state.correctAnswers}/${state.totalQuestions}",
-                        valueColor = Color(0xFF64B5F6)
-                    )
-
-                    Divider(color = Color.White.copy(alpha = 0.1f))
-
-                    ResultStatRow(
-                        icon = Icons.Default.CheckCircle,
-                        label = "Precisão",
-                        value = "${state.accuracy}%",
-                        valueColor = if (state.accuracy > 70) Color(0xFF4CAF50) else Color(0xFFFF5722)
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Missão Concluída!",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        fontWeight = FontWeight.Bold
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.weight(1f))
+                // --- Card de Estatísticas Principais ---
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            ResultStatRow(
+                                icon = Icons.Default.Star,
+                                label = "XP Adquirido",
+                                value = "+${state.xpEarned}",
+                                valueColor = Color(0xFFFFC107) // Amber
+                            )
+                            Divider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+                            ResultStatRow(
+                                icon = Icons.Default.CheckCircle,
+                                label = "Precisão",
+                                value = "${state.accuracy}%",
+                                valueColor = if (state.accuracy >= 70) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
 
-            // Action Buttons
-            Button(
-                onClick = onExit,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Icon(Icons.Default.ExitToApp, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Voltar ao Mapa", fontSize = 18.sp)
-            }
+                // --- Seção de Avaliação Geral (Se houver) ---
+                if (state.overallAssessment.isNotEmpty()) {
+                    item {
+                        Text(
+                            text = "Avaliação de Desempenho",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Start
+                        )
+                    }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                    items(state.overallAssessment) { assessment ->
+                        AssessmentCard(assessment)
+                    }
+                }
 
-            OutlinedButton(
-                onClick = { onReplay(state.questId) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.5f))
-            ) {
-                Icon(Icons.Default.Refresh, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Jogar Novamente", fontSize = 18.sp)
+                item {
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
+                // --- Botões de Ação ---
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        // Botão Próxima Missão (Só aparece se houver próxima desbloqueada)
+                        if (state.nextQuestId != null) {
+                            QuestuaButton(
+                                text = "Próxima Missão",
+                                onClick = { onNavigateToQuest(state.nextQuestId!!) },
+                                modifier = Modifier.fillMaxWidth(),
+                                leadingIcon = Icons.Default.ArrowForward
+                            )
+                        }
+
+                        // Botão Voltar ao Ponto
+                        OutlinedButton(
+                            onClick = { onNavigateBackToPoint(state.questPointId) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = MaterialTheme.colorScheme.primary
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp,
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            )
+                        ) {
+                            Icon(Icons.Default.List, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Voltar para Missões")
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
             }
         }
     }
@@ -147,20 +175,79 @@ fun ResultStatRow(
             imageVector = icon,
             contentDescription = null,
             tint = valueColor,
-            modifier = Modifier.size(32.dp)
+            modifier = Modifier.size(28.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
-            color = Color.White.copy(alpha = 0.9f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f)
         )
         Text(
             text = value,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleLarge,
             color = valueColor,
             fontWeight = FontWeight.Bold
         )
+    }
+}
+
+@Composable
+fun AssessmentCard(assessment: SkillAssessment) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = assessment.skill,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "${assessment.score}%",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (assessment.score >= 70) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            if (!assessment.feedback.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = assessment.feedback,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                    lineHeight = 16.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Barra de Progresso visual
+            LinearProgressIndicator(
+                progress = { assessment.score / 100f },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(3.dp)
+                    ),
+                color = if (assessment.score >= 70) Color(0xFF4CAF50) else MaterialTheme.colorScheme.primary,
+                trackColor = Color.Transparent,
+            )
+        }
     }
 }

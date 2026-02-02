@@ -221,15 +221,20 @@ fun SetupNavGraph(
             )
         ) {
             QuestResultScreen(
-                onReplay = { questId ->
-                    // Replay logic: Navigate back to DialogueScreen
-                    navController.navigate(Screen.Dialogue.passId(questId)) {
-                        popUpTo(Screen.Home.route) { inclusive = false }
+                onNavigateToQuest = { nextQuestId ->
+                    // Botão "Próxima Missão" -> Vai para a Intro da próxima
+                    navController.navigate(Screen.QuestIntro.passId(nextQuestId)) {
+                        // Opcional: Remove a tela de resultado atual da pilha para que "Voltar" vá para o Ponto
+                        popUpTo(Screen.QuestResult.route) { inclusive = true }
                     }
                 },
-                onExit = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Home.route) { inclusive = true }
+                onNavigateBackToPoint = { pointId ->
+                    // Botão "Voltar para Missões" -> Vai para a lista de missões do ponto
+                    navController.navigate(Screen.QuestPoint.passId(pointId)) {
+                        // Limpa toda a pilha do jogo (Intro -> Diálogo -> Resultado)
+                        // Assim, ao chegar na lista, o botão voltar do Android vai para o Mapa/Cidade, não para o jogo.
+                        // Usamos o padrão da rota para identificar até onde limpar.
+                        popUpTo("quest_point_screen/{pointId}") { inclusive = true }
                     }
                 }
             )

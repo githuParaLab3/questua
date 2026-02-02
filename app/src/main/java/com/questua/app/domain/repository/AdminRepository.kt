@@ -104,5 +104,22 @@ interface AdminRepository {
     fun saveAchievement(id: String?, name: String, description: String, iconUrl: String, xpReward: Int, keyName: String, rarity: RarityType): Flow<Resource<Achievement>>
     fun getDialogues(query: String? = null): Flow<Resource<List<SceneDialogue>>>
     fun deleteDialogue(id: String): Flow<Resource<Unit>>
-    fun saveDialogue(id: String?, textContent: String, description: String, backgroundUrl: String, speakerCharacterId: String?, expectsUserResponse: Boolean, inputMode: com.questua.app.domain.enums.InputMode, nextDialogueId: String?): Flow<Resource<SceneDialogue>>
+
+    fun saveDialogue(
+        id: String?,
+        textContent: String,
+        description: String,
+        backgroundUrl: String,
+        bgMusicUrl: String?,
+        characterStates: List<CharacterState>?,
+        sceneEffects: List<SceneEffect>?,
+        speakerCharacterId: String?,
+        audioUrl: String?,
+        expectsUserResponse: Boolean,
+        inputMode: com.questua.app.domain.enums.InputMode,
+        expectedResponse: String?,
+        choices: List<Choice>?,
+        nextDialogueId: String?,
+        isAiGenerated: Boolean
+    ): Flow<Resource<SceneDialogue>>
 }

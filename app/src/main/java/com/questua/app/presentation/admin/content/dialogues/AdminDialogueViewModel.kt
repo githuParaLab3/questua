@@ -6,7 +6,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
-import com.questua.app.domain.model.SceneDialogue
+import com.questua.app.domain.enums.InputMode
+import com.questua.app.domain.model.*
 import com.questua.app.domain.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -19,6 +20,7 @@ import javax.inject.Inject
 data class AdminDialogueState(
     val isLoading: Boolean = false,
     val dialogues: List<SceneDialogue> = emptyList(),
+    val characters: List<CharacterEntity> = emptyList(),
     val searchQuery: String = "",
     val error: String? = null
 )
@@ -33,7 +35,14 @@ class AdminDialogueViewModel @Inject constructor(
 
     private var searchJob: Job? = null
 
-    init { fetchDialogues() }
+    init {
+        refreshAll()
+    }
+
+    fun refreshAll() {
+        fetchDialogues()
+        fetchCharacters()
+    }
 
     fun onSearchQueryChange(query: String) {
         state = state.copy(searchQuery = query)
@@ -44,8 +53,8 @@ class AdminDialogueViewModel @Inject constructor(
         }
     }
 
-    fun fetchDialogues() {
-        repository.getDialogues(state.searchQuery).onEach { result ->
+    private fun fetchDialogues() {
+        repository.getDialogues(state.searchQuery.takeIf { it.isNotBlank() }).onEach { result ->
             state = when (result) {
                 is Resource.Loading -> state.copy(isLoading = state.dialogues.isEmpty())
                 is Resource.Success -> state.copy(dialogues = result.data ?: emptyList(), isLoading = false)
@@ -54,15 +63,22 @@ class AdminDialogueViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    fun saveDialogue(id: String?, text: String, desc: String, bg: String, speakerId: String?, expects: Boolean, mode: com.questua.app.domain.enums.InputMode, next: String?) {
-        repository.saveDialogue(id, text, desc, bg, speakerId, expects, mode, next).onEach { result ->
-            if (result is Resource.Success) fetchDialogues()
-            else if (result is Resource.Error) state = state.copy(error = result.message)
+    private fun fetchCharacters() {
+        repository.getCharacters(null).onEach { result ->
+            if (result is Resource.Success) state = state.copy(characters = result.data ?: emptyList())
         }.launchIn(viewModelScope)
     }
 
-    fun deleteDialogue(id: String) {
-        repository.deleteDialogue(id).onEach { result ->
+    fun saveDialogue(
+        txt: String, desc: String, bg: String, music: String?,
+        states: List<CharacterState>?, effects: List<SceneEffect>?,
+        speaker: String?, audio: String?, expects: Boolean,
+        mode: InputMode, expectResp: String?, choices: List<Choice>?,
+        next: String?, ai: Boolean
+    ) {
+        repository.saveDialogue(
+            null, txt, desc, bg, music, states, effects, speaker, audio, expects, mode, expectResp, choices, next, ai
+        ).onEach { result ->
             if (result is Resource.Success) fetchDialogues()
             else if (result is Resource.Error) state = state.copy(error = result.message)
         }.launchIn(viewModelScope)

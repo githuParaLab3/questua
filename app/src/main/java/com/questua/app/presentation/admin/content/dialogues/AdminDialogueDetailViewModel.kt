@@ -8,7 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.domain.enums.InputMode
-import com.questua.app.domain.model.SceneDialogue
+import com.questua.app.domain.model.*
 import com.questua.app.domain.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
@@ -18,6 +18,8 @@ import javax.inject.Inject
 data class AdminDialogueDetailState(
     val isLoading: Boolean = false,
     val dialogue: SceneDialogue? = null,
+    val allDialogues: List<SceneDialogue> = emptyList(), // Para edição
+    val characters: List<CharacterEntity> = emptyList(), // Para edição
     val error: String? = null,
     val isDeleted: Boolean = false
 )
@@ -35,62 +37,46 @@ class AdminDialogueDetailViewModel @Inject constructor(
 
     init {
         fetchDetails()
+        fetchDependencies()
     }
 
     fun fetchDetails() {
-        repository.getDialogues(query = dialogueId).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success -> {
-                    val found = result.data?.find { it.id == dialogueId }
-                    state.copy(
-                        dialogue = found,
-                        isLoading = false,
-                        error = if (found == null) "Diálogo não encontrado" else null
-                    )
-                }
-                is Resource.Error -> state.copy(error = result.message, isLoading = false)
+        repository.getDialogues(null).onEach { result ->
+            if (result is Resource.Success) {
+                val found = result.data?.find { it.id == dialogueId }
+                state = state.copy(dialogue = found, isLoading = false)
             }
         }.launchIn(viewModelScope)
     }
 
+    private fun fetchDependencies() {
+        repository.getCharacters(null).onEach {
+            if (it is Resource.Success) state = state.copy(characters = it.data ?: emptyList())
+        }.launchIn(viewModelScope)
+
+        repository.getDialogues(null).onEach {
+            if (it is Resource.Success) state = state.copy(allDialogues = it.data ?: emptyList())
+        }.launchIn(viewModelScope)
+    }
+
     fun saveDialogue(
-        textContent: String,
-        description: String,
-        backgroundUrl: String,
-        speakerCharacterId: String?,
-        expectsUserResponse: Boolean,
-        inputMode: InputMode,
-        nextDialogueId: String?
+        txt: String, desc: String, bg: String, music: String?,
+        states: List<CharacterState>?, effects: List<SceneEffect>?,
+        speaker: String?, audio: String?, expects: Boolean,
+        mode: InputMode, expectResp: String?, choices: List<Choice>?,
+        next: String?, ai: Boolean
     ) {
         repository.saveDialogue(
-            id = dialogueId,
-            textContent = textContent,
-            description = description,
-            backgroundUrl = backgroundUrl,
-            speakerCharacterId = speakerCharacterId,
-            expectsUserResponse = expectsUserResponse,
-            inputMode = inputMode,
-            nextDialogueId = nextDialogueId
+            dialogueId, txt, desc, bg, music, states, effects, speaker, audio, expects, mode, expectResp, choices, next, ai
         ).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success -> {
-                    fetchDetails()
-                    state.copy(isLoading = false)
-                }
-                is Resource.Error -> state.copy(error = result.message, isLoading = false)
-            }
+            if (result is Resource.Success) fetchDetails()
+            else if (result is Resource.Error) state = state.copy(error = result.message)
         }.launchIn(viewModelScope)
     }
 
     fun deleteDialogue() {
         repository.deleteDialogue(dialogueId).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success -> state.copy(isDeleted = true, isLoading = false)
-                is Resource.Error -> state.copy(error = result.message, isLoading = false)
-            }
+            if (result is Resource.Success) state = state.copy(isDeleted = true)
         }.launchIn(viewModelScope)
     }
 }

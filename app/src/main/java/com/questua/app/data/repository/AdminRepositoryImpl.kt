@@ -678,21 +678,35 @@ class AdminRepositoryImpl @Inject constructor(
         textContent: String,
         description: String,
         backgroundUrl: String,
+        bgMusicUrl: String?,
+        characterStates: List<CharacterState>?,
+        sceneEffects: List<SceneEffect>?,
         speakerCharacterId: String?,
+        audioUrl: String?,
         expectsUserResponse: Boolean,
         inputMode: com.questua.app.domain.enums.InputMode,
-        nextDialogueId: String?
+        expectedResponse: String?,
+        choices: List<Choice>?,
+        nextDialogueId: String?,
+        isAiGenerated: Boolean
     ): Flow<Resource<SceneDialogue>> = flow {
         emit(Resource.Loading())
 
         val dto = SceneDialogueRequestDTO(
             textContent = textContent,
-            descriptionDialogue = description, // Garanta que no seu DTO o nome seja este
+            descriptionDialogue = description,
             backgroundUrl = backgroundUrl,
+            bgMusicUrl = bgMusicUrl,
+            characterStates = characterStates,
+            sceneEffects = sceneEffects,
             speakerCharacterId = speakerCharacterId,
+            audioUrl = audioUrl,
             expectsUserResponse = expectsUserResponse,
             inputMode = inputMode,
-            nextDialogueId = nextDialogueId
+            expectedResponse = expectedResponse,
+            choices = choices,
+            nextDialogueId = nextDialogueId,
+            isAiGenerated = isAiGenerated
         )
 
         val apiResult = if (id == null) {

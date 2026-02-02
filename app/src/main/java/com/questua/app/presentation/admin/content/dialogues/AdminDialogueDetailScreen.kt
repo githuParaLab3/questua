@@ -9,12 +9,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.questua.app.presentation.admin.content.cities.DetailCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,20 +22,20 @@ fun AdminDialogueDetailScreen(
     viewModel: AdminDialogueDetailViewModel = hiltViewModel()
 ) {
     val state = viewModel.state
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showEditDialog by remember { mutableStateOf(false) }
+    var showEdit by remember { mutableStateOf(false) }
+    var showDelete by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.isDeleted) {
-        if (state.isDeleted) navController.popBackStack()
-    }
+    LaunchedEffect(state.isDeleted) { if (state.isDeleted) navController.popBackStack() }
 
-    if (showEditDialog && state.dialogue != null) {
-        DialogueFormDialog(
+    if (showEdit && state.dialogue != null) {
+        SceneDialogueFormDialog(
             dialogue = state.dialogue,
-            onDismiss = { showEditDialog = false },
-            onConfirm = { text, desc, bg, speaker, expects, mode, next ->
-                viewModel.saveDialogue(text, desc, bg, speaker, expects, mode, next)
-                showEditDialog = false
+            characters = state.characters,
+            allDialogues = state.allDialogues,
+            onDismiss = { showEdit = false },
+            onConfirm = { txt, desc, bg, mus, st, eff, spk, aud, exp, mod, er, ch, nxt, ai ->
+                viewModel.saveDialogue(txt, desc, bg, mus, st, eff, spk, aud, exp, mod, er, ch, nxt, ai)
+                showEdit = false
             }
         )
     }
@@ -45,100 +44,71 @@ fun AdminDialogueDetailScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Detalhes do Diálogo") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
-                    }
-                }
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }
             )
         },
         bottomBar = {
-            if (state.dialogue != null && !state.isLoading) {
-                Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { showDeleteDialog = true },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Icon(Icons.Default.Delete, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Excluir")
+            if (state.dialogue != null) {
+                Surface(tonalElevation = 8.dp) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OutlinedButton(onClick = { showDelete = true }, Modifier.weight(1f), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                            Icon(Icons.Default.Delete, null); Text(" EXCLUIR")
                         }
-                        Button(onClick = { showEditDialog = true }, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Default.Edit, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Editar")
+                        Button(onClick = { showEdit = true }, Modifier.weight(1f)) {
+                            Icon(Icons.Default.Edit, null); Text(" EDITAR")
                         }
                     }
                 }
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (state.error != null) {
-                Text(state.error, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.Center).padding(16.dp))
-            } else {
-                state.dialogue?.let { dialogue ->
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        DialogueInfoCard("Conteúdo", listOf(
-                            "ID" to dialogue.id,
-                            "Texto" to dialogue.textContent,
-                            "Descrição" to dialogue.description
-                        ))
+        if (state.dialogue != null) {
+            val speakerName = state.characters.find { it.id == state.dialogue.speakerCharacterId }?.name ?: "Narrador"
+            val nextName = state.allDialogues.find { it.id == state.dialogue.nextDialogueId }?.textContent?.take(20) ?: "Nenhum"
 
-                        DialogueInfoCard("Configuração Técnica", listOf(
-                            "Speaker ID" to (dialogue.speakerCharacterId ?: "Nenhum"),
-                            "Próximo ID" to (dialogue.nextDialogueId ?: "Fim de Cena"),
-                            "Modo de Input" to dialogue.inputMode.name,
-                            "Espera Resposta" to if (dialogue.expectsUserResponse) "Sim" else "Não"
-                        ))
+            Column(Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
+                DetailCard("Geral", listOf(
+                    "Descrição" to state.dialogue.description,
+                    "Texto" to state.dialogue.textContent,
+                    "Falante" to speakerName,
+                    "Criado em" to state.dialogue.createdAt
+                ))
 
-                        DialogueInfoCard("Visual", listOf(
-                            "URL Background" to dialogue.backgroundUrl
-                        ))
-                    }
+                DetailCard("Mídia", listOf(
+                    "Background" to state.dialogue.backgroundUrl,
+                    "Música" to (state.dialogue.bgMusicUrl ?: "-"),
+                    "Áudio Fala" to (state.dialogue.audioUrl ?: "-")
+                ))
+
+                DetailCard("Fluxo", listOf(
+                    "Modo" to state.dialogue.inputMode.name,
+                    "Aguarda Resposta" to if(state.dialogue.expectsUserResponse) "Sim" else "Não",
+                    "Resposta Esperada" to (state.dialogue.expectedResponse ?: "-"),
+                    "Próximo ID" to nextName
+                ))
+
+                if (!state.dialogue.choices.isNullOrEmpty()) {
+                    DetailCard("Escolhas (${state.dialogue.choices.size})", state.dialogue.choices.mapIndexed { i, c ->
+                        "Opção ${i+1}" to "${c.text} -> ${c.nextDialogueId?.take(8) ?: "Fim"}"
+                    })
+                }
+
+                if (!state.dialogue.sceneEffects.isNullOrEmpty()) {
+                    DetailCard("Efeitos (${state.dialogue.sceneEffects.size})", state.dialogue.sceneEffects.map {
+                        it.type to "Int: ${it.intensity ?: "-"}, Dur: ${it.duration ?: "-"}"
+                    })
                 }
             }
         }
 
-        if (showDeleteDialog) {
+        if (showDelete) {
             AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
-                title = { Text("Confirmar Exclusão") },
-                text = { Text("Deseja excluir este diálogo permanentemente?") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.deleteDialogue()
-                        showDeleteDialog = false
-                    }) { Text("Excluir", color = MaterialTheme.colorScheme.error) }
-                },
-                dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") } }
+                onDismissRequest = { showDelete = false },
+                title = { Text("Excluir Diálogo") },
+                text = { Text("Tem certeza?") },
+                confirmButton = { TextButton(onClick = { viewModel.deleteDialogue(); showDelete = false }) { Text("Excluir", color = MaterialTheme.colorScheme.error) } },
+                dismissButton = { TextButton(onClick = { showDelete = false }) { Text("Cancelar") } }
             )
-        }
-    }
-}
-
-@Composable
-private fun DialogueInfoCard(title: String, items: List<Pair<String, String>>) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            items.forEach { (label, value) ->
-                Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                    Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    Text(value, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
         }
     }
 }

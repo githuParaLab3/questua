@@ -182,17 +182,31 @@ class AdminRepositoryImpl @Inject constructor(
         cityId: String,
         title: String,
         description: String,
+        difficulty: Int,
         lat: Double,
-        lon: Double
+        lon: Double,
+        imageUrl: String?,
+        iconUrl: String?,
+        unlockRequirement: UnlockRequirement?,
+        isPremium: Boolean,
+        isAiGenerated: Boolean,
+        isPublished: Boolean
     ): Flow<Resource<QuestPoint>> = flow {
         emit(Resource.Loading())
 
         val dto = QuestPointRequestDTO(
             cityId = cityId,
             title = title,
-            descriptionQpoint = description, // Mapeamento correto para o DTO
+            descriptionQpoint = description,
+            difficulty = difficulty.toShort(), // Convertendo Int para Short conforme DTO
             lat = lat,
-            lon = lon
+            lon = lon,
+            imageUrl = imageUrl,
+            iconUrl = iconUrl,
+            unlockRequirement = unlockRequirement,
+            isPremium = isPremium,
+            isAiGenerated = isAiGenerated,
+            isPublished = isPublished
         )
 
         val apiResult = if (id == null) safeApiCall { questPointApi.create(dto) }

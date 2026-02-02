@@ -44,7 +44,22 @@ interface AdminRepository {
 
     fun getQuestPoints(query: String? = null): Flow<Resource<List<QuestPoint>>>
     fun deleteQuestPoint(id: String): Flow<Resource<Unit>>
-    fun saveQuestPoint(id: String?, cityId: String, title: String, description: String, lat: Double, lon: Double): Flow<Resource<QuestPoint>>
+    fun saveQuestPoint(
+        id: String?,
+        cityId: String,
+        title: String,
+        description: String,
+        difficulty: Int,
+        lat: Double,
+        lon: Double,
+        imageUrl: String?,
+        iconUrl: String?,
+        unlockRequirement: UnlockRequirement?,
+        isPremium: Boolean,
+        isAiGenerated: Boolean,
+        isPublished: Boolean
+    ): Flow<Resource<QuestPoint>>
+
     fun getQuests(query: String? = null): Flow<Resource<List<Quest>>>
     fun deleteQuest(id: String): Flow<Resource<Unit>>
     fun saveQuest(id: String?, questPointId: String, title: String, description: String, difficulty: Int, orderIndex: Int, xpValue: Int, isPremium: Boolean, isPublished: Boolean): Flow<Resource<Quest>>

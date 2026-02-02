@@ -1,3 +1,4 @@
+// fileName: app/src/main/java/com/questua/app/presentation/admin/content/questpoints/AdminQuestPointDetailScreen.kt
 package com.questua.app.presentation.admin.content.questpoints
 
 import androidx.compose.foundation.layout.*
@@ -15,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.questua.app.presentation.admin.content.cities.DetailCard // Reutilizando o componente da Cidade se estiver publico, ou copie ele para cá
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,15 +35,10 @@ fun AdminQuestPointDetailScreen(
     if (showEditDialog && state.questPoint != null) {
         QuestPointFormDialog(
             questPoint = state.questPoint,
+            cities = state.cities,
             onDismiss = { showEditDialog = false },
-            onConfirm = { name, cityId, lat, lon, desc, _ ->
-                viewModel.saveQuestPoint(
-                    name = name,
-                    cityId = cityId,
-                    lat = lat,
-                    lon = lon,
-                    desc = desc
-                )
+            onConfirm = { title, cId, desc, diff, lat, lon, img, ico, unl, prem, ai, pub ->
+                viewModel.saveQuestPoint(title, cId, desc, diff, lat, lon, img, ico, unl, prem, ai, pub)
                 showEditDialog = false
             }
         )
@@ -50,7 +47,7 @@ fun AdminQuestPointDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Detalhes do Ponto") },
+                title = { Text(state.questPoint?.title ?: "Detalhes") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
@@ -59,8 +56,8 @@ fun AdminQuestPointDetailScreen(
             )
         },
         bottomBar = {
-            if (state.questPoint != null && !state.isLoading) {
-                Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
+            if (state.questPoint != null) {
+                Surface(tonalElevation = 8.dp, shadowElevation = 10.dp) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -69,15 +66,10 @@ fun AdminQuestPointDetailScreen(
                             onClick = { showDeleteDialog = true },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Icon(Icons.Default.Delete, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Excluir")
-                        }
+                        ) { Icon(Icons.Default.Delete, null); Text(" EXCLUIR") }
+
                         Button(onClick = { showEditDialog = true }, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Default.Edit, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Editar")
+                            Icon(Icons.Default.Edit, null); Text(" EDITAR")
                         }
                     }
                 }
@@ -87,32 +79,40 @@ fun AdminQuestPointDetailScreen(
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (state.error != null) {
-                Text(state.error, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.Center).padding(16.dp))
             } else {
                 state.questPoint?.let { point ->
+                    val cityName = state.cities.find { it.id == point.cityId }?.name ?: point.cityId
+
                     Column(
-                        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())
                     ) {
-                        PointInfoCard("Identificação", listOf(
+                        DetailCard("Principal", listOf(
                             "ID" to point.id,
-                            "Nome" to point.title,
-                            "Cidade ID" to point.cityId
+                            "Título" to point.title,
+                            "Cidade" to cityName,
+                            "Dificuldade" to "${point.difficulty}/5"
                         ))
 
-                        PointInfoCard("Localização", listOf(
+                        DetailCard("Mídia e Local", listOf(
                             "Latitude" to point.lat.toString(),
-                            "Longitude" to point.lon.toString()
+                            "Longitude" to point.lon.toString(),
+                            "Imagem" to (point.imageUrl ?: "N/A"),
+                            "Ícone" to (point.iconUrl ?: "N/A")
                         ))
 
-                        PointInfoCard("Conteúdo e Status", listOf(
-                            "Descrição" to point.description,
-                            "Premium" to if (point.isPremium) "Sim" else "Não",
-                            "Publicado" to if (point.isPublished) "Sim" else "Não",
-                            "Gerado por IA" to if (point.isAiGenerated) "Sim" else "Não",
-                            "Criado em" to point.createdAt
+                        DetailCard("Requisitos", listOf(
+                            "Premium Acesso" to if(point.unlockRequirement?.premiumAccess == true) "Sim" else "Não",
+                            "Nível Mín." to (point.unlockRequirement?.requiredGamificationLevel?.toString() ?: "-"),
+                            "CEFR Mín." to (point.unlockRequirement?.requiredCefrLevel ?: "-")
                         ))
+
+                        DetailCard("Status", listOf(
+                            "Publicado" to if (point.isPublished) "Sim" else "Não",
+                            "Premium" to if (point.isPremium) "Sim" else "Não",
+                            "Gerado por IA" to if (point.isAiGenerated) "Sim" else "Não"
+                        ))
+
+                        DetailCard("Descrição", listOf("" to point.description))
                     }
                 }
             }
@@ -122,7 +122,7 @@ fun AdminQuestPointDetailScreen(
             AlertDialog(
                 onDismissRequest = { showDeleteDialog = false },
                 title = { Text("Confirmar Exclusão") },
-                text = { Text("Deseja excluir este Quest Point?") },
+                text = { Text("Isso é irreversível.") },
                 confirmButton = {
                     TextButton(onClick = {
                         viewModel.deleteQuestPoint()
@@ -131,22 +131,6 @@ fun AdminQuestPointDetailScreen(
                 },
                 dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") } }
             )
-        }
-    }
-}
-
-@Composable
-private fun PointInfoCard(title: String, items: List<Pair<String, String>>) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            items.forEach { (label, value) ->
-                Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                    Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    Text(value, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
         }
     }
 }

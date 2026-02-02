@@ -38,4 +38,7 @@ interface UserLanguageApi {
 
     @DELETE("user-languages/{id}")
     suspend fun delete(@Path("id") id: String): Response<Unit>
+
+    @POST("user-languages/{languageId}/sync-progress")
+    suspend fun syncProgress(@Path("languageId") languageId: String): Response<Void>
 }

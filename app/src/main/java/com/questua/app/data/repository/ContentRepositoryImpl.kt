@@ -16,7 +16,8 @@ class ContentRepositoryImpl @Inject constructor(
     private val questPointApi: QuestPointApi,
     private val questApi: QuestApi,
     private val sceneDialogueApi: SceneDialogueApi,
-    private val characterEntityApi: CharacterEntityApi // Adicionada a injeção da API de Personagens
+    private val characterEntityApi: CharacterEntityApi,
+    private val userLanguageApi: UserLanguageApi
 ) : ContentRepository, SafeApiCall() {
 
     override fun getCities(languageId: String): Flow<Resource<List<City>>> = flow {
@@ -196,5 +197,18 @@ class ContentRepositoryImpl @Inject constructor(
     override fun archiveContent(contentId: String, type: String): Flow<Resource<Boolean>> = flow {
         // Similar ao publish, mas setando false
         emit(Resource.Success(true)) // Placeholder
+    }
+
+    override suspend fun syncProgress(languageId: String): Resource<Unit> {
+        return try {
+            val response = userLanguageApi.syncProgress(languageId)
+            if (response.isSuccessful) {
+                Resource.Success(Unit)
+            } else {
+                Resource.Error("Falha ao sincronizar: ${response.code()}")
+            }
+        } catch (e: Exception) {
+            Resource.Error("Erro de conexão: ${e.message}")
+        }
     }
 }

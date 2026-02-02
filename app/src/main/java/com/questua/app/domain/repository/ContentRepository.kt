@@ -23,4 +23,6 @@ interface ContentRepository {
     fun deleteContent(contentId: String, type: String): Flow<Resource<Unit>>
     fun publishContent(contentId: String, type: String): Flow<Resource<Boolean>>
     fun archiveContent(contentId: String, type: String): Flow<Resource<Boolean>>
+
+    suspend fun syncProgress(languageId: String): Resource<Unit>
 }

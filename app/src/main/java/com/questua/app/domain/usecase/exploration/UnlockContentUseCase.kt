@@ -11,4 +11,8 @@ class UnlockContentUseCase @Inject constructor(
     operator fun invoke(contentId: String, type: String): Flow<Resource<Boolean>> {
         return repository.unlockContent(contentId, type)
     }
+
+    suspend fun syncProgress(languageId: String): Resource<Unit> {
+        return repository.syncProgress(languageId)
+    }
 }

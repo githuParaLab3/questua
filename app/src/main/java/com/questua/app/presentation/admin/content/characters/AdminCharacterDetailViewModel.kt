@@ -9,10 +9,15 @@ import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.domain.model.CharacterEntity
 import com.questua.app.domain.model.Persona
+import com.questua.app.domain.model.SpriteSheet
 import com.questua.app.domain.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class AdminCharacterDetailState(
@@ -38,41 +43,57 @@ class AdminCharacterDetailViewModel @Inject constructor(
     }
 
     fun fetchDetails() {
-        repository.getCharacters(query = characterId).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success -> {
-                    val found = result.data?.find { it.id == characterId }
-                    state.copy(
-                        character = found,
-                        isLoading = false,
-                        error = if (found == null) "Personagem não encontrado" else null
-                    )
-                }
-                is Resource.Error -> state.copy(error = result.message, isLoading = false)
+        repository.getCharacters(null).onEach { result ->
+            if (result is Resource.Success) {
+                val found = result.data?.find { it.id == characterId }
+                state = state.copy(character = found, isLoading = false)
             }
         }.launchIn(viewModelScope)
     }
 
     fun saveCharacter(
-        name: String,
-        avatarUrl: String,
-        isAi: Boolean,
-        voiceUrl: String?,
-        persona: Persona?
+        name: String, avatar: Any?, voice: Any?,
+        sprites: List<Any>, persona: Persona?, isAi: Boolean
     ) {
-        repository.saveCharacter(characterId, name, avatarUrl, isAi, voiceUrl, persona).onEach { result ->
-            if (result is Resource.Success) fetchDetails()
-        }.launchIn(viewModelScope)
+        viewModelScope.launch {
+            state = state.copy(isLoading = true)
+
+            // Reutilizando lógica de upload (pode ser abstraída em UseCase no futuro)
+            var finalAvatarUrl: String = (avatar as? String) ?: ""
+            if (avatar is File) {
+                repository.uploadFile(avatar, "avatars").collect { if (it is Resource.Success) finalAvatarUrl = it.data!! }
+            }
+
+            var finalVoiceUrl: String? = voice as? String
+            if (voice is File) {
+                repository.uploadFile(voice, "voices").collect { if (it is Resource.Success) finalVoiceUrl = it.data }
+            }
+
+            val finalSpriteUrls = sprites.map { item ->
+                async {
+                    if (item is File) {
+                        var url = ""
+                        repository.uploadFile(item, "sprites").collect { if (it is Resource.Success) url = it.data!! }
+                        url
+                    } else item as String
+                }
+            }.awaitAll().filter { it.isNotEmpty() }
+
+            val spriteSheet = if (finalSpriteUrls.isNotEmpty()) SpriteSheet(finalSpriteUrls) else null
+
+            if (finalAvatarUrl.isNotEmpty()) {
+                repository.saveCharacter(characterId, name, finalAvatarUrl, finalVoiceUrl, spriteSheet, persona, isAi)
+                    .collect { result ->
+                        if (result is Resource.Success) fetchDetails()
+                        else state = state.copy(error = result.message, isLoading = false)
+                    }
+            }
+        }
     }
 
     fun deleteCharacter() {
         repository.deleteCharacter(characterId).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success -> state.copy(isDeleted = true, isLoading = false)
-                is Resource.Error -> state.copy(error = result.message, isLoading = false)
-            }
+            if (result is Resource.Success) state = state.copy(isDeleted = true)
         }.launchIn(viewModelScope)
     }
 }

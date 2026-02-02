@@ -98,7 +98,15 @@ interface AdminRepository {
     fun updateProduct(product: Product): Flow<Resource<Product>>
     fun getCharacters(query: String? = null): Flow<Resource<List<CharacterEntity>>>
     fun deleteCharacter(id: String): Flow<Resource<Unit>>
-    fun saveCharacter(id: String?, name: String, avatarUrl: String, isAi: Boolean, voiceUrl: String?, persona: Persona? = null): Flow<Resource<CharacterEntity>>
+    fun saveCharacter(
+        id: String?,
+        name: String,
+        avatarUrl: String,
+        voiceUrl: String?,
+        spriteSheet: SpriteSheet?,
+        persona: Persona?,
+        isAiGenerated: Boolean
+    ): Flow<Resource<CharacterEntity>>
     fun getAchievements(query: String? = null): Flow<Resource<List<Achievement>>>
     fun deleteAchievement(id: String): Flow<Resource<Unit>>
     fun saveAchievement(id: String?, name: String, description: String, iconUrl: String, xpReward: Int, keyName: String, rarity: RarityType): Flow<Resource<Achievement>>

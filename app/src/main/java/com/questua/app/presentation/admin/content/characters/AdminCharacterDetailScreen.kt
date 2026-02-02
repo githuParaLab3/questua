@@ -9,12 +9,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.questua.app.presentation.admin.content.cities.DetailCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,20 +22,18 @@ fun AdminCharacterDetailScreen(
     viewModel: AdminCharacterDetailViewModel = hiltViewModel()
 ) {
     val state = viewModel.state
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showEditDialog by remember { mutableStateOf(false) }
+    var showEdit by remember { mutableStateOf(false) }
+    var showDelete by remember { mutableStateOf(false) }
 
-    LaunchedEffect(state.isDeleted) {
-        if (state.isDeleted) navController.popBackStack()
-    }
+    LaunchedEffect(state.isDeleted) { if (state.isDeleted) navController.popBackStack() }
 
-    if (showEditDialog && state.character != null) {
+    if (showEdit && state.character != null) {
         CharacterFormDialog(
             character = state.character,
-            onDismiss = { showEditDialog = false },
-            onConfirm = { name, url, isAi, voice, persona ->
-                viewModel.saveCharacter(name, url, isAi, voice, persona)
-                showEditDialog = false
+            onDismiss = { showEdit = false },
+            onConfirm = { name, av, vc, sp, per, ai ->
+                viewModel.saveCharacter(name, av, vc, sp, per, ai)
+                showEdit = false
             }
         )
     }
@@ -44,102 +41,64 @@ fun AdminCharacterDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Detalhes do Personagem") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
-                    }
-                }
+                title = { Text(state.character?.name ?: "Detalhes") },
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }
             )
         },
         bottomBar = {
-            if (state.character != null && !state.isLoading) {
-                Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = { showDeleteDialog = true },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
-                        ) {
-                            Icon(Icons.Default.Delete, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Excluir")
+            if (state.character != null) {
+                Surface(tonalElevation = 8.dp) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OutlinedButton(onClick = { showDelete = true }, Modifier.weight(1f), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                            Icon(Icons.Default.Delete, null); Text(" EXCLUIR")
                         }
-                        Button(onClick = { showEditDialog = true }, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Default.Edit, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Editar")
+                        Button(onClick = { showEdit = true }, Modifier.weight(1f)) {
+                            Icon(Icons.Default.Edit, null); Text(" EDITAR")
                         }
                     }
                 }
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (state.error != null) {
-                Text(state.error, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.Center))
-            } else {
-                state.character?.let { char ->
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        CharacterInfoCard("Informações Básicas", listOf(
-                            "ID" to char.id,
-                            "Nome" to char.name,
-                            "Gerado por IA" to if (char.isAiGenerated) "Sim" else "Não",
-                            "URL do Avatar" to char.avatarUrl,
-                            "URL da Voz" to (char.voiceUrl ?: "Nenhuma")
-                        ))
+        if (state.character != null) {
+            Column(Modifier.padding(padding).padding(16.dp).verticalScroll(rememberScrollState())) {
+                DetailCard("Info Básica", listOf(
+                    "Nome" to state.character.name,
+                    "ID" to state.character.id,
+                    "Gerado por IA" to if(state.character.isAiGenerated) "Sim" else "Não",
+                    "Criado em" to state.character.createdAt
+                ))
 
-                        char.persona?.let { persona ->
-                            CharacterInfoCard("Persona", listOf(
-                                "Descrição" to (persona.description ?: "N/A"),
-                                "Traços" to if (persona.traits.isEmpty()) "Nenhum" else persona.traits.joinToString(", "),
-                                "Estilo de Fala" to (persona.speakingStyle ?: "N/A"),
-                                "Tom de Voz" to (persona.voiceTone ?: "N/A"),
-                                "Background/História" to (persona.background ?: "N/A")
-                            ))
-                        }
+                DetailCard("Mídia", listOf(
+                    "Avatar URL" to state.character.avatarUrl,
+                    "Voz URL" to (state.character.voiceUrl ?: "Não possui"),
+                    "Sprites" to "${state.character.spriteSheet?.urls?.size ?: 0} imagens"
+                ))
+
+                state.character.persona?.let { p ->
+                    DetailCard("Persona: Descrição", listOf("" to (p.description ?: "Sem descrição")))
+
+                    DetailCard("Persona: Atributos", listOf(
+                        "Estilo de Fala" to (p.speakingStyle ?: "-"),
+                        "Tom de Voz" to (p.voiceTone ?: "-"),
+                        "Background" to (p.background ?: "-")
+                    ))
+
+                    if (p.traits.isNotEmpty()) {
+                        DetailCard("Persona: Traços", p.traits.mapIndexed { i, t -> "Traço ${i+1}" to t })
                     }
                 }
             }
         }
 
-        if (showDeleteDialog) {
+        if (showDelete) {
             AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
+                onDismissRequest = { showDelete = false },
                 title = { Text("Excluir Personagem") },
-                text = { Text("Deseja excluir permanentemente este personagem?") },
-                confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.deleteCharacter()
-                        showDeleteDialog = false
-                    }) { Text("Excluir", color = MaterialTheme.colorScheme.error) }
-                },
-                dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") } }
+                text = { Text("Tem certeza? Esta ação é irreversível.") },
+                confirmButton = { TextButton(onClick = { viewModel.deleteCharacter(); showDelete = false }) { Text("Excluir", color = MaterialTheme.colorScheme.error) } },
+                dismissButton = { TextButton(onClick = { showDelete = false }) { Text("Cancelar") } }
             )
-        }
-    }
-}
-
-@Composable
-private fun CharacterInfoCard(title: String, items: List<Pair<String, String>>) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            items.forEach { (label, value) ->
-                Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                    Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    Text(value, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
         }
     }
 }

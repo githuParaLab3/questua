@@ -300,18 +300,20 @@ class AdminRepositoryImpl @Inject constructor(
         id: String?,
         name: String,
         avatarUrl: String,
-        isAi: Boolean,
         voiceUrl: String?,
-        persona: Persona?
+        spriteSheet: SpriteSheet?,
+        persona: Persona?,
+        isAiGenerated: Boolean
     ): Flow<Resource<CharacterEntity>> = flow {
         emit(Resource.Loading())
 
         val dto = CharacterEntityRequestDTO(
             nameCharacter = name,
             avatarUrl = avatarUrl,
-            isAiGenerated = isAi,
             voiceUrl = voiceUrl,
-            persona = persona
+            spriteSheet = spriteSheet, // Certifique-se de adicionar este campo no seu DTO
+            persona = persona,
+            isAiGenerated = isAiGenerated
         )
 
         val apiResult = if (id == null) {
@@ -320,17 +322,10 @@ class AdminRepositoryImpl @Inject constructor(
             safeApiCall { characterApi.update(id, dto) }
         }
 
-        when (apiResult) {
-            is Resource.Success -> {
-                val data = apiResult.data?.toDomain()
-                if (data != null) {
-                    emit(Resource.Success(data))
-                } else {
-                    emit(Resource.Error("Erro ao processar dados do servidor"))
-                }
-            }
-            is Resource.Error -> emit(Resource.Error(apiResult.message ?: "Erro ao salvar"))
-            else -> Unit
+        if (apiResult is Resource.Success) {
+            apiResult.data?.toDomain()?.let { emit(Resource.Success(it)) }
+        } else if (apiResult is Resource.Error) {
+            emit(Resource.Error(apiResult.message ?: "Erro ao salvar personagem"))
         }
     }
 

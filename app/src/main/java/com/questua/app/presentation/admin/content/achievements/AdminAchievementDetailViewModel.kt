@@ -9,10 +9,13 @@ import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.model.Achievement
+import com.questua.app.domain.model.AchievementMetadata
 import com.questua.app.domain.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class AdminAchievementDetailState(
@@ -38,42 +41,37 @@ class AdminAchievementDetailViewModel @Inject constructor(
     }
 
     fun fetchDetails() {
-        repository.getAchievements(query = achievementId).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success -> {
-                    val found = result.data?.find { it.id == achievementId }
-                    state.copy(
-                        achievement = found,
-                        isLoading = false,
-                        error = if (found == null) "Conquista não encontrada" else null
-                    )
-                }
-                is Resource.Error -> state.copy(error = result.message, isLoading = false)
+        repository.getAchievements(null).onEach { result ->
+            if (result is Resource.Success) {
+                val found = result.data?.find { it.id == achievementId }
+                state = state.copy(achievement = found, isLoading = false)
             }
         }.launchIn(viewModelScope)
     }
 
     fun saveAchievement(
-        name: String,
-        description: String,
-        iconUrl: String,
-        xpReward: Int,
-        keyName: String,
-        rarity: RarityType
+        key: String, name: String, desc: String,
+        icon: Any?, rarity: RarityType, xp: Int, meta: AchievementMetadata?
     ) {
-        repository.saveAchievement(achievementId, name, description, iconUrl, xpReward, keyName, rarity).onEach { result ->
-            if (result is Resource.Success) fetchDetails()
-        }.launchIn(viewModelScope)
+        viewModelScope.launch {
+            state = state.copy(isLoading = true)
+
+            var finalIconUrl: String? = (icon as? String)
+            if (icon is File) {
+                repository.uploadFile(icon, "icons").collect { if (it is Resource.Success) finalIconUrl = it.data }
+            }
+
+            repository.saveAchievement(achievementId, key, name, desc.ifBlank { null }, finalIconUrl, rarity, xp, meta)
+                .collect { result ->
+                    if (result is Resource.Success) fetchDetails()
+                    else state = state.copy(error = result.message, isLoading = false)
+                }
+        }
     }
 
     fun deleteAchievement() {
         repository.deleteAchievement(achievementId).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success -> state.copy(isDeleted = true, isLoading = false)
-                is Resource.Error -> state.copy(error = result.message, isLoading = false)
-            }
+            if (result is Resource.Success) state = state.copy(isDeleted = true)
         }.launchIn(viewModelScope)
     }
 }

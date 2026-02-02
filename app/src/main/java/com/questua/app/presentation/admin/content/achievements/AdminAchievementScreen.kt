@@ -6,11 +6,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -19,6 +21,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.questua.app.core.ui.components.QuestuaTextField
+import com.questua.app.domain.enums.RarityType
 import com.questua.app.presentation.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,9 +35,7 @@ fun AdminAchievementScreen(
     var isCreating by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) viewModel.fetchAchievements()
-        }
+        val observer = LifecycleEventObserver { _, event -> if (event == Lifecycle.Event.ON_RESUME) viewModel.fetchAchievements() }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
@@ -43,8 +44,8 @@ fun AdminAchievementScreen(
         AchievementFormDialog(
             achievement = null,
             onDismiss = { isCreating = false },
-            onConfirm = { name, desc, icon, xp, key, rarity ->
-                viewModel.saveAchievement(null, name, desc, icon, xp, key, rarity)
+            onConfirm = { key, name, desc, icon, rar, xp, meta ->
+                viewModel.saveAchievement(null, key, name, desc, icon, rar, xp, meta)
                 isCreating = false
             }
         )
@@ -53,44 +54,44 @@ fun AdminAchievementScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Gerenciar Conquistas", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
-                    }
-                }
+                title = { Text("Conquistas", fontWeight = FontWeight.Bold) },
+                navigationIcon = { IconButton(onClick = { navController.popBackStack() }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { isCreating = true }) {
-                Icon(Icons.Default.Add, "Nova")
-            }
+            FloatingActionButton(onClick = { isCreating = true }) { Icon(Icons.Default.Add, "Nova") }
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             QuestuaTextField(
                 value = state.searchQuery,
                 onValueChange = viewModel::onSearchQueryChange,
-                placeholder = "Pesquisar conquista...",
+                placeholder = "Pesquisar...",
                 leadingIcon = Icons.Default.Search,
                 modifier = Modifier.fillMaxWidth().padding(16.dp)
             )
 
-            if (state.isLoading) {
-                Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
-            } else {
-                LazyColumn(Modifier.fillMaxSize()) {
-                    items(state.achievements) { ach ->
-                        ListItem(
-                            modifier = Modifier.clickable {
-                                navController.navigate(Screen.AdminAchievementDetail.passId(ach.id))
-                            },
-                            headlineContent = { Text(ach.name, fontWeight = FontWeight.SemiBold) },
-                            supportingContent = { Text("XP: ${ach.xpReward} • ${ach.rarity}") },
-                            trailingContent = { Icon(Icons.Default.ChevronRight, null) }
-                        )
-                        HorizontalDivider(thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
-                    }
+            if (state.isLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+
+            LazyColumn(Modifier.fillMaxSize()) {
+                items(state.achievements) { item ->
+                    ListItem(
+                        modifier = Modifier.clickable { navController.navigate(Screen.AdminAchievementDetail.passId(item.id)) },
+                        headlineContent = { Text(item.name, fontWeight = FontWeight.SemiBold) },
+                        supportingContent = { Text("XP: ${item.xpReward} • ${item.rarity.name}") },
+                        leadingContent = {
+                            Icon(
+                                Icons.Default.Star, null,
+                                tint = when(item.rarity) {
+                                    RarityType.LEGENDARY -> Color(0xFFFFD700)
+                                    RarityType.EPIC -> Color(0xFF9C27B0)
+                                    RarityType.RARE -> Color(0xFF2196F3)
+                                    else -> Color.Gray
+                                }
+                            )
+                        }
+                    )
+                    HorizontalDivider(thickness = 0.5.dp)
                 }
             }
         }

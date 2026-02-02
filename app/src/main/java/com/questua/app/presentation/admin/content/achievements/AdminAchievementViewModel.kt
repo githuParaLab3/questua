@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.model.Achievement
+import com.questua.app.domain.model.AchievementMetadata
 import com.questua.app.domain.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -15,6 +16,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class AdminAchievementState(
@@ -34,7 +36,9 @@ class AdminAchievementViewModel @Inject constructor(
 
     private var searchJob: Job? = null
 
-    init { fetchAchievements() }
+    init {
+        fetchAchievements()
+    }
 
     fun onSearchQueryChange(query: String) {
         state = state.copy(searchQuery = query)
@@ -55,17 +59,23 @@ class AdminAchievementViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    fun saveAchievement(id: String?, name: String, desc: String, icon: String, xp: Int, key: String, rarity: RarityType) {
-        repository.saveAchievement(id, name, desc, icon, xp, key, rarity).onEach { result ->
-            if (result is Resource.Success) fetchAchievements()
-            else if (result is Resource.Error) state = state.copy(error = result.message)
-        }.launchIn(viewModelScope)
-    }
+    fun saveAchievement(
+        id: String?, key: String, name: String, desc: String,
+        icon: Any?, rarity: RarityType, xp: Int, meta: AchievementMetadata?
+    ) {
+        viewModelScope.launch {
+            state = state.copy(isLoading = true)
 
-    fun deleteAchievement(id: String) {
-        repository.deleteAchievement(id).onEach { result ->
-            if (result is Resource.Success) fetchAchievements()
-            else if (result is Resource.Error) state = state.copy(error = result.message)
-        }.launchIn(viewModelScope)
+            var finalIconUrl: String? = (icon as? String)
+            if (icon is File) {
+                repository.uploadFile(icon, "icons").collect { if (it is Resource.Success) finalIconUrl = it.data }
+            }
+
+            repository.saveAchievement(id, key, name, desc.ifBlank { null }, finalIconUrl, rarity, xp, meta)
+                .collect { result ->
+                    if (result is Resource.Success) fetchAchievements()
+                    else if (result is Resource.Error) state = state.copy(error = result.message, isLoading = false)
+                }
+        }
     }
 }

@@ -625,33 +625,36 @@ class AdminRepositoryImpl @Inject constructor(
 
     override fun saveAchievement(
         id: String?,
-        name: String,
-        description: String,
-        iconUrl: String,
-        xpReward: Int,
         keyName: String,
-        rarity: RarityType
+        name: String,
+        description: String?,
+        iconUrl: String?,
+        rarity: RarityType,
+        xpReward: Int,
+        metadata: AchievementMetadata?
     ): Flow<Resource<Achievement>> = flow {
         emit(Resource.Loading())
 
         val dto = AchievementRequestDTO(
+            keyName = keyName,
             nameAchievement = name,
             descriptionAchievement = description,
             iconUrl = iconUrl,
+            rarity = rarity,
             xpReward = xpReward,
-            keyName = keyName,
-            rarity = rarity // Agora o tipo coincide com o esperado pelo DTO
+            metadata = metadata
         )
 
-        val apiResult = if (id == null) safeApiCall { achievementApi.create(dto) }
-        else safeApiCall { achievementApi.update(id!!, dto) }
+        val apiResult = if (id == null) {
+            safeApiCall { achievementApi.create(dto) }
+        } else {
+            safeApiCall { achievementApi.update(id, dto) }
+        }
 
-        when (apiResult) {
-            is Resource.Success -> {
-                apiResult.data?.toDomain()?.let { emit(Resource.Success(it)) }
-            }
-            is Resource.Error -> emit(Resource.Error(apiResult.message ?: "Erro ao salvar"))
-            else -> Unit
+        if (apiResult is Resource.Success) {
+            apiResult.data?.toDomain()?.let { emit(Resource.Success(it)) }
+        } else if (apiResult is Resource.Error) {
+            emit(Resource.Error(apiResult.message ?: "Erro ao salvar conquista"))
         }
     }
     override fun getDialogues(query: String?): Flow<Resource<List<SceneDialogue>>> = flow {

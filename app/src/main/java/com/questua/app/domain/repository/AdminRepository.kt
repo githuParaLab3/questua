@@ -109,7 +109,17 @@ interface AdminRepository {
     ): Flow<Resource<CharacterEntity>>
     fun getAchievements(query: String? = null): Flow<Resource<List<Achievement>>>
     fun deleteAchievement(id: String): Flow<Resource<Unit>>
-    fun saveAchievement(id: String?, name: String, description: String, iconUrl: String, xpReward: Int, keyName: String, rarity: RarityType): Flow<Resource<Achievement>>
+    fun saveAchievement(
+        id: String?,
+        keyName: String,
+        name: String,
+        description: String?,
+        iconUrl: String?,
+        rarity: RarityType,
+        xpReward: Int,
+        metadata: AchievementMetadata?
+    ): Flow<Resource<Achievement>>
+
     fun getDialogues(query: String? = null): Flow<Resource<List<SceneDialogue>>>
     fun deleteDialogue(id: String): Flow<Resource<Unit>>
 

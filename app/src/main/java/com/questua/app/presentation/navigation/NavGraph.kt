@@ -14,6 +14,7 @@ import com.questua.app.presentation.exploration.city.CityDetailScreen
 import com.questua.app.presentation.exploration.questpoint.QuestPointScreen
 import com.questua.app.presentation.game.DialogueScreen
 import com.questua.app.presentation.game.QuestIntroScreen
+import com.questua.app.presentation.game.QuestResultScreen
 import com.questua.app.presentation.languages.LanguagesListScreen
 import com.questua.app.presentation.main.MainScreen
 import com.questua.app.presentation.monetization.UnlockPreviewScreen
@@ -30,6 +31,7 @@ fun SetupNavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
+        // ... (Previous composables remain unchanged until Dialogue) ...
         composable(route = Screen.Initial.route) {
             InitialScreen(
                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },
@@ -163,9 +165,7 @@ fun SetupNavGraph(
             route = Screen.AdminReportDetail.route,
             arguments = listOf(navArgument("reportId") { type = NavType.StringType })
         ) {
-            AdminReportDetailScreen(
-                navController = navController // <--- AQUI: Passamos o controller direto, sem chaves {}
-            )
+            AdminReportDetailScreen(navController = navController)
         }
 
         composable(
@@ -189,22 +189,47 @@ fun SetupNavGraph(
         ) {
             UnlockPreviewScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onUnlockSuccess = {
-                    // Recarrega a tela anterior ou navega para o conteúdo desbloqueado
-                    navController.popBackStack()
-                }
+                onUnlockSuccess = { navController.popBackStack() }
             )
         }
 
+        // Updated Dialogue Composable
         composable(
             route = Screen.Dialogue.route,
             arguments = listOf(navArgument("questId") { type = NavType.StringType })
         ) {
             DialogueScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onQuestCompleted = { questId ->
-                    navController.navigate(Screen.QuestResult.passId(questId)) {
+                onQuestCompleted = { questId, xp, correct, total ->
+                    navController.navigate(
+                        Screen.QuestResult.createRoute(questId, xp, correct, total)
+                    ) {
                         popUpTo(Screen.QuestIntro.passId(questId)) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // New QuestResult Composable
+        composable(
+            route = Screen.QuestResult.route,
+            arguments = listOf(
+                navArgument("questId") { type = NavType.StringType },
+                navArgument("xpEarned") { type = NavType.IntType },
+                navArgument("correctAnswers") { type = NavType.IntType },
+                navArgument("totalQuestions") { type = NavType.IntType }
+            )
+        ) {
+            QuestResultScreen(
+                onReplay = { questId ->
+                    // Replay logic: Navigate back to DialogueScreen
+                    navController.navigate(Screen.Dialogue.passId(questId)) {
+                        popUpTo(Screen.Home.route) { inclusive = false }
+                    }
+                },
+                onExit = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 }
             )

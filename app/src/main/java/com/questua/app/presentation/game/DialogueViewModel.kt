@@ -5,7 +5,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
-import com.questua.app.domain.enums.InputMode
 import com.questua.app.domain.model.CharacterEntity
 import com.questua.app.domain.model.Choice
 import com.questua.app.domain.model.SceneDialogue
@@ -20,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,6 +31,12 @@ data class DialogueState(
     val userQuestId: String? = null,
     val questProgress: Float = 0f,
     val isQuestCompleted: Boolean = false,
+    val navigateToResult: Boolean = false, // Trigger for navigation
+
+    // Estatísticas da Sessão
+    val correctAnswers: Int = 0,
+    val totalQuestions: Int = 0,
+    val xpEarned: Int = 0,
 
     // Cena Atual
     val currentDialogue: SceneDialogue? = null,
@@ -88,7 +94,11 @@ class DialogueViewModel @Inject constructor(
                         val userQuest = result.data!!
                         _state.value = _state.value.copy(
                             userQuestId = userQuest.id,
-                            questProgress = userQuest.percentComplete
+                            questProgress = userQuest.percentComplete,
+                            // Reseta stats ao iniciar
+                            correctAnswers = 0,
+                            totalQuestions = 0,
+                            xpEarned = 0
                         )
                         loadScene(userQuest.lastDialogueId)
                     }
@@ -112,10 +122,8 @@ class DialogueViewModel @Inject constructor(
                             userInput = "",
                             feedbackState = FeedbackState.None,
                             isLoading = false,
-                            speaker = null // Limpa speaker anterior enquanto carrega o novo
+                            speaker = null
                         )
-
-                        // Busca detalhes do personagem se houver ID
                         dialogue.speakerCharacterId?.let { loadSpeaker(it) }
                     }
                     is Resource.Error -> {
@@ -144,11 +152,9 @@ class DialogueViewModel @Inject constructor(
     fun onChoiceSelected(choice: Choice) {
         val current = _state.value.currentDialogue ?: return
 
-        // Se a escolha deve ser validada (User Response), submete. Se for só navegação, avança.
         if (current.expectsUserResponse) {
             submitAnswer(choice.text, choice.nextDialogueId)
         } else {
-            // Apenas ramificação de narrativa sem validação de "certo/errado"
             advanceToNext(choice.nextDialogueId ?: current.nextDialogueId)
         }
     }
@@ -172,14 +178,21 @@ class DialogueViewModel @Inject constructor(
                     is Resource.Success -> {
                         val isCorrect = result.data ?: true
 
+                        // Atualiza estatísticas localmente
+                        val newCorrect = if (isCorrect) _state.value.correctAnswers + 1 else _state.value.correctAnswers
+                        val newTotal = _state.value.totalQuestions + 1
+                        val newXp = if (isCorrect) _state.value.xpEarned + 10 else _state.value.xpEarned
+
                         _state.value = _state.value.copy(
                             isSubmitting = false,
+                            correctAnswers = newCorrect,
+                            totalQuestions = newTotal,
+                            xpEarned = newXp,
                             feedbackState = if (isCorrect) FeedbackState.Success("Correto!") else FeedbackState.Error("Tente novamente.")
                         )
 
                         if (isCorrect) {
                             delay(1000)
-                            // Se tiver override (da escolha), usa ele. Senão usa o padrão da cena.
                             val nextId = nextIdOverride ?: current.nextDialogueId
                             advanceToNext(nextId)
                         }
@@ -202,9 +215,11 @@ class DialogueViewModel @Inject constructor(
     }
 
     private fun advanceToNext(nextDialogueId: String?) {
+        // Correção para fim da árvore de diálogo
         if (!nextDialogueId.isNullOrBlank()) {
             loadScene(nextDialogueId)
         } else {
+            // Se nextId é nulo, chegamos ao fim da árvore -> Completar Missão
             completeQuest()
         }
     }
@@ -214,9 +229,18 @@ class DialogueViewModel @Inject constructor(
         viewModelScope.launch {
             completeQuestUseCase(userQuestId).collectLatest { result ->
                 if (result is Resource.Success) {
-                    _state.value = _state.value.copy(isQuestCompleted = true)
+                    _state.update {
+                        it.copy(
+                            isQuestCompleted = true,
+                            navigateToResult = true // Sinaliza navegação para a UI
+                        )
+                    }
                 }
             }
         }
+    }
+
+    fun onResultNavigationHandled() {
+        _state.update { it.copy(navigateToResult = false) }
     }
 }

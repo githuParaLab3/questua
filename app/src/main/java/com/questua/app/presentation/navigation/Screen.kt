@@ -59,17 +59,11 @@ sealed class Screen(val route: String) {
     }
 
     data object AdminLanguages : Screen("admin_languages")
-
     data object AdminCharacters : Screen("admin_characters")
-
     data object AdminAchievements : Screen("admin_achievements")
-
     data object AdminQuestPoints : Screen("admin_quest_points")
-
     data object AdminCities : Screen("admin_cities")
-
     data object AdminQuests : Screen("admin_quests")
-
     data object AdminDialogues : Screen("admin_dialogues")
 
     object AdminLogDetail : Screen("admin_log_detail/{logId}") {
@@ -131,9 +125,10 @@ sealed class Screen(val route: String) {
         }
     }
 
-    object QuestResult : Screen("quest_result_screen/{questId}") {
-        fun passId(questId: String): String {
-            return "quest_result_screen/$questId"
+    // Updated with arguments
+    object QuestResult : Screen("quest_result_screen/{questId}/{xpEarned}/{correctAnswers}/{totalQuestions}") {
+        fun createRoute(questId: String, xpEarned: Int, correctAnswers: Int, totalQuestions: Int): String {
+            return "quest_result_screen/$questId/$xpEarned/$correctAnswers/$totalQuestions"
         }
     }
 }

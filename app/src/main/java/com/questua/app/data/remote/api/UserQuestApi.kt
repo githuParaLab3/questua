@@ -5,16 +5,16 @@ import retrofit2.Response
 import retrofit2.http.*
 
 interface UserQuestApi {
-    @GET("/user-quests")
+    @GET("user-quests")
     suspend fun getAll(
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null
     ): Response<PageResponse<UserQuestResponseDTO>>
 
-    @GET("/user-quests/{id}")
+    @GET("user-quests/{id}")
     suspend fun getById(@Path("id") id: String): Response<UserQuestResponseDTO>
 
-    @GET("/user-quests/user/{userId}")
+    @GET("user-quests/user/{userId}")
     suspend fun getByUser(
         @Path("userId") userId: String,
         @Query("page") page: Int? = null,

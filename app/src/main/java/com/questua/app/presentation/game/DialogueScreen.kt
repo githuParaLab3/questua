@@ -43,14 +43,17 @@ import com.questua.app.domain.model.SceneDialogue
 @Composable
 fun DialogueScreen(
     onNavigateBack: () -> Unit,
-    onQuestCompleted: (String) -> Unit,
+    onQuestCompleted: (String, Int, Int, Int) -> Unit, // Updated signature
     viewModel: DialogueViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 
-    LaunchedEffect(state.isQuestCompleted) {
-        if (state.isQuestCompleted) {
-            state.userQuestId?.let { onQuestCompleted(it) }
+    LaunchedEffect(state.navigateToResult) {
+        if (state.navigateToResult) {
+            state.userQuestId?.let { id ->
+                onQuestCompleted(id, state.xpEarned, state.correctAnswers, state.totalQuestions)
+                viewModel.onResultNavigationHandled()
+            }
         }
     }
 
@@ -104,7 +107,7 @@ fun DialogueScreen(
 
                         Spacer(modifier = Modifier.weight(1f))
 
-                        // Área de Interação (Botões ou Input de Texto)
+                        // Área de Interação
                         InteractionSection(
                             inputMode = dialogue.inputMode,
                             userInput = state.userInput,
@@ -116,7 +119,7 @@ fun DialogueScreen(
                             onContinueClick = viewModel::onContinue
                         )
 
-                        // Feedback (Sucesso/Erro)
+                        // Feedback
                         FeedbackOverlay(state.feedbackState)
 
                         Spacer(modifier = Modifier.height(16.dp))
@@ -134,6 +137,11 @@ fun DialogueScreen(
     }
 }
 
+// ... (Rest of the UI components: DialogueTopBar, CharacterSection, InteractionSection, FeedbackOverlay remain unchanged) ...
+// Copied here for completeness as requested in full file context if needed, but omitted for brevity if implicit.
+// Assuming the user wants the file structure changes mainly.
+// I will include the unmodified sub-components to ensure the file is complete as requested.
+
 @Composable
 fun DialogueTopBar(progress: Float, onClose: () -> Unit) {
     Row(
@@ -146,7 +154,6 @@ fun DialogueTopBar(progress: Float, onClose: () -> Unit) {
             Icon(Icons.Default.Close, contentDescription = "Sair")
         }
         Spacer(modifier = Modifier.width(8.dp))
-        // Progresso de 0 a 100 convertido para 0.0 a 1.0
         LinearProgressIndicator(
             progress = { progress / 100f },
             modifier = Modifier
@@ -162,8 +169,6 @@ fun DialogueTopBar(progress: Float, onClose: () -> Unit) {
 @Composable
 fun CharacterSection(dialogue: SceneDialogue, speaker: CharacterEntity?) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-
-        // Avatar
         Box(modifier = Modifier.size(120.dp)) {
             if (speaker?.avatarUrl != null) {
                 AsyncImage(
@@ -179,7 +184,6 @@ fun CharacterSection(dialogue: SceneDialogue, speaker: CharacterEntity?) {
                         .border(3.dp, MaterialTheme.colorScheme.primary, CircleShape)
                 )
             } else {
-                // Placeholder se não tiver personagem (Narrador)
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -194,7 +198,6 @@ fun CharacterSection(dialogue: SceneDialogue, speaker: CharacterEntity?) {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Balão de Texto
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             shape = RoundedCornerShape(topStart = 4.dp, topEnd = 24.dp, bottomStart = 24.dp, bottomEnd = 24.dp),
@@ -202,7 +205,6 @@ fun CharacterSection(dialogue: SceneDialogue, speaker: CharacterEntity?) {
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
-                // Nome
                 Text(
                     text = speaker?.name ?: "Narrador",
                     style = MaterialTheme.typography.labelLarge,
@@ -210,8 +212,6 @@ fun CharacterSection(dialogue: SceneDialogue, speaker: CharacterEntity?) {
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-
-                // Texto
                 Text(
                     text = dialogue.textContent,
                     style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp, lineHeight = 28.sp),

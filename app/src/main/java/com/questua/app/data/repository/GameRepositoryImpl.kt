@@ -91,22 +91,29 @@ class GameRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun submitResponse(
-        userQuestId: String,
-        questionId: String,
-        answer: String
-    ): Flow<Resource<Boolean>> = flow {
+    override fun submitResponse(userQuestId: String, dialogueId: String, answer: String): Flow<Resource<UserQuest>> = flow {
         emit(Resource.Loading())
-        val result = safeApiCall {
-            userQuestApi.submitResponse(
-                id = userQuestId,
-                request = SubmitResponseRequestDTO(dialogueId = questionId, answer = answer)
-            )
-        }
-        if (result is Resource.Success) {
-            emit(Resource.Success(result.data!!.correct))
-        } else {
-            emit(Resource.Error(result.message ?: "Erro ao enviar resposta"))
+        try {
+            val request = SubmitResponseRequestDTO(dialogueId, answer)
+            val result = safeApiCall { userQuestApi.submitResponse(userQuestId, request) }
+
+            if (result is Resource.Success) {
+                // O DTO wrapper tem flags auxiliares, mas vamos ignorar e pegar só o objeto de domínio
+                val dtoWrapper = result.data!!
+
+                // Mapeia o UserQuestDTO interno para o UserQuest de domínio
+                val domainObject = dtoWrapper.userQuest?.toDomain()
+
+                if (domainObject != null) {
+                    emit(Resource.Success(domainObject))
+                } else {
+                    emit(Resource.Error("Resposta do servidor incompleta"))
+                }
+            } else {
+                emit(Resource.Error(result.message ?: "Erro desconhecido"))
+            }
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Erro de processamento"))
         }
     }
 

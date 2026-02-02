@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
-import com.questua.app.domain.model.Quest
+import com.questua.app.domain.model.*
 import com.questua.app.domain.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -19,6 +19,8 @@ import javax.inject.Inject
 data class AdminQuestState(
     val isLoading: Boolean = false,
     val quests: List<Quest> = emptyList(),
+    val questPoints: List<QuestPoint> = emptyList(), // Dependência
+    val dialogues: List<SceneDialogue> = emptyList(), // Dependência
     val searchQuery: String = "",
     val error: String? = null
 )
@@ -34,14 +36,31 @@ class AdminQuestViewModel @Inject constructor(
     private var searchJob: Job? = null
 
     init {
+        refreshAll()
+    }
+
+    fun refreshAll() {
         fetchQuests()
+        fetchDependencies()
+    }
+
+    private fun fetchDependencies() {
+        // Busca QuestPoints para o seletor
+        repository.getQuestPoints(null).onEach { result ->
+            if (result is Resource.Success) state = state.copy(questPoints = result.data ?: emptyList())
+        }.launchIn(viewModelScope)
+
+        // Busca Dialogues para o seletor (opcional, mas bom ter)
+        repository.getDialogues(null).onEach { result ->
+            if (result is Resource.Success) state = state.copy(dialogues = result.data ?: emptyList())
+        }.launchIn(viewModelScope)
     }
 
     fun onSearchQueryChange(query: String) {
         state = state.copy(searchQuery = query)
         searchJob?.cancel()
         searchJob = viewModelScope.launch {
-            delay(500) // Aguarda 500ms após o usuário parar de digitar
+            delay(500)
             fetchQuests()
         }
     }
@@ -56,15 +75,15 @@ class AdminQuestViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
-    fun saveQuest(id: String?, pointId: String, title: String, desc: String, diff: Int, ord: Int, xp: Int, prem: Boolean, pub: Boolean) {
-        repository.saveQuest(id, pointId, title, desc, diff, ord, xp, prem, pub).onEach { result ->
-            if (result is Resource.Success) fetchQuests()
-            else if (result is Resource.Error) state = state.copy(error = result.message)
-        }.launchIn(viewModelScope)
-    }
-
-    fun deleteQuest(id: String) {
-        repository.deleteQuest(id).onEach { result ->
+    fun saveQuest(
+        id: String?, qpId: String, dialId: String?, title: String, desc: String,
+        diff: Int, order: Int, xp: Int,
+        unlock: UnlockRequirement?, focus: LearningFocus?,
+        isPrem: Boolean, isAi: Boolean, isPub: Boolean
+    ) {
+        repository.saveQuest(
+            id, qpId, dialId, title, desc, diff, order, xp, unlock, focus, isPrem, isAi, isPub
+        ).onEach { result ->
             if (result is Resource.Success) fetchQuests()
             else if (result is Resource.Error) state = state.copy(error = result.message)
         }.launchIn(viewModelScope)

@@ -240,32 +240,42 @@ class AdminRepositoryImpl @Inject constructor(
     override fun saveQuest(
         id: String?,
         questPointId: String,
+        firstDialogueId: String?,
         title: String,
         description: String,
         difficulty: Int,
         orderIndex: Int,
         xpValue: Int,
+        unlockRequirement: UnlockRequirement?,
+        learningFocus: LearningFocus?,
         isPremium: Boolean,
+        isAiGenerated: Boolean,
         isPublished: Boolean
     ): Flow<Resource<Quest>> = flow {
         emit(Resource.Loading())
+
         val dto = QuestRequestDTO(
             questPointId = questPointId,
+            firstDialogueId = firstDialogueId,
             title = title,
             descriptionQuest = description,
             difficulty = difficulty.toShort(),
             orderIndex = orderIndex.toShort(),
             xpValue = xpValue,
+            unlockRequirement = unlockRequirement,
+            learningFocus = learningFocus,
             isPremium = isPremium,
+            isAiGenerated = isAiGenerated,
             isPublished = isPublished
         )
+
         val result = if (id == null) safeApiCall<QuestResponseDTO> { questApi.create(dto) }
         else safeApiCall<QuestResponseDTO> { questApi.update(id, dto) }
 
         if (result is Resource.Success) {
             result.data?.toDomain()?.let { emit(Resource.Success(it)) }
         } else if (result is Resource.Error) {
-            emit(Resource.Error(result.message ?: "Erro ao salvar"))
+            emit(Resource.Error(result.message ?: "Erro ao salvar quest"))
         }
     }
     override fun getCharacters(query: String?): Flow<Resource<List<CharacterEntity>>> = flow {

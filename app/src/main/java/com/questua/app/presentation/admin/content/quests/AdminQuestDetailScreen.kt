@@ -9,12 +9,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.questua.app.presentation.admin.content.cities.DetailCard // Certifique-se de que este import está correto para o seu projeto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,20 +22,22 @@ fun AdminQuestDetailScreen(
     viewModel: AdminQuestDetailViewModel = hiltViewModel()
 ) {
     val state = viewModel.state
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var showEditDialog by remember { mutableStateOf(false) }
+    var showEdit by remember { mutableStateOf(false) }
+    var showDelete by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isDeleted) {
         if (state.isDeleted) navController.popBackStack()
     }
 
-    if (showEditDialog && state.quest != null) {
+    if (showEdit && state.quest != null) {
         QuestFormDialog(
             quest = state.quest,
-            onDismiss = { showEditDialog = false },
-            onConfirm = { pId, t, d, diff, ord, xp, prem, pub ->
-                viewModel.saveQuest(pId, t, d, diff, ord, xp, prem, pub)
-                showEditDialog = false
+            questPoints = state.questPoints,
+            dialogues = state.dialogues,
+            onDismiss = { showEdit = false },
+            onConfirm = { title, qpId, dial, desc, diff, ord, xp, unl, foc, prem, ai, pub ->
+                viewModel.saveQuest(qpId, dial, title, desc, diff, ord, xp, unl, foc, prem, ai, pub)
+                showEdit = false
             }
         )
     }
@@ -44,7 +45,7 @@ fun AdminQuestDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Detalhes da Quest") },
+                title = { Text(state.quest?.title ?: "Detalhes") },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
@@ -53,96 +54,90 @@ fun AdminQuestDetailScreen(
             )
         },
         bottomBar = {
-            if (state.quest != null && !state.isLoading) {
-                Surface(tonalElevation = 3.dp, shadowElevation = 8.dp) {
+            if (state.quest != null) {
+                Surface(tonalElevation = 8.dp, shadowElevation = 10.dp) {
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp).navigationBarsPadding(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                            .navigationBarsPadding(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         OutlinedButton(
-                            onClick = { showDeleteDialog = true },
+                            onClick = { showDelete = true },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Icon(Icons.Default.Delete, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Excluir")
+                            Icon(Icons.Default.Delete, null); Text(" EXCLUIR")
                         }
-                        Button(onClick = { showEditDialog = true }, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Default.Edit, null)
-                            Spacer(Modifier.width(8.dp))
-                            Text("Editar")
+                        Button(onClick = { showEdit = true }, modifier = Modifier.weight(1f)) {
+                            Icon(Icons.Default.Edit, null); Text(" EDITAR")
                         }
                     }
                 }
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else if (state.error != null) {
-                Text(state.error, color = MaterialTheme.colorScheme.error, modifier = Modifier.align(Alignment.Center).padding(16.dp))
-            } else {
-                state.quest?.let { quest ->
-                    Column(
-                        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        QuestInfoCard("Informações Básicas", listOf(
-                            "ID" to quest.id,
-                            "Título" to quest.title,
-                            "Descrição" to quest.description,
-                            "ID Quest Point" to quest.questPointId,
-                            "Primeiro Diálogo ID" to (quest.firstDialogueId ?: "Nenhum")
-                        ))
+        if (state.quest != null) {
+            // Tenta encontrar o nome do QuestPoint na lista carregada, ou usa o ID como fallback
+            val qpName = state.questPoints.find { it.id == state.quest.questPointId }?.title ?: state.quest.questPointId
 
-                        QuestInfoCard("Configurações de Gameplay", listOf(
-                            "Dificuldade" to "${quest.difficulty}/5",
-                            "Ordem" to quest.orderIndex.toString(),
-                            "Valor de XP" to quest.xpValue.toString()
-                        ))
+            Column(
+                modifier = Modifier
+                    .padding(padding)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                DetailCard("Principal", listOf(
+                    "Título" to state.quest.title,
+                    "Quest Point" to qpName,
+                    "Diálogo Inicial" to (state.quest.firstDialogueId ?: "Nenhum"),
+                    "Ordem" to state.quest.orderIndex.toString()
+                ))
 
-                        QuestInfoCard("Status e Metadados", listOf(
-                            "Premium" to if (quest.isPremium) "Sim" else "Não",
-                            "Publicada" to if (quest.isPublished) "Sim" else "Não",
-                            "Gerada por IA" to if (quest.isAiGenerated) "Sim" else "Não",
-                            "Criada em" to quest.createdAt
-                        ))
-                    }
+                // --- BLOCO QUE FALTAVA ---
+                state.quest.unlockRequirement?.let { unlock ->
+                    DetailCard("Requisitos de Desbloqueio", listOf(
+                        "Exige Premium" to if(unlock.premiumAccess) "Sim" else "Não",
+                        "Nível Mín." to (unlock.requiredGamificationLevel?.toString() ?: "-"),
+                        "CEFR Mín." to (unlock.requiredCefrLevel ?: "-")
+                    ))
                 }
+                // -------------------------
+
+                state.quest.learningFocus?.let { focus ->
+                    DetailCard("Foco de Aprendizado", listOf(
+                        "Gramática" to (focus.grammarTopics?.joinToString(", ") ?: "-"),
+                        "Vocabulário" to (focus.vocabularyThemes?.joinToString(", ") ?: "-"),
+                        "Skills" to (focus.skills?.joinToString(", ") ?: "-")
+                    ))
+                }
+
+                DetailCard("Configurações & Status", listOf(
+                    "Dificuldade" to "${state.quest.difficulty}/5",
+                    "XP Recompensa" to "${state.quest.xpValue}",
+                    "Conteúdo Premium" to if(state.quest.isPremium) "Sim" else "Não",
+                    "Publicado" to if(state.quest.isPublished) "Sim" else "Não",
+                    "Gerado por IA" to if(state.quest.isAiGenerated) "Sim" else "Não",
+                    "Criado em" to state.quest.createdAt
+                ))
+
+                DetailCard("Descrição", listOf("" to state.quest.description))
             }
         }
 
-        if (showDeleteDialog) {
+        if (showDelete) {
             AlertDialog(
-                onDismissRequest = { showDeleteDialog = false },
-                title = { Text("Confirmar Exclusão") },
-                text = { Text("Deseja excluir esta quest permanentemente?") },
+                onDismissRequest = { showDelete = false },
+                title = { Text("Excluir Quest") },
+                text = { Text("Tem certeza? Esta ação não pode ser desfeita.") },
                 confirmButton = {
-                    TextButton(onClick = {
-                        viewModel.deleteQuest()
-                        showDeleteDialog = false
-                    }) { Text("Excluir", color = MaterialTheme.colorScheme.error) }
+                    TextButton(onClick = { viewModel.deleteQuest(); showDelete = false }) {
+                        Text("Excluir", color = MaterialTheme.colorScheme.error)
+                    }
                 },
-                dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") } }
+                dismissButton = { TextButton(onClick = { showDelete = false }) { Text("Cancelar") } }
             )
-        }
-    }
-}
-
-@Composable
-private fun QuestInfoCard(title: String, items: List<Pair<String, String>>) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-            items.forEach { (label, value) ->
-                Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                    Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    Text(value, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
         }
     }
 }

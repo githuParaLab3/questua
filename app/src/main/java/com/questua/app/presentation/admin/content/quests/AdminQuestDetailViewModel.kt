@@ -7,7 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
-import com.questua.app.domain.model.Quest
+import com.questua.app.domain.model.*
 import com.questua.app.domain.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
@@ -17,6 +17,8 @@ import javax.inject.Inject
 data class AdminQuestDetailState(
     val isLoading: Boolean = false,
     val quest: Quest? = null,
+    val questPoints: List<QuestPoint> = emptyList(),
+    val dialogues: List<SceneDialogue> = emptyList(),
     val error: String? = null,
     val isDeleted: Boolean = false
 )
@@ -33,55 +35,49 @@ class AdminQuestDetailViewModel @Inject constructor(
     private val questId: String = checkNotNull(savedStateHandle["questId"])
 
     init {
-        fetchQuestDetails()
+        fetchDetails()
+        fetchDependencies()
     }
 
-    fun fetchQuestDetails() {
-        repository.getQuests(query = questId).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success -> {
-                    val foundQuest = result.data?.find { it.id == questId }
-                    state.copy(
-                        quest = foundQuest,
-                        isLoading = false,
-                        error = if (foundQuest == null) "Quest não encontrada" else null
-                    )
-                }
-                is Resource.Error -> state.copy(error = result.message, isLoading = false)
+    fun fetchDetails() {
+        repository.getQuests(null).onEach { result -> // Ou getQuestById se existir
+            if (result is Resource.Success) {
+                val found = result.data?.find { it.id == questId }
+                state = state.copy(quest = found, isLoading = false)
             }
         }.launchIn(viewModelScope)
     }
 
+    private fun fetchDependencies() {
+        repository.getQuestPoints(null).onEach {
+            if (it is Resource.Success) state = state.copy(questPoints = it.data ?: emptyList())
+        }.launchIn(viewModelScope)
+
+        repository.getDialogues(null).onEach {
+            if (it is Resource.Success) state = state.copy(dialogues = it.data ?: emptyList())
+        }.launchIn(viewModelScope)
+    }
+
     fun saveQuest(
-        pointId: String,
-        title: String,
-        desc: String,
-        diff: Int,
-        ord: Int,
-        xp: Int,
-        prem: Boolean,
-        pub: Boolean
+        qpId: String, dialId: String?, title: String, desc: String,
+        diff: Int, order: Int, xp: Int,
+        unlock: UnlockRequirement?, focus: LearningFocus?,
+        isPrem: Boolean, isAi: Boolean, isPub: Boolean
     ) {
-        repository.saveQuest(questId, pointId, title, desc, diff, ord, xp, prem, pub).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success -> {
-                    fetchQuestDetails()
-                    state.copy(isLoading = false)
-                }
-                is Resource.Error -> state.copy(error = result.message, isLoading = false)
+        repository.saveQuest(
+            questId, qpId, dialId, title, desc, diff, order, xp, unlock, focus, isPrem, isAi, isPub
+        ).onEach { result ->
+            if (result is Resource.Success) {
+                fetchDetails()
+            } else if (result is Resource.Error) {
+                state = state.copy(error = result.message)
             }
         }.launchIn(viewModelScope)
     }
 
     fun deleteQuest() {
         repository.deleteQuest(questId).onEach { result ->
-            state = when (result) {
-                is Resource.Loading -> state.copy(isLoading = true)
-                is Resource.Success -> state.copy(isDeleted = true, isLoading = false)
-                is Resource.Error -> state.copy(error = result.message, isLoading = false)
-            }
+            if (result is Resource.Success) state = state.copy(isDeleted = true)
         }.launchIn(viewModelScope)
     }
 }

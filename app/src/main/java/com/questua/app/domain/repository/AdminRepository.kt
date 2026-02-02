@@ -62,7 +62,23 @@ interface AdminRepository {
 
     fun getQuests(query: String? = null): Flow<Resource<List<Quest>>>
     fun deleteQuest(id: String): Flow<Resource<Unit>>
-    fun saveQuest(id: String?, questPointId: String, title: String, description: String, difficulty: Int, orderIndex: Int, xpValue: Int, isPremium: Boolean, isPublished: Boolean): Flow<Resource<Quest>>
+
+    fun saveQuest(
+        id: String?,
+        questPointId: String,
+        firstDialogueId: String?,
+        title: String,
+        description: String,
+        difficulty: Int,
+        orderIndex: Int,
+        xpValue: Int,
+        unlockRequirement: UnlockRequirement?,
+        learningFocus: LearningFocus?,
+        isPremium: Boolean,
+        isAiGenerated: Boolean,
+        isPublished: Boolean
+    ): Flow<Resource<Quest>>
+
     fun getAllReports(page: Int, size: Int): Flow<Resource<List<Report>>>
     fun getReportById(id: String): Flow<Resource<Report>>
     fun updateReport(report: Report): Flow<Resource<Report>>

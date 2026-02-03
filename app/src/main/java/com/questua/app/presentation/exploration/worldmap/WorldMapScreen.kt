@@ -1,5 +1,10 @@
 package com.questua.app.presentation.exploration.worldmap
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,17 +17,16 @@ import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -40,6 +44,7 @@ import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
 import com.questua.app.R
 import com.questua.app.core.common.toFullImageUrl
+import com.questua.app.domain.model.City
 import kotlinx.coroutines.launch
 
 // Cor Dourada Padrão Questua
@@ -48,7 +53,7 @@ val QuestuaGold = Color(0xFFFFC107)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WorldMapScreen(
-    onNavigateBack: (() -> Unit)? = null, // Correção: Parâmetro opcional para evitar erro na MainScreen
+    onNavigateBack: (() -> Unit)? = null,
     onNavigateToCity: (String) -> Unit,
     viewModel: WorldMapViewModel = hiltViewModel()
 ) {
@@ -56,14 +61,14 @@ fun WorldMapScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Estados de Câmera e Lista
+    // Estado para controlar qual cidade está selecionada no mapa
+    var selectedCity by remember { mutableStateOf<City?>(null) }
+
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(20.0, 0.0), 1f)
     }
-    val listState = rememberLazyListState()
     val scaffoldState = rememberBottomSheetScaffoldState()
 
-    // Estilo do Mapa Otimizado
     val mapProperties = remember {
         MapProperties(
             mapStyleOptions = try {
@@ -75,7 +80,6 @@ fun WorldMapScreen(
         )
     }
 
-    // Configurações de UI do Mapa (Leves)
     val mapUiSettings = remember {
         MapUiSettings(
             zoomControlsEnabled = false,
@@ -95,25 +99,13 @@ fun WorldMapScreen(
                 cities = state.cities,
                 onCityClick = { cityUi ->
                     scope.launch {
-                        // Animação suave da câmera
+                        selectedCity = cityUi.city // Seleciona a cidade
                         cameraPositionState.animate(
                             CameraUpdateFactory.newLatLngZoom(
                                 LatLng(cityUi.city.lat, cityUi.city.lon),
                                 10f
                             ),
                             1000
-                        )
-                        // Navegação para detalhes
-                        onNavigateToCity(cityUi.city.id)
-                    }
-                },
-                onCardFocus = { cityUi ->
-                    scope.launch {
-                        cameraPositionState.animate(
-                            CameraUpdateFactory.newLatLngZoom(
-                                LatLng(cityUi.city.lat, cityUi.city.lon),
-                                6f
-                            )
                         )
                     }
                 }
@@ -131,32 +123,55 @@ fun WorldMapScreen(
                     modifier = Modifier.fillMaxSize(),
                     cameraPositionState = cameraPositionState,
                     properties = mapProperties,
-                    uiSettings = mapUiSettings
+                    uiSettings = mapUiSettings,
+                    onMapClick = {
+                        selectedCity = null // Clicar no vazio fecha a seleção
+                    }
                 ) {
                     state.cities.forEach { cityUi ->
                         val city = cityUi.city
 
-                        // MARCADOR LEVE (Sem AsyncImage para evitar crash)
+                        // CORREÇÃO CRÍTICA: Apenas UM marcador por cidade
                         MarkerComposable(
-                            keys = arrayOf(city.id), // Chave estável
+                            keys = arrayOf(city.id),
                             state = MarkerState(position = LatLng(city.lat, city.lon)),
                             onClick = {
                                 scope.launch {
-                                    // Foca no mapa e expande o hub
+                                    selectedCity = city // Ativa o Card Flutuante
                                     cameraPositionState.animate(
                                         CameraUpdateFactory.newLatLngZoom(LatLng(city.lat, city.lon), 8f)
                                     )
-                                    scaffoldState.bottomSheetState.expand()
+                                    // Fecha o sheet levemente para dar espaço ao card, se quiser
+                                    // scaffoldState.bottomSheetState.partialExpand()
                                 }
-                                false
+                                true // Consome o evento, não faz mais nada no mapa
                             }
                         ) {
-                            QuestuaPinMarker()
+                            QuestuaPinMarker(isSelected = selectedCity?.id == city.id)
                         }
                     }
                 }
 
-                // Botão Voltar (Apenas se a função for fornecida)
+                // OVERLAY: Card Flutuante de Seleção (Substitui o InfoWindow nativo instável)
+                // Aparece no topo da tela quando uma cidade é selecionada
+                AnimatedVisibility(
+                    visible = selectedCity != null,
+                    enter = fadeIn() + slideInVertically { -it },
+                    exit = fadeOut() + slideOutVertically { -it },
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 80.dp) // Espaço para não cobrir a toolbar se houver
+                ) {
+                    selectedCity?.let { city ->
+                        CitySelectionOverlay(
+                            city = city,
+                            onAccess = { onNavigateToCity(city.id) },
+                            onClose = { selectedCity = null }
+                        )
+                    }
+                }
+
+                // Botão Voltar
                 if (onNavigateBack != null) {
                     SmallFloatingActionButton(
                         onClick = onNavigateBack,
@@ -174,20 +189,73 @@ fun WorldMapScreen(
     }
 }
 
-// --- Componentes Otimizados ---
+// --- Componentes ---
+
+@Composable
+fun CitySelectionOverlay(
+    city: City,
+    onAccess: () -> Unit,
+    onClose: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .width(280.dp)
+            .wrapContentHeight(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = city.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                IconButton(onClick = onClose, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Close, contentDescription = "Fechar")
+                }
+            }
+
+            Text(
+                text = city.countryCode,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = onAccess,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = QuestuaGold,
+                    contentColor = Color.Black
+                )
+            ) {
+                Text("ACESSAR CIDADE", fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(Icons.Default.PlayArrow, null)
+            }
+        }
+    }
+}
 
 @Composable
 fun WorldHubContent(
-    cities: List<CityUiModel>, // Usa o modelo UI correto
-    onCityClick: (CityUiModel) -> Unit,
-    onCardFocus: (CityUiModel) -> Unit
+    cities: List<CityUiModel>,
+    onCityClick: (CityUiModel) -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 32.dp)
     ) {
-        // Drag Handle
         Box(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
@@ -198,7 +266,6 @@ fun WorldHubContent(
                 .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f))
         )
 
-        // Cabeçalho do Hub
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -219,7 +286,6 @@ fun WorldHubContent(
                     )
                 }
 
-                // Chip de Idioma
                 Surface(
                     color = QuestuaGold.copy(alpha = 0.15f),
                     shape = RoundedCornerShape(50),
@@ -239,18 +305,12 @@ fun WorldHubContent(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // Lista Horizontal Otimizada
         LazyRow(
             contentPadding = PaddingValues(horizontal = 24.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(cities, key = { it.city.id }) { cityUi ->
-                CityHubCard(
-                    cityUi = cityUi,
-                    onClick = { onCityClick(cityUi) }
-                )
-                // Efeito colateral simples para focar ao rolar (opcional, pode ser removido se pesar)
-                // LaunchedEffect(Unit) { onCardFocus(cityUi) }
+                CityHubCard(cityUi = cityUi, onClick = { onCityClick(cityUi) })
             }
         }
     }
@@ -267,25 +327,20 @@ fun CityHubCard(
     Card(
         modifier = Modifier
             .width(260.dp)
-            .height(140.dp) // Card mais compacto e horizontal
+            .height(140.dp)
             .clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
-            // Imagem (Esquerda)
-            Box(
-                modifier = Modifier
-                    .width(110.dp)
-                    .fillMaxHeight()
-            ) {
+            Box(modifier = Modifier.width(110.dp).fillMaxHeight()) {
                 if (!city.imageUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = ImageRequest.Builder(context)
                             .data(city.imageUrl.toFullImageUrl())
                             .crossfade(true)
-                            .size(300, 400) // Downsampling para performance
+                            .size(300, 400)
                             .build(),
                         contentDescription = null,
                         modifier = Modifier.fillMaxSize(),
@@ -293,9 +348,7 @@ fun CityHubCard(
                     )
                 } else {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Default.LocationOn, null, tint = Color.Gray)
@@ -303,11 +356,8 @@ fun CityHubCard(
                 }
             }
 
-            // Info (Direita)
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(12.dp),
+                modifier = Modifier.weight(1f).padding(12.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
@@ -327,9 +377,7 @@ fun CityHubCard(
 
                 Button(
                     onClick = onClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(36.dp),
+                    modifier = Modifier.fillMaxWidth().height(36.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = QuestuaGold,
                         contentColor = Color.Black
@@ -345,29 +393,34 @@ fun CityHubCard(
     }
 }
 
-// Marcador Super Leve (Apenas Vetor)
 @Composable
-fun QuestuaPinMarker() {
+fun QuestuaPinMarker(isSelected: Boolean = false) {
+    val scale = if (isSelected) 1.2f else 1.0f
+    val color = if (isSelected) Color.White else QuestuaGold
+
     Box(
-        modifier = Modifier.size(48.dp),
+        modifier = Modifier
+            .size(48.dp * scale),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Ícone Vetorial Puro (Zero alocação de bitmap pesado)
         Icon(
             imageVector = Icons.Default.LocationOn,
             contentDescription = null,
             tint = QuestuaGold,
-            modifier = Modifier
-                .size(48.dp)
-                .shadow(4.dp, shape = CircleShape) // Sombra leve
+            modifier = Modifier.size(48.dp * scale).shadow(8.dp, shape = CircleShape)
         )
-        // Ponto branco no centro para destaque
         Box(
             modifier = Modifier
-                .padding(bottom = 18.dp) // Ajuste fino para o centro do LocationOn
-                .size(12.dp)
+                .padding(bottom = 18.dp * scale)
+                .size(12.dp * scale)
                 .clip(CircleShape)
-                .background(Color.White)
+                .background(color)
         )
     }
+}
+
+val TriangleShape = GenericShape { size, _ ->
+    moveTo(0f, 0f)
+    lineTo(size.width, 0f)
+    lineTo(size.width / 2f, size.height)
 }

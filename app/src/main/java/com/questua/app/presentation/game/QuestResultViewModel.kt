@@ -14,12 +14,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class QuestResultState(
-    val isLoading: Boolean = false, // Começa false pois já temos dados básicos
+    val isLoading: Boolean = false,
     val questId: String = "",
     val questPointId: String = "",
     val xpEarned: Int = 0,
@@ -44,7 +45,6 @@ class QuestResultViewModel @Inject constructor(
     val state: StateFlow<QuestResultState> = _state.asStateFlow()
 
     init {
-        // 1. Recupera dados IMEDIATOS da navegação (sem delay)
         val questId: String = checkNotNull(savedStateHandle["questId"])
         val xpEarned: Int = savedStateHandle["xpEarned"] ?: 0
         val correctAnswers: Int = savedStateHandle["correctAnswers"] ?: 0
@@ -54,7 +54,6 @@ class QuestResultViewModel @Inject constructor(
             ((correctAnswers.toFloat() / totalQuestions.toFloat()) * 100).toInt()
         } else 0
 
-        // 2. Atualiza o estado visual imediatamente (Adeus Loading Infinito)
         _state.value = QuestResultState(
             isLoading = false,
             questId = questId,
@@ -64,7 +63,6 @@ class QuestResultViewModel @Inject constructor(
             accuracy = accuracy
         )
 
-        // 3. Carrega dados complementares em segundo plano (Assessment, Próxima Missão)
         loadExtraData(questId)
     }
 
@@ -72,60 +70,72 @@ class QuestResultViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = tokenManager.userId.first() ?: return@launch
 
-            // Busca detalhes da Quest para pegar o ID do Ponto (para o botão Voltar)
+            // 1. Pega detalhes da quest atual para saber qual é o Ponto e a Ordem
             getQuestDetailsUseCase(questId).collect { questResource ->
                 if (questResource is Resource.Success) {
                     val quest = questResource.data
                     val qpId = quest?.questPointId ?: ""
                     val currentOrder = quest?.orderIndex ?: 0
 
-                    // Atualiza o ID do ponto assim que disponível
                     _state.value = _state.value.copy(questPointId = qpId)
 
-                    // Busca Assessment (Avaliação Detalhada)
-                    launch {
-                        try {
-                            val userQuestResult = gameRepository.getUserQuestStatus(questId, userId).first()
-                            if (userQuestResult is Resource.Success && userQuestResult.data != null) {
-                                val assessment = userQuestResult.data.overallAssessment ?: emptyList()
-                                if (assessment.isNotEmpty()) {
-                                    _state.value = _state.value.copy(overallAssessment = assessment)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            // Falha silenciosa no assessment, não trava a tela
-                        }
-                    }
+                    // Carrega avaliação
+                    fetchAssessment(questId, userId)
 
-                    // Verifica Próxima Missão
-                    findNextQuest(qpId, currentOrder, userId)
+                    // 2. Monitora REATIVAMENTE se a próxima missão foi desbloqueada
+                    monitorNextQuest(qpId, currentOrder, userId)
                 }
             }
         }
     }
 
-    private suspend fun findNextQuest(questPointId: String, currentOrder: Int, userId: String) {
-        try {
-            val userStats = getUserStatsUseCase(userId).first()
-            val unlockedQuests = if (userStats is Resource.Success) {
-                userStats.data?.unlockedContent?.quests ?: emptyList()
-            } else emptyList()
+    private fun fetchAssessment(questId: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                // Tenta buscar avaliação (pode demorar um pouco para ser gerada)
+                val userQuestResult = gameRepository.getUserQuestStatus(questId, userId).first()
+                if (userQuestResult is Resource.Success && userQuestResult.data != null) {
+                    val assessment = userQuestResult.data.overallAssessment ?: emptyList()
+                    if (assessment.isNotEmpty()) {
+                        _state.value = _state.value.copy(overallAssessment = assessment)
+                    }
+                }
+            } catch (e: Exception) {
+                // Falha silenciosa
+            }
+        }
+    }
 
-            getQuestPointQuestsUseCase(questPointId).collect { resource ->
-                if (resource is Resource.Success) {
-                    val quests = resource.data ?: emptyList()
+    private fun monitorNextQuest(questPointId: String, currentOrder: Int, userId: String) {
+        viewModelScope.launch {
+            // COMBINE: Escuta alterações tanto na lista de quests quanto no status do usuário
+            combine(
+                getQuestPointQuestsUseCase(questPointId),
+                getUserStatsUseCase(userId)
+            ) { questsRes, statsRes ->
+                var nextId: String? = null
 
-                    val nextQuest = quests
+                if (questsRes is Resource.Success && statsRes is Resource.Success) {
+                    val allQuests = questsRes.data ?: emptyList()
+                    val unlockedQuests = statsRes.data?.unlockedContent?.quests ?: emptyList()
+
+                    // Encontra a próxima missão (index > atual)
+                    val nextQuest = allQuests
                         .filter { it.orderIndex > currentOrder }
                         .minByOrNull { it.orderIndex }
 
+                    // Verifica se o ID dela está na lista de desbloqueados do usuário
                     if (nextQuest != null && unlockedQuests.contains(nextQuest.id)) {
-                        _state.value = _state.value.copy(nextQuestId = nextQuest.id)
+                        nextId = nextQuest.id
                     }
                 }
+                nextId
+            }.collect { nextId ->
+                // Atualiza o estado assim que a condição for satisfeita
+                if (nextId != _state.value.nextQuestId) {
+                    _state.value = _state.value.copy(nextQuestId = nextId)
+                }
             }
-        } catch (e: Exception) {
-            // Falha silenciosa
         }
     }
 }

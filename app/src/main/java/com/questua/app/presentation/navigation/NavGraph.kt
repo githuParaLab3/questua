@@ -31,7 +31,6 @@ fun SetupNavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
-        // ... (Previous composables remain unchanged until Dialogue) ...
         composable(route = Screen.Initial.route) {
             InitialScreen(
                 onNavigateToLogin = { navController.navigate(Screen.Login.route) },
@@ -193,7 +192,7 @@ fun SetupNavGraph(
             )
         }
 
-        // Updated Dialogue Composable
+
         composable(
             route = Screen.Dialogue.route,
             arguments = listOf(navArgument("questId") { type = NavType.StringType })
@@ -204,13 +203,14 @@ fun SetupNavGraph(
                     navController.navigate(
                         Screen.QuestResult.createRoute(questId, xp, correct, total)
                     ) {
-                        popUpTo(Screen.QuestIntro.passId(questId)) { inclusive = true }
+                        popUpTo(Screen.QuestPoint.route) {
+                            inclusive = false
+                        }
                     }
                 }
             )
         }
 
-        // New QuestResult Composable
         composable(
             route = Screen.QuestResult.route,
             arguments = listOf(
@@ -222,20 +222,13 @@ fun SetupNavGraph(
         ) {
             QuestResultScreen(
                 onNavigateToQuest = { nextQuestId ->
-                    // Botão "Próxima Missão" -> Vai para a Intro da próxima
                     navController.navigate(Screen.QuestIntro.passId(nextQuestId)) {
-                        // Opcional: Remove a tela de resultado atual da pilha para que "Voltar" vá para o Ponto
                         popUpTo(Screen.QuestResult.route) { inclusive = true }
                     }
                 },
-                onNavigateBackToPoint = { pointId ->
-                    // Botão "Voltar para Missões" -> Vai para a lista de missões do ponto
-                    navController.navigate(Screen.QuestPoint.passId(pointId)) {
-                        // Limpa toda a pilha do jogo (Intro -> Diálogo -> Resultado)
-                        // Assim, ao chegar na lista, o botão voltar do Android vai para o Mapa/Cidade, não para o jogo.
-                        // Usamos o padrão da rota para identificar até onde limpar.
-                        popUpTo("quest_point_screen/{pointId}") { inclusive = true }
-                    }
+                onNavigateBackToPoint = { _ ->
+
+                    navController.popBackStack()
                 }
             )
         }

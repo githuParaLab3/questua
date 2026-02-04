@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.domain.model.*
 import com.questua.app.domain.repository.AdminRepository
+import com.questua.app.presentation.navigation.Screen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -88,11 +89,11 @@ class AiContentGenerationViewModel @Inject constructor(
         if (data == null) return
 
         val route = when (data) {
-            is QuestPoint -> "quest_point/${data.id}"
-            is Quest -> "quest/${data.id}"
-            is CharacterEntity -> "character/${data.id}"
-            is SceneDialogue -> "dialogue/${data.id}"
-            is Achievement -> "achievement/${data.id}"
+            is QuestPoint -> Screen.AdminQuestPointDetail.passId(data.id)
+            is Quest -> Screen.AdminQuestDetail.passId(data.id)
+            is CharacterEntity -> Screen.AdminCharacterDetail.passId(data.id)
+            is SceneDialogue -> Screen.AdminDialogueDetail.passId(data.id)
+            is Achievement -> Screen.AdminAchievementDetail.passId(data.id)
             else -> ""
         }
 

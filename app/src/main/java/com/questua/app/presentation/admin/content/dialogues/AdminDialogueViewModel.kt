@@ -14,7 +14,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import java.io.File
 import javax.inject.Inject
 
 data class AdminDialogueState(
@@ -69,18 +71,51 @@ class AdminDialogueViewModel @Inject constructor(
         }.launchIn(viewModelScope)
     }
 
+    // CORREÇÃO: Parâmetros bg, music e audio agora são Any?
     fun saveDialogue(
-        txt: String, desc: String, bg: String, music: String?,
+        txt: String, desc: String, bg: Any?, music: Any?,
         states: List<CharacterState>?, effects: List<SceneEffect>?,
-        speaker: String?, audio: String?, expects: Boolean,
+        speaker: String?, audio: Any?, expects: Boolean,
         mode: InputMode, expectResp: String?, choices: List<Choice>?,
         next: String?, ai: Boolean
     ) {
-        repository.saveDialogue(
-            null, txt, desc, bg, music, states, effects, speaker, audio, expects, mode, expectResp, choices, next, ai
-        ).onEach { result ->
-            if (result is Resource.Success) fetchDialogues()
-            else if (result is Resource.Error) state = state.copy(error = result.message)
-        }.launchIn(viewModelScope)
+        viewModelScope.launch {
+            // Define loading state manual pois estamos fazendo uploads assíncronos antes
+            state = state.copy(isLoading = true)
+
+            // Processa uploads sequencialmente
+            val bgUrl = processUpload(bg, "dialogues/backgrounds") ?: ""
+            val musicUrl = processUpload(music, "dialogues/music")
+            val audioUrl = processUpload(audio, "dialogues/audio")
+
+            repository.saveDialogue(
+                null, txt, desc, bgUrl, musicUrl, states, effects, speaker, audioUrl, expects, mode, expectResp, choices, next, ai
+            ).collect { result ->
+                when (result) {
+                    is Resource.Success -> {
+                        fetchDialogues()
+                        // isLoading será setado para false dentro do fetchDialogues
+                    }
+                    is Resource.Error -> {
+                        state = state.copy(error = result.message, isLoading = false)
+                    }
+                    is Resource.Loading -> {
+                        state = state.copy(isLoading = true)
+                    }
+                }
+            }
+        }
+    }
+
+    // Helper function para gerenciar File vs String
+    private suspend fun processUpload(input: Any?, folder: String): String? {
+        return when (input) {
+            is File -> {
+                val result = repository.uploadFile(input, folder).firstOrNull { it is Resource.Success }
+                result?.data
+            }
+            is String -> input.ifBlank { null }
+            else -> null
+        }
     }
 }

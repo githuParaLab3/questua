@@ -1,25 +1,35 @@
 package com.questua.app.presentation.admin.content.dialogues
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.questua.app.core.common.URIPathHelper
 import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.enums.InputMode
 import com.questua.app.domain.model.*
-import com.questua.app.presentation.admin.content.quests.SelectorDialog // Reutilizando do passo anterior
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,19 +39,27 @@ fun SceneDialogueFormDialog(
     allDialogues: List<SceneDialogue>,
     onDismiss: () -> Unit,
     onConfirm: (
-        txt: String, desc: String, bg: String, music: String?,
+        txt: String, desc: String,
+        bg: Any?, music: Any?,
         states: List<CharacterState>?, effects: List<SceneEffect>?,
-        speaker: String?, audio: String?, expects: Boolean,
+        speaker: String?,
+        audio: Any?,
+        expects: Boolean,
         mode: InputMode, expectResp: String?, choices: List<Choice>?,
         next: String?, ai: Boolean
     ) -> Unit
 ) {
+    val context = LocalContext.current
+
     // Campos Básicos
     var description by remember { mutableStateOf(dialogue?.description ?: "") }
     var textContent by remember { mutableStateOf(dialogue?.textContent ?: "") }
-    var backgroundUrl by remember { mutableStateOf(dialogue?.backgroundUrl ?: "") }
-    var bgMusicUrl by remember { mutableStateOf(dialogue?.bgMusicUrl ?: "") }
-    var audioUrl by remember { mutableStateOf(dialogue?.audioUrl ?: "") }
+
+    // Mídia (Any? pode ser String(URL) ou File(Upload))
+    var background by remember { mutableStateOf<Any?>(dialogue?.backgroundUrl) }
+    var bgMusic by remember { mutableStateOf<Any?>(dialogue?.bgMusicUrl) }
+    var audio by remember { mutableStateOf<Any?>(dialogue?.audioUrl) }
+
     var speakerId by remember { mutableStateOf(dialogue?.speakerCharacterId ?: "") }
     var nextDialogueId by remember { mutableStateOf(dialogue?.nextDialogueId ?: "") }
 
@@ -62,8 +80,19 @@ fun SceneDialogueFormDialog(
     var showModePicker by remember { mutableStateOf(false) }
 
     // Auxiliares para itens de lista
-    var showStateCharPicker by remember { mutableStateOf<Int?>(null) } // Index do item sendo editado
-    var showChoiceDialogPicker by remember { mutableStateOf<Int?>(null) } // Index do item sendo editado
+    var showStateCharPicker by remember { mutableStateOf<Int?>(null) }
+    var showChoiceDialogPicker by remember { mutableStateOf<Int?>(null) }
+
+    // Launchers para Arquivos
+    val bgPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { background = URIPathHelper.getFileFromUri(context, it) }
+    }
+    val musicPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { bgMusic = URIPathHelper.getFileFromUri(context, it) }
+    }
+    val audioPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri?.let { audio = URIPathHelper.getFileFromUri(context, it) }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -80,10 +109,37 @@ fun SceneDialogueFormDialog(
 
                 // --- MÍDIA ---
                 SectionTitle("Mídia & Ambiente")
-                QuestuaTextField(value = backgroundUrl, onValueChange = { backgroundUrl = it }, label = "URL Fundo")
+
+                // Background Picker
+                MediaPickerField(
+                    label = "Fundo (Imagem)",
+                    value = background,
+                    icon = Icons.Default.Image,
+                    onPick = { bgPicker.launch("image/*") },
+                    onClear = { background = null }
+                )
+
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuestuaTextField(value = bgMusicUrl, onValueChange = { bgMusicUrl = it }, label = "URL Música", modifier = Modifier.weight(1f))
-                    QuestuaTextField(value = audioUrl, onValueChange = { audioUrl = it }, label = "URL Áudio (Fala)", modifier = Modifier.weight(1f))
+                    // Music Picker
+                    Box(Modifier.weight(1f)) {
+                        MediaPickerField(
+                            label = "Música (Bg)",
+                            value = bgMusic,
+                            icon = Icons.Default.MusicNote,
+                            onPick = { musicPicker.launch("audio/*") },
+                            onClear = { bgMusic = null }
+                        )
+                    }
+                    // Audio Picker (Voice)
+                    Box(Modifier.weight(1f)) {
+                        MediaPickerField(
+                            label = "Voz (Fala)",
+                            value = audio,
+                            icon = Icons.Default.Mic,
+                            onPick = { audioPicker.launch("audio/*") },
+                            onClear = { audio = null }
+                        )
+                    }
                 }
 
                 // --- ATORES ---
@@ -183,9 +239,9 @@ fun SceneDialogueFormDialog(
         confirmButton = {
             Button(onClick = {
                 onConfirm(
-                    textContent, description, backgroundUrl, bgMusicUrl.ifEmpty { null },
+                    textContent, description, background, bgMusic,
                     characterStates.ifEmpty { null }, sceneEffects.ifEmpty { null },
-                    speakerId.ifEmpty { null }, audioUrl.ifEmpty { null },
+                    speakerId.ifEmpty { null }, audio,
                     expectsUserResponse, inputMode, expectedResponse.ifEmpty { null },
                     choices.ifEmpty { null }, nextDialogueId.ifEmpty { null }, isAiGenerated
                 )
@@ -242,6 +298,86 @@ fun SceneDialogueFormDialog(
             showChoiceDialogPicker = null
         })
     }
+}
+
+// Componente auxiliar para os pickers de mídia (visual consistente)
+@Composable
+fun MediaPickerField(
+    label: String,
+    value: Any?, // String (URL) ou File
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onPick: () -> Unit,
+    onClear: () -> Unit
+) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
+        OutlinedButton(
+            onClick = onPick,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(8.dp),
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+        ) {
+            Icon(if(value == null) icon else Icons.Default.Upload, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = when(value) {
+                    is File -> "Novo: ${value.name.take(10)}..."
+                    is String -> if(value.isNotBlank()) "URL: ...${value.takeLast(10)}" else "Selecionar"
+                    else -> "Selecionar"
+                },
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1
+            )
+        }
+        if (value != null) {
+            TextButton(
+                onClick = onClear,
+                modifier = Modifier.align(Alignment.End).height(24.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Text("Remover", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
+fun <T> SelectorDialog(
+    title: String,
+    items: List<T>,
+    itemContent: @Composable (T) -> Unit,
+    onSelect: (T) -> Unit,
+    onDismiss: () -> Unit,
+    canClear: Boolean = false,
+    onClear: () -> Unit = {}
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Box(Modifier.heightIn(max = 400.dp)) {
+                LazyColumn {
+                    if (canClear) {
+                        item {
+                            ListItem(
+                                modifier = Modifier.clickable { onClear() },
+                                headlineContent = { Text("Nenhum (Remover Seleção)", color = MaterialTheme.colorScheme.error) }
+                            )
+                            HorizontalDivider()
+                        }
+                    }
+                    items(items) { item ->
+                        ListItem(
+                            modifier = Modifier.clickable { onSelect(item) },
+                            headlineContent = { itemContent(item) }
+                        )
+                        HorizontalDivider()
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar") } }
+    )
 }
 
 @Composable

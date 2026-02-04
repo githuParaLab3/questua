@@ -29,6 +29,43 @@ class AiContentGenerationViewModel @Inject constructor(
     private val _navigationEvent = MutableSharedFlow<NavigationEvent>()
     val navigationEvent = _navigationEvent.asSharedFlow()
 
+    init {
+        loadSelectors()
+    }
+
+    private fun loadSelectors() {
+        viewModelScope.launch {
+            launch {
+                repository.getCities().collect { result ->
+                    if (result is Resource.Success) {
+                        state = state.copy(cities = result.data ?: emptyList())
+                    }
+                }
+            }
+            launch {
+                repository.getQuestPoints().collect { result ->
+                    if (result is Resource.Success) {
+                        state = state.copy(questPoints = result.data ?: emptyList())
+                    }
+                }
+            }
+            launch {
+                repository.getQuests().collect { result ->
+                    if (result is Resource.Success) {
+                        state = state.copy(quests = result.data ?: emptyList())
+                    }
+                }
+            }
+            launch {
+                repository.getCharacters(null).collect { result ->
+                    if (result is Resource.Success) {
+                        state = state.copy(characters = result.data ?: emptyList())
+                    }
+                }
+            }
+        }
+    }
+
     sealed class NavigationEvent {
         data class Success(val route: String) : NavigationEvent()
         data class Error(val message: String) : NavigationEvent()
@@ -106,5 +143,9 @@ class AiContentGenerationViewModel @Inject constructor(
 data class AiGenerationState(
     val selectedType: AiContentType = AiContentType.QUEST_POINT,
     val fields: Map<String, String> = emptyMap(),
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val cities: List<City> = emptyList(),
+    val questPoints: List<QuestPoint> = emptyList(),
+    val quests: List<Quest> = emptyList(),
+    val characters: List<CharacterEntity> = emptyList()
 )

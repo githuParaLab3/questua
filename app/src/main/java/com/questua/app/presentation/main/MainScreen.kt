@@ -16,6 +16,7 @@ import com.questua.app.core.ui.components.HubTab
 import com.questua.app.domain.enums.ReportType
 import com.questua.app.presentation.exploration.worldmap.WorldMapScreen
 import com.questua.app.presentation.hub.HubScreen
+import com.questua.app.presentation.navigation.Screen // Importante: Importar a classe Screen
 import com.questua.app.presentation.profile.ProfileScreen
 import com.questua.app.presentation.progress.ProgressScreen
 
@@ -48,8 +49,25 @@ fun MainScreen(
         ) {
             when (currentTab) {
                 HubTab.HOME -> {
+                    // --- ROTEAMENTO DA HUB CORRIGIDO ---
                     HubScreen(
-                        onNavigateToLanguages = onNavigateToLanguages
+                        onNavigateToLanguages = onNavigateToLanguages,
+                        // Navegar para uma Quest específica (ex: "Continuar Jornada")
+                        onNavigateToQuest = { questId ->
+                            navController.navigate(Screen.QuestIntro.passId(questId))
+                        },
+                        // Navegar para tela de desbloqueio (Se o conteúdo estiver bloqueado)
+                        onNavigateToUnlock = { contentId, contentType ->
+                            navController.navigate(Screen.UnlockPreview.passArgs(contentId, contentType))
+                        },
+                        // Navegar para o conteúdo (Cidade ou Quest) a partir das "Novidades"
+                        onNavigateToContent = { contentId, contentType ->
+                            when (contentType) {
+                                "CITY" -> onNavigateToCity(contentId) // Usa o callback existente da MainScreen
+                                "QUEST" -> navController.navigate(Screen.QuestIntro.passId(contentId))
+                                else -> { /* Lidar com outros tipos se necessário */ }
+                            }
+                        }
                     )
                 }
                 HubTab.MAP -> {

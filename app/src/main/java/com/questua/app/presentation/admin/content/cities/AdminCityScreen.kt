@@ -11,8 +11,11 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.navigation.NavController
 import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.presentation.navigation.Screen
@@ -22,6 +25,22 @@ import com.questua.app.presentation.navigation.Screen
 fun AdminCityScreen(navController: NavController, viewModel: AdminCityViewModel = hiltViewModel()) {
     val state = viewModel.state
     var showCreate by remember { mutableStateOf(false) }
+
+    // --- HOT RELOAD FIX ---
+    // Monitora o ciclo de vida da tela. Se voltar de um detalhe ou edição, recarrega a lista.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshAll()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+    // -----------------------
 
     Scaffold(
         topBar = {
@@ -41,7 +60,9 @@ fun AdminCityScreen(navController: NavController, viewModel: AdminCityViewModel 
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 trailingIcon = { Icon(Icons.Default.Search, null) }
             )
+
             if (state.isLoading) LinearProgressIndicator(Modifier.fillMaxWidth())
+
             LazyColumn(Modifier.fillMaxSize()) {
                 items(state.cities) { city ->
                     ListItem(

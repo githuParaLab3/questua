@@ -1,9 +1,13 @@
 package com.questua.app.presentation.progress
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -12,11 +16,17 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.questua.app.core.ui.components.LoadingSpinner
+
+// Cor Dourada Padrão (Consistente com outras telas)
+val QuestuaGold = Color(0xFFFFC107)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,21 +38,43 @@ fun ProgressScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Seu Progresso", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        "Seu Progresso",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
         ) {
+            // Fundo Gradiente Sutil no Topo
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                QuestuaGold.copy(alpha = 0.05f),
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
+                    )
+            )
+
             if (state.isLoading && state.userLanguage == null) {
-                LoadingSpinner()
+                LoadingSpinner(modifier = Modifier.align(Alignment.Center))
             } else {
                 val userLang = state.userLanguage
                 val isGlobal = state.filter == ProgressFilter.GLOBAL
@@ -52,7 +84,7 @@ fun ProgressScreen(
                 val level = if (isGlobal) state.globalLevel else userLang?.gamificationLevel ?: 1
 
                 val streakValue = if (isGlobal) state.globalStreak else userLang?.streakDays ?: 0
-                val streakTitle = if (isGlobal) "Melhor Ofensiva" else "Ofensiva"
+                val streakTitle = if (isGlobal) "Melhor Ofensiva" else "Ofensiva Atual"
                 val streakSubtitle = if (isGlobal && state.bestStreakLanguageName != null)
                     "em ${state.bestStreakLanguageName}"
                 else "dias seguidos"
@@ -62,10 +94,11 @@ fun ProgressScreen(
                 val citiesUnlocked = if (isGlobal) state.globalCitiesCount else state.activeCitiesCount
 
                 LazyColumn(
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
+                    // --- Filtro ---
                     item {
                         ProgressFilterSegmentedButton(
                             currentFilter = state.filter,
@@ -73,17 +106,19 @@ fun ProgressScreen(
                         )
                     }
 
+                    // --- Título da Seção ---
                     item {
-                        val title = if (isGlobal) "Estatísticas Globais" else "Estatísticas em ${state.languageDetails?.name ?: "seu idioma atual"}"
+                        val title = if (isGlobal) "Estatísticas Globais" else "Em ${state.languageDetails?.name ?: "Andamento"}"
                         val subtitle = if (isGlobal)
-                            "Total acumulado em todas as suas jornadas."
+                            "Resumo de todas as suas jornadas."
                         else
-                            "Total acumulado neste idioma."
+                            "Progresso focado neste idioma."
 
                         Column {
                             Text(
                                 text = title,
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onBackground
                             )
                             Text(
                                 text = subtitle,
@@ -93,10 +128,10 @@ fun ProgressScreen(
                         }
                     }
 
-                    // Grid de Estatísticas (3 Linhas x 2 Colunas)
+                    // --- Grid de Estatísticas ---
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            // Linha 1: Nível e XP
+                            // Linha 1: Nível e XP (Destaque)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -105,13 +140,15 @@ fun ProgressScreen(
                                     icon = Icons.Default.Star,
                                     title = "Nível",
                                     value = level.toString(),
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    accentColor = QuestuaGold
                                 )
                                 StatCard(
                                     icon = Icons.Default.Bolt,
                                     title = "XP Total",
                                     value = xp.toString(),
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    accentColor = QuestuaGold
                                 )
                             }
 
@@ -123,20 +160,22 @@ fun ProgressScreen(
                                 StatCard(
                                     icon = Icons.Default.LocalFireDepartment,
                                     title = streakTitle,
-                                    value = "$streakValue dias",
+                                    value = "$streakValue",
                                     subtitle = streakSubtitle,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    accentColor = Color(0xFFFF5722) // Laranja para fogo
                                 )
                                 StatCard(
                                     icon = Icons.Default.LocationCity,
                                     title = "Cidades",
                                     value = "$citiesUnlocked",
                                     subtitle = "Desbloqueadas",
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    accentColor = MaterialTheme.colorScheme.primary
                                 )
                             }
 
-                            // Linha 3: Missões e Pontos de Quest
+                            // Linha 3: Missões e Pontos
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -146,35 +185,68 @@ fun ProgressScreen(
                                     title = "Missões",
                                     value = "$questsCompleted",
                                     subtitle = "Completas",
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    accentColor = MaterialTheme.colorScheme.secondary
                                 )
                                 StatCard(
                                     icon = Icons.Default.Place,
                                     title = "Pontos",
                                     value = "$questPointsUnlocked",
                                     subtitle = "Visitados",
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier.weight(1f),
+                                    accentColor = MaterialTheme.colorScheme.tertiary
                                 )
                             }
                         }
                     }
 
+                    // --- Conquistas ---
                     item {
-                        val achievementsTitle = if (isGlobal) "Todas as Conquistas" else "Conquistas neste Idioma"
-                        Text(
-                            text = "$achievementsTitle (${state.achievements.size})",
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-                            modifier = Modifier.padding(top = 8.dp, bottom = 12.dp)
-                        )
+                        Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val achievementsTitle = if (isGlobal) "Todas as Conquistas" else "Conquistas Locais"
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .width(4.dp)
+                                    .height(24.dp)
+                                    .background(QuestuaGold, RoundedCornerShape(2.dp))
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "$achievementsTitle (${state.achievements.size})",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
                     }
 
                     if (state.achievements.isEmpty()) {
                         item {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(24.dp),
-                                contentAlignment = Alignment.Center
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                             ) {
-                                Text("Nenhuma conquista encontrada.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Box(
+                                    modifier = Modifier.padding(32.dp).fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            Icons.Default.EmojiEvents,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                            modifier = Modifier.size(48.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            "Nenhuma conquista desbloqueada ainda.",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
                             }
                         }
                     } else {
@@ -190,10 +262,14 @@ fun ProgressScreen(
             state.error?.let {
                 AlertDialog(
                     onDismissRequest = { },
-                    title = { Text("Erro de Carregamento") },
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    title = { Text("Erro de Carregamento", fontWeight = FontWeight.Bold) },
                     text = { Text(it) },
                     confirmButton = {
-                        TextButton(onClick = { state.userLanguage?.userId?.let { viewModel.loadProgressData(it) } }) {
+                        Button(
+                            onClick = { state.userLanguage?.userId?.let { viewModel.loadProgressData(it) } },
+                            colors = ButtonDefaults.buttonColors(containerColor = QuestuaGold, contentColor = Color.Black)
+                        ) {
                             Text("Tentar Novamente")
                         }
                     }
@@ -209,47 +285,62 @@ fun StatCard(
     title: String,
     value: String,
     subtitle: String? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    accentColor: Color = MaterialTheme.colorScheme.primary
 ) {
     Card(
-        modifier = modifier.height(110.dp),
+        modifier = modifier.height(130.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)),
+        shape = RoundedCornerShape(20.dp)
     ) {
         Column(
-            modifier = Modifier.padding(16.dp).fillMaxSize(),
-            verticalArrangement = Arrangement.Center
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
+            // Header: Icone e Título
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(accentColor.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = value,
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            if (subtitle != null) {
+            // Value
+            Column {
                 Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    text = value,
+                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    )
+                }
             }
         }
     }
@@ -258,32 +349,51 @@ fun StatCard(
 @Composable
 fun AchievementItem(achievement: ProgressAchievementUiModel) {
     Card(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(2.dp),
+        shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = Icons.Default.EmojiEvents,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.size(36.dp)
-            )
+            // Ícone da Conquista
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(QuestuaGold.copy(alpha = 0.1f))
+                    .border(1.dp, QuestuaGold.copy(alpha = 0.3f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = QuestuaGold,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.width(16.dp))
+
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = achievement.name,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Medium)
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
-                // Formatação manual da data: YYYY-MM-DD -> DD-MM-YYYY
                 val rawDate = achievement.userAchievement.awardedAt.take(10)
                 val formattedDate = try {
                     if (rawDate.contains("-") && rawDate.length == 10) {
                         val parts = rawDate.split("-")
-                        "${parts[2]}-${parts[1]}-${parts[0]}" // DD-MM-YYYY
+                        "${parts[2]}/${parts[1]}/${parts[0]}" // DD/MM/YYYY
                     } else {
                         rawDate
                     }
@@ -292,12 +402,19 @@ fun AchievementItem(achievement: ProgressAchievementUiModel) {
                 }
 
                 Text(
-                    text = "Conquistado em: $formattedDate",
+                    text = "Desbloqueado em $formattedDate",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
             }
-            Icon(Icons.Default.Check, contentDescription = "Conquistado", tint = MaterialTheme.colorScheme.primary)
+
+            // Checkmark
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = "Conquistado",
+                tint = Color(0xFF4CAF50), // Verde Sucesso
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -308,14 +425,25 @@ fun ProgressFilterSegmentedButton(
     currentFilter: ProgressFilter,
     onFilterChange: (ProgressFilter) -> Unit
 ) {
-    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+    SingleChoiceSegmentedButtonRow(
+        modifier = Modifier.fillMaxWidth()
+    ) {
         ProgressFilter.entries.forEachIndexed { index, filter ->
             SegmentedButton(
                 shape = SegmentedButtonDefaults.itemShape(index = index, count = ProgressFilter.entries.size),
                 onClick = { onFilterChange(filter) },
-                selected = filter == currentFilter
+                selected = filter == currentFilter,
+                colors = SegmentedButtonDefaults.colors(
+                    activeContainerColor = QuestuaGold.copy(alpha = 0.2f),
+                    activeContentColor = MaterialTheme.colorScheme.onSurface,
+                    activeBorderColor = QuestuaGold,
+                    inactiveContainerColor = MaterialTheme.colorScheme.surface
+                )
             ) {
-                Text(if (filter == ProgressFilter.GLOBAL) "Global" else "Idioma Ativo")
+                Text(
+                    text = if (filter == ProgressFilter.GLOBAL) "Global" else "Idioma Ativo",
+                    fontWeight = if (filter == currentFilter) FontWeight.Bold else FontWeight.Normal
+                )
             }
         }
     }

@@ -1,5 +1,6 @@
 package com.questua.app.presentation.exploration.questpoint
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,29 +21,28 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.core.ui.components.LoadingSpinner
-import com.questua.app.core.ui.theme.Amber500
-import com.questua.app.core.ui.theme.Green500
-import com.questua.app.core.ui.theme.Slate200
-import com.questua.app.core.ui.theme.Slate500
 
-@OptIn(ExperimentalMaterial3Api::class)
+val QuestuaGold = Color(0xFFFFC107)
+
 @Composable
 fun QuestPointScreen(
     onNavigateBack: () -> Unit,
     onQuestClick: (String) -> Unit,
-    onNavigateToUnlock: (String, String) -> Unit, // Novo callback para desbloqueio
+    onNavigateToUnlock: (String, String) -> Unit,
     viewModel: QuestPointViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -53,41 +53,28 @@ fun QuestPointScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(text = "") },
-                navigationIcon = {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.4f),
-                            contentColor = Color.White
-                        )
-                    ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
-                )
-            )
-        }
+        containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
             if (state.isLoading) {
                 LoadingSpinner(modifier = Modifier.align(Alignment.Center))
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 24.dp)
+                    contentPadding = PaddingValues(bottom = 32.dp)
                 ) {
-                    // Header com Imagem e Informações do Ponto
+                    // --- HEADER IMERSIVO ---
                     item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(300.dp)
+                                .height(380.dp) // Aumentado para 380dp para dar mais área visual
                         ) {
+                            // Imagem de Fundo
                             state.questPoint?.let { point ->
                                 AsyncImage(
                                     model = ImageRequest.Builder(context)
@@ -98,16 +85,24 @@ fun QuestPointScreen(
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
-                            }
+                            } ?: Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                            )
 
-                            // Gradiente Overlay
+                            // Gradiente Overlay (Mais forte no fundo para contraste)
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .background(
                                         Brush.verticalGradient(
-                                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
-                                            startY = 300f
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                Color.Black.copy(alpha = 0.3f),
+                                                Color.Black.copy(alpha = 0.95f)
+                                            ),
+                                            startY = 150f
                                         )
                                     )
                             )
@@ -116,93 +111,147 @@ fun QuestPointScreen(
                             Column(
                                 modifier = Modifier
                                     .align(Alignment.BottomStart)
-                                    .padding(16.dp)
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 24.dp)
+                                    // LIMITADOR DE ALTURA:
+                                    // Garante que o texto nunca suba além de 280dp (deixando 100dp livres no topo para o botão voltar)
+                                    .heightIn(max = 280.dp)
                             ) {
+                                // Badge
+                                Surface(
+                                    color = QuestuaGold,
+                                    shape = RoundedCornerShape(4.dp),
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                ) {
+                                    Text(
+                                        text = "LOCAL DE EXPLORAÇÃO",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.Black,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+
                                 Text(
-                                    text = state.questPoint?.title ?: "Local Desconhecido",
-                                    style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = Color.White
+                                    text = state.questPoint?.title ?: "Carregando...",
+                                    style = MaterialTheme.typography.displaySmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        shadow = androidx.compose.ui.graphics.Shadow(
+                                            color = Color.Black.copy(alpha = 0.8f),
+                                            blurRadius = 12f
+                                        )
+                                    ),
+                                    color = Color.White,
+                                    maxLines = 3, // Limita linhas para não quebrar o layout
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
                                 Text(
                                     text = state.questPoint?.description ?: "",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White.copy(alpha = 0.8f)
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    maxLines = 3,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                            }
-                        }
-                    }
 
-                    // Barra de Progresso Geral
-                    item {
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                // Barra de Progresso
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Text(
-                                        text = "Progresso da Exploração",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
+                                    LinearProgressIndicator(
+                                        progress = { state.totalProgressPercent },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .height(6.dp)
+                                            .clip(RoundedCornerShape(3.dp)),
+                                        color = QuestuaGold,
+                                        trackColor = Color.White.copy(alpha = 0.2f),
                                     )
+                                    Spacer(modifier = Modifier.width(12.dp))
                                     Text(
                                         text = "${(state.totalProgressPercent * 100).toInt()}%",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = MaterialTheme.colorScheme.primary
+                                        style = MaterialTheme.typography.labelLarge,
+                                        fontWeight = FontWeight.Bold,
+                                        color = QuestuaGold
                                     )
                                 }
-                                Spacer(modifier = Modifier.height(8.dp))
-                                LinearProgressIndicator(
-                                    progress = { state.totalProgressPercent },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(8.dp)
-                                        .clip(RoundedCornerShape(4.dp)),
-                                    color = MaterialTheme.colorScheme.primary,
-                                    trackColor = MaterialTheme.colorScheme.surfaceDim,
-                                )
                             }
                         }
                     }
 
-                    // Lista de Missões
+                    // --- ESPAÇAMENTO ENTRE IMAGEM E MISSÕES ---
                     item {
-                        Text(
-                            text = "Missões Disponíveis",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
+                        Spacer(modifier = Modifier.height(32.dp))
                     }
 
+                    // --- Título da Seção ---
+                    item {
+                        PaddingValues(horizontal = 24.dp, vertical = 8.dp).let {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(4.dp)
+                                        .height(24.dp)
+                                        .background(QuestuaGold, RoundedCornerShape(2.dp))
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "Missões da Área",
+                                    style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                    }
+
+                    // --- Lista de Missões ---
                     items(state.quests) { questItem ->
                         QuestItemCard(
                             item = questItem,
                             onClick = {
                                 if (questItem.status == QuestStatus.LOCKED) {
-                                    // Se bloqueado, vai para a tela de preview de desbloqueio
                                     onNavigateToUnlock(questItem.quest.id, "QUEST")
                                 } else {
-                                    // Se disponível, vai para o jogo/intro
                                     onQuestClick(questItem.quest.id)
                                 }
                             }
                         )
                     }
                 }
+
+                // --- BOTÃO VOLTAR FLUTUANTE ---
+                // Mantido fora da LazyColumn para ficar fixo no topo
+                SmallFloatingActionButton(
+                    onClick = onNavigateBack,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(top = 48.dp, start = 24.dp),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    elevation = FloatingActionButtonDefaults.elevation(4.dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                }
             }
 
             // Tratamento de Erro
             state.error?.let {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = it, color = MaterialTheme.colorScheme.error)
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+                    ) {
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(16.dp)
+                        )
+                    }
                 }
             }
         }
@@ -214,25 +263,29 @@ fun QuestItemCard(
     item: QuestItemState,
     onClick: () -> Unit
 ) {
-    val containerColor = when (item.status) {
-        QuestStatus.LOCKED -> Slate200.copy(alpha = 0.5f)
-        QuestStatus.COMPLETED -> Green500.copy(alpha = 0.1f)
-        else -> MaterialTheme.colorScheme.surface
+    val isLocked = item.status == QuestStatus.LOCKED
+    val isCompleted = item.status == QuestStatus.COMPLETED
+    val isAvailable = item.status == QuestStatus.AVAILABLE || item.status == QuestStatus.IN_PROGRESS
+
+    val containerColor = MaterialTheme.colorScheme.surface
+    val borderColor = when {
+        isCompleted -> Color(0xFF4CAF50)
+        isAvailable -> QuestuaGold
+        else -> Color.Transparent
     }
 
-    val contentColor = when (item.status) {
-        QuestStatus.LOCKED -> Slate500
-        else -> MaterialTheme.colorScheme.onSurface
-    }
+    val alpha = if (isLocked) 0.6f else 1f
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clickable(onClick = onClick), // Removida a verificação 'enabled', agora sempre clicável
-        shape = RoundedCornerShape(12.dp),
+            .padding(horizontal = 24.dp, vertical = 8.dp)
+            .alpha(alpha)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (item.status == QuestStatus.LOCKED) 0.dp else 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isLocked) 0.dp else 2.dp),
+        border = if (isAvailable || isCompleted) BorderStroke(1.dp, borderColor.copy(alpha = 0.5f)) else null
     ) {
         Row(
             modifier = Modifier
@@ -240,29 +293,32 @@ fun QuestItemCard(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Ícone de Status
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(48.dp)
                     .clip(CircleShape)
                     .background(
-                        when (item.status) {
-                            QuestStatus.COMPLETED -> Green500
-                            QuestStatus.LOCKED -> Slate500
-                            QuestStatus.IN_PROGRESS -> Amber500
-                            QuestStatus.AVAILABLE -> MaterialTheme.colorScheme.primary
+                        when {
+                            isCompleted -> Color(0xFFE8F5E9)
+                            isLocked -> MaterialTheme.colorScheme.surfaceVariant
+                            else -> QuestuaGold.copy(alpha = 0.1f)
                         }
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = when (item.status) {
-                        QuestStatus.COMPLETED -> Icons.Default.Check
-                        QuestStatus.LOCKED -> Icons.Default.Lock
+                    imageVector = when {
+                        isCompleted -> Icons.Default.Check
+                        isLocked -> Icons.Default.Lock
                         else -> Icons.Default.PlayArrow
                     },
                     contentDescription = null,
-                    tint = Color.White
+                    tint = when {
+                        isCompleted -> Color(0xFF2E7D32)
+                        isLocked -> MaterialTheme.colorScheme.onSurfaceVariant
+                        else -> QuestuaGold
+                    },
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
@@ -272,31 +328,49 @@ fun QuestItemCard(
                 Text(
                     text = item.quest.title,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = contentColor
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = "XP: ${item.quest.xpValue}",
+                    text = if (isLocked) "Bloqueado" else "${item.quest.xpValue} XP",
                     style = MaterialTheme.typography.bodySmall,
-                    color = contentColor.copy(alpha = 0.7f)
+                    color = if (isLocked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
-            // Score se completado
-            if (item.status == QuestStatus.COMPLETED || item.status == QuestStatus.IN_PROGRESS) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
-                        tint = Amber500,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${item.userScore}",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+            if (isCompleted || item.status == QuestStatus.IN_PROGRESS) {
+                Surface(
+                    shape = RoundedCornerShape(50),
+                    color = QuestuaGold.copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, QuestuaGold.copy(alpha = 0.3f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Star,
+                            contentDescription = null,
+                            tint = QuestuaGold,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${item.userScore}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
+            } else if (isAvailable) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }

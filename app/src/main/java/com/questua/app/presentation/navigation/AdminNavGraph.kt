@@ -7,7 +7,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import androidx.navigation.navigation
 import com.questua.app.presentation.admin.AdminGeneralManagementScreen
-import com.questua.app.presentation.admin.content.ContentDetailScreen
 import com.questua.app.presentation.admin.content.achievements.AdminAchievementDetailScreen
 import com.questua.app.presentation.admin.content.achievements.AdminAchievementScreen
 import com.questua.app.presentation.admin.content.ai.AiContentGenerationScreen
@@ -48,18 +47,6 @@ fun NavGraphBuilder.adminNavGraph(navController: NavHostController) {
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 }
-            )
-        }
-
-        composable(
-            route = Screen.AdminContentDetail.route,
-            arguments = listOf(navArgument("contentType") { type = NavType.StringType })
-        ) { backStackEntry ->
-            val contentType = backStackEntry.arguments?.getString("contentType") ?: ""
-            ContentDetailScreen(
-                navController = navController,
-                contentType = contentType,
-                onNavigateBack = { navController.popBackStack() }
             )
         }
 

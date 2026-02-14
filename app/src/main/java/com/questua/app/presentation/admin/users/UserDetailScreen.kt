@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,13 +18,15 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +48,7 @@ import com.questua.app.domain.model.Language
 import com.questua.app.domain.model.UserAccount
 import java.io.File
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UserDetailScreen(
@@ -62,109 +66,182 @@ fun UserDetailScreen(
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Detalhes do Usuário", fontWeight = FontWeight.Bold) },
+                title = { }, // Título vazio, pois a info está no conteúdo
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Gradiente de Fundo
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                QuestuaGold.copy(alpha = 0.2f),
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
+                    )
+            )
+
             if (state.isLoading) {
-                LoadingSpinner()
+                LoadingSpinner(modifier = Modifier.align(Alignment.Center))
             } else {
                 state.user?.let { user ->
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
+                            .padding(padding)
                             .verticalScroll(rememberScrollState())
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                            .padding(horizontal = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        val avatarModifier = Modifier
-                            .size(100.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
-
-                        if (!user.avatarUrl.isNullOrBlank()) {
-                            QuestuaAsyncImage(
-                                imageUrl = user.avatarUrl.toFullImageUrl(),
-                                contentDescription = null,
-                                modifier = avatarModifier,
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = avatarModifier
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
+                        // Avatar com borda dourada
+                        Box(
+                            modifier = Modifier
+                                .size(120.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surface)
+                                .border(4.dp, QuestuaGold, CircleShape)
+                        ) {
+                            if (!user.avatarUrl.isNullOrBlank()) {
+                                QuestuaAsyncImage(
+                                    imageUrl = user.avatarUrl.toFullImageUrl(),
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(QuestuaGold.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Text(
                                         text = user.displayName.firstOrNull()?.toString()?.uppercase() ?: "",
-                                        style = MaterialTheme.typography.displaySmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                        style = MaterialTheme.typography.displayMedium,
+                                        color = QuestuaGold.copy(alpha = 0.8f),
+                                        fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
                         }
 
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(user.displayName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                            Text(user.email, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text(
+                            text = user.displayName,
+                            style = MaterialTheme.typography.headlineSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            Text(
+                                text = user.email,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
                         }
 
-                        ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text("INFORMAÇÕES", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                                DetailItem("ID do Usuário", user.id.take(12) + "...")
-                                DetailItem("Cargo", user.role.name)
+                        Spacer(modifier = Modifier.height(32.dp))
 
-                                val languageName = state.availableLanguages
-                                    .find { it.id == user.nativeLanguageId }?.name ?: "N/A"
-                                DetailItem("Idioma Nativo", languageName)
+                        // Card de Informações Detalhadas
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(24.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                Text(
+                                    "DADOS DA CONTA",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = QuestuaGold,
+                                    fontWeight = FontWeight.Bold
+                                )
 
-                                DetailItem("Criado em", user.createdAt.take(10))
-                                DetailItem("Atividade", user.lastActiveAt?.take(10) ?: "N/A")
+                                DetailRow("ID do Usuário", user.id)
+                                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                DetailRow("Nível de Acesso", user.role.name)
+                                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+
+                                val languageName = state.availableLanguages.find { it.id == user.nativeLanguageId }?.name ?: "Desconhecido"
+                                DetailRow("Idioma Nativo", languageName)
+
+                                Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                                DetailRow("Data de Cadastro", user.createdAt.take(10))
+                                DetailRow("Último Acesso", user.lastActiveAt?.take(10) ?: "Nunca")
                             }
                         }
 
-                        Spacer(Modifier.weight(1f))
+                        Spacer(modifier = Modifier.height(32.dp))
 
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            QuestuaButton(
-                                text = "Editar",
-                                onClick = { showEditDialog = true },
-                                modifier = Modifier.weight(1f)
-                            )
+                        // Botões de Ação
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
                             Button(
-                                onClick = { showDeleteDialog = true },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                                ),
+                                onClick = { showEditDialog = true },
                                 modifier = Modifier.weight(1f).height(50.dp),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = QuestuaGold,
+                                    contentColor = Color.Black
+                                )
+                            ) {
+                                Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("EDITAR", fontWeight = FontWeight.Bold)
+                            }
+
+                            OutlinedButton(
+                                onClick = { showDeleteDialog = true },
+                                modifier = Modifier.weight(1f).height(50.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = MaterialTheme.colorScheme.error
+                                ),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f))
                             ) {
                                 Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Excluir")
+                                Text("EXCLUIR", fontWeight = FontWeight.Bold)
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(32.dp))
                     }
                 }
             }
         }
+
         state.error?.let {
             ErrorDialog(message = it, onDismiss = { viewModel.clearError() })
         }
     }
 
+    // Diálogos mantidos com lógica similar, apenas ajustando cores se necessário
     if (showEditDialog && state.user != null) {
         EditUserDialog(
             user = state.user!!,
@@ -180,31 +257,45 @@ fun UserDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Excluir Usuário") },
-            text = { Text("Tem certeza que deseja excluir '${state.user?.displayName}'? Esta ação é irreversível.") },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("Excluir Usuário", fontWeight = FontWeight.Bold) },
+            text = { Text("Tem certeza que deseja excluir '${state.user?.displayName}'? Esta ação é irreversível e removerá todos os dados associados.") },
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         viewModel.deleteUser()
                         showDeleteDialog = false
                     },
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text("Excluir")
+                    Text("Excluir Definitivamente", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) { Text("Cancelar") }
-            }
+            },
+            shape = RoundedCornerShape(24.dp)
         )
     }
 }
 
 @Composable
-private fun DetailItem(label: String, value: String) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+private fun DetailRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
@@ -234,16 +325,19 @@ fun EditUserDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Editar Usuário") },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text("Editar Perfil", fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(modifier = Modifier.size(80.dp).clickable {
-                    photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                }) {
+                Box(
+                    modifier = Modifier.size(100.dp).clickable {
+                        photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }
+                ) {
                     val modelToRender = selectedImageUri ?: user.avatarUrl?.toFullImageUrl()
 
                     AsyncImage(
@@ -256,29 +350,29 @@ fun EditUserDialog(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(CircleShape)
-                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                            .border(2.dp, QuestuaGold, CircleShape),
                         contentScale = ContentScale.Crop
                     )
 
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .size(24.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
-                            .border(1.dp, MaterialTheme.colorScheme.background, CircleShape),
+                            .size(32.dp)
+                            .background(QuestuaGold, CircleShape)
+                            .border(2.dp, MaterialTheme.colorScheme.surface, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             Icons.Default.CameraAlt,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(14.dp)
+                            tint = Color.Black,
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
 
-                QuestuaTextField(value = name, onValueChange = { name = it }, label = "Nome")
-                QuestuaTextField(value = email, onValueChange = { email = it }, label = "Email")
+                QuestuaTextField(value = name, onValueChange = { name = it }, label = "Nome", leadingIcon = Icons.Default.Person)
+                QuestuaTextField(value = email, onValueChange = { email = it }, label = "Email", leadingIcon = Icons.Default.Email)
 
                 ExposedDropdownMenuBox(
                     expanded = expanded,
@@ -291,7 +385,11 @@ fun EditUserDialog(
                         readOnly = true,
                         label = { Text("Idioma Nativo") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                        modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = QuestuaGold,
+                            focusedLabelColor = QuestuaGold
+                        )
                     )
                     ExposedDropdownMenu(
                         expanded = expanded,
@@ -313,16 +411,25 @@ fun EditUserDialog(
                     value = password,
                     onValueChange = { password = it },
                     label = "Nova Senha (Opcional)",
-                    placeholder = "Deixe em branco para manter"
+                    placeholder = "Em branco para manter",
+                    isPassword = true
                 )
 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    UserRole.entries.forEach { r ->
-                        FilterChip(
-                            selected = role == r,
-                            onClick = { role = r },
-                            label = { Text(r.name) }
-                        )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text("Nível de Acesso", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        UserRole.entries.forEach { r ->
+                            FilterChip(
+                                selected = role == r,
+                                onClick = { role = r },
+                                label = { Text(r.name) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = QuestuaGold,
+                                    selectedLabelColor = Color.Black
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -335,13 +442,16 @@ fun EditUserDialog(
                         onConfirm(name, email, role, it.id, password, file)
                     }
                 },
-                enabled = name.isNotBlank() && email.isNotBlank()
+                enabled = name.isNotBlank() && email.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = QuestuaGold, contentColor = Color.Black)
             ) {
-                Text("Salvar")
+                Text("SALVAR ALTERAÇÕES", fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
+            TextButton(onClick = onDismiss, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
+                Text("CANCELAR")
+            }
         }
     )
 }

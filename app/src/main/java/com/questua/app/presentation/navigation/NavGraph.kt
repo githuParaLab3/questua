@@ -1,6 +1,8 @@
 package com.questua.app.presentation.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -17,7 +19,9 @@ import com.questua.app.presentation.game.QuestIntroScreen
 import com.questua.app.presentation.game.QuestResultScreen
 import com.questua.app.presentation.languages.LanguagesListScreen
 import com.questua.app.presentation.main.MainScreen
+import com.questua.app.presentation.monetization.PaymentScreen
 import com.questua.app.presentation.monetization.UnlockPreviewScreen
+import com.questua.app.presentation.monetization.UnlockPreviewViewModel
 import com.questua.app.presentation.onboarding.LanguageSelectionScreen
 import com.questua.app.presentation.profile.FeedbackScreen
 import com.questua.app.presentation.profile.HelpScreen
@@ -179,19 +183,65 @@ fun SetupNavGraph(
             )
         }
 
+        // =====================================================================
+        // CORREÇÃO E NOVO FLUXO DE PAGAMENTO
+        // =====================================================================
+
         composable(
             route = Screen.UnlockPreview.route,
             arguments = listOf(
                 navArgument("contentId") { type = NavType.StringType },
                 navArgument("contentType") { type = NavType.StringType }
             )
-        ) {
+        ) { backStackEntry ->
+            // Recupera o ViewModel aqui para poder chamar o refresh()
+            val viewModel: UnlockPreviewViewModel = hiltViewModel()
+
+            // Observa se voltamos do pagamento com sucesso
+            val paymentSuccess = backStackEntry.savedStateHandle.get<Boolean>("payment_success")
+            LaunchedEffect(paymentSuccess) {
+                if (paymentSuccess == true) {
+                    viewModel.refresh()
+                    // Limpa o estado para não rodar novamente à toa
+                    backStackEntry.savedStateHandle.remove<Boolean>("payment_success")
+                }
+            }
+
             UnlockPreviewScreen(
+                viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onUnlockSuccess = { navController.popBackStack() }
+                // Atualizado para receber productId e userId e navegar para Payment
+                onNavigateToPayment = { productId, userId ->
+                    navController.navigate(Screen.Payment.createRoute(productId, userId))
+                }
             )
         }
 
+        composable(
+            route = Screen.Payment.route,
+            arguments = listOf(
+                navArgument("productId") { type = NavType.StringType },
+                navArgument("userId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val productId = backStackEntry.arguments?.getString("productId") ?: ""
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+
+            PaymentScreen(
+                productId = productId,
+                userId = userId,
+                onPaymentSuccess = {
+                    // Avisa a tela anterior (UnlockPreview) que o pagamento rolou
+                    navController.previousBackStackEntry?.savedStateHandle?.set("payment_success", true)
+                    navController.popBackStack()
+                },
+                onBackClick = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // =====================================================================
 
         composable(
             route = Screen.Dialogue.route,
@@ -227,7 +277,6 @@ fun SetupNavGraph(
                     }
                 },
                 onNavigateBackToPoint = { _ ->
-
                     navController.popBackStack()
                 }
             )

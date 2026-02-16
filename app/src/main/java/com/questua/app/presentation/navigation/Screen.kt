@@ -131,4 +131,8 @@ sealed class Screen(val route: String) {
             return "quest_result_screen/$questId/$xpEarned/$correctAnswers/$totalQuestions"
         }
     }
+
+    object Payment : Screen("payment_screen/{productId}/{userId}") {
+        fun createRoute(productId: String, userId: String) = "payment_screen/$productId/$userId"
+    }
 }

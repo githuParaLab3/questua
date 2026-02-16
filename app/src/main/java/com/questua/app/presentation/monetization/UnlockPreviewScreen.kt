@@ -14,7 +14,6 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -36,16 +35,10 @@ val QuestuaGold = Color(0xFFFFC107)
 @Composable
 fun UnlockPreviewScreen(
     onNavigateBack: () -> Unit,
-    onUnlockSuccess: () -> Unit,
+    onNavigateToPayment: (String, String) -> Unit, // Callback para navegação
     viewModel: UnlockPreviewViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
-
-    LaunchedEffect(state.purchaseSuccess) {
-        if (state.purchaseSuccess) {
-            onUnlockSuccess()
-        }
-    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -74,7 +67,7 @@ fun UnlockPreviewScreen(
                         .fillMaxSize()
                         .padding(paddingValues)
                         .padding(24.dp)
-                        .verticalScroll(rememberScrollState()), // Scroll principal da tela
+                        .verticalScroll(rememberScrollState()),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(modifier = Modifier.height(24.dp))
@@ -120,8 +113,8 @@ fun UnlockPreviewScreen(
                         if (req.premiumAccess) {
                             PremiumContentSection(
                                 products = state.products,
-                                isProcessing = state.isPaymentProcessing,
-                                onBuyClick = { product -> viewModel.purchaseProduct(product) }
+                                userId = state.userId,
+                                onBuyClick = onNavigateToPayment
                             )
                         } else {
                             RequirementsList(
@@ -252,8 +245,8 @@ fun RequirementItem(text: String, isMet: Boolean, description: String) {
 @Composable
 fun PremiumContentSection(
     products: List<Product>,
-    isProcessing: Boolean,
-    onBuyClick: (Product) -> Unit
+    userId: String?,
+    onBuyClick: (String, String) -> Unit
 ) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) {
@@ -285,10 +278,13 @@ fun PremiumContentSection(
                 )
             }
         } else {
-            // FIX: Usar Column em vez de LazyColumn para evitar crash de scroll aninhado
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 products.forEach { product ->
-                    ProductCard(product, isProcessing, onBuyClick)
+                    ProductCard(
+                        product = product,
+                        userId = userId,
+                        onBuyClick = onBuyClick
+                    )
                 }
             }
         }
@@ -298,8 +294,8 @@ fun PremiumContentSection(
 @Composable
 fun ProductCard(
     product: Product,
-    isProcessing: Boolean,
-    onBuyClick: (Product) -> Unit
+    userId: String?,
+    onBuyClick: (String, String) -> Unit
 ) {
     Card(
         shape = RoundedCornerShape(16.dp),
@@ -349,8 +345,12 @@ fun ProductCard(
 
                 QuestuaButton(
                     text = "Comprar",
-                    onClick = { onBuyClick(product) },
-                    isLoading = isProcessing,
+                    onClick = {
+                        if (userId != null) {
+                            onBuyClick(product.id, userId)
+                        }
+                    },
+                    enabled = userId != null, // Desabilita se não tiver ID de usuário
                     modifier = Modifier.width(130.dp),
                     leadingIcon = Icons.Default.ShoppingCart
                 )

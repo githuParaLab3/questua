@@ -24,8 +24,7 @@ data class UnlockPreviewState(
     val requirement: UnlockRequirement? = null,
     val products: List<Product> = emptyList(),
     val userLevel: Int = 0,
-    val isPaymentProcessing: Boolean = false,
-    val purchaseSuccess: Boolean = false
+    val userId: String? = null
 )
 
 @HiltViewModel
@@ -33,7 +32,7 @@ class UnlockPreviewViewModel @Inject constructor(
     private val getUnlockPreviewUseCase: GetUnlockPreviewUseCase,
     private val paymentRepository: PaymentRepository,
     private val getUserStatsUseCase: GetUserStatsUseCase,
-    private val tokenManager: TokenManager, // Injetamos o TokenManager para pegar o ID
+    private val tokenManager: TokenManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -45,51 +44,56 @@ class UnlockPreviewViewModel @Inject constructor(
 
     init {
         loadData()
+        loadCurrentUser()
+    }
+
+    private fun loadCurrentUser() {
+        viewModelScope.launch {
+            tokenManager.userId.collectLatest { id ->
+                _state.value = _state.value.copy(userId = id)
+                if (!id.isNullOrBlank()) {
+                    fetchUserStats(id)
+                }
+            }
+        }
+    }
+
+    private fun fetchUserStats(userId: String) {
+        viewModelScope.launch {
+            getUserStatsUseCase(userId).collectLatest { result ->
+                if (result is Resource.Success) {
+                    _state.value = _state.value.copy(
+                        userLevel = result.data?.gamificationLevel ?: 0
+                    )
+                }
+            }
+        }
     }
 
     private fun loadData() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
 
-            // 1. Busca os requisitos de desbloqueio do conteúdo
-            launch {
-                getUnlockPreviewUseCase(contentId, contentType).collectLatest { result ->
-                    when (result) {
-                        is Resource.Success -> {
-                            _state.value = _state.value.copy(
-                                requirement = result.data,
-                                isLoading = false
-                            )
-                            // Se requer acesso premium, busca os produtos vinculados
-                            if (result.data?.premiumAccess == true) {
-                                fetchProducts()
-                            }
-                        }
-                        is Resource.Error -> {
-                            _state.value = _state.value.copy(
-                                error = result.message,
-                                isLoading = false
-                            )
-                        }
-                        is Resource.Loading -> {
-                            // Mantém loading true
+            getUnlockPreviewUseCase(contentId, contentType).collectLatest { result ->
+                when (result) {
+                    is Resource.Success -> {
+                        _state.value = _state.value.copy(
+                            requirement = result.data,
+                            isLoading = false
+                        )
+                        // Se requer acesso premium, busca os produtos vinculados
+                        if (result.data?.premiumAccess == true) {
+                            fetchProducts()
                         }
                     }
-                }
-            }
-
-            // 2. Busca stats do usuário (UserLanguage) usando o ID armazenado
-            launch {
-                tokenManager.userId.collectLatest { userId ->
-                    if (!userId.isNullOrBlank()) {
-                        getUserStatsUseCase(userId).collectLatest { result ->
-                            if (result is Resource.Success) {
-                                // Atualiza o nível do usuário para comparação na UI
-                                _state.value = _state.value.copy(
-                                    userLevel = result.data?.gamificationLevel ?: 0
-                                )
-                            }
-                        }
+                    is Resource.Error -> {
+                        _state.value = _state.value.copy(
+                            error = result.message,
+                            isLoading = false
+                        )
+                    }
+                    is Resource.Loading -> {
+                        _state.value = _state.value.copy(isLoading = true)
                     }
                 }
             }
@@ -106,49 +110,7 @@ class UnlockPreviewViewModel @Inject constructor(
         }
     }
 
-    fun purchaseProduct(product: Product) {
-        viewModelScope.launch {
-            _state.value = _state.value.copy(isPaymentProcessing = true)
-
-            // Pega o userId atual para iniciar o pagamento
-            tokenManager.userId.collectLatest { userId ->
-                if (userId != null) {
-                    paymentRepository.initiatePayment(userId, product.id, product.priceCents, product.currency)
-                        .collectLatest { result ->
-                            when (result) {
-                                is Resource.Success -> {
-                                    // Sucesso no início do pagamento, confirma a transação
-                                    confirmPurchase(result.data?.clientSecret ?: "")
-                                }
-                                is Resource.Error -> {
-                                    _state.value = _state.value.copy(
-                                        error = result.message,
-                                        isPaymentProcessing = false
-                                    )
-                                }
-                                is Resource.Loading -> {}
-                            }
-                        }
-                }
-            }
-        }
-    }
-
-    private fun confirmPurchase(intentId: String) {
-        viewModelScope.launch {
-            paymentRepository.confirmPayment(intentId).collectLatest { result ->
-                if (result is Resource.Success) {
-                    _state.value = _state.value.copy(
-                        isPaymentProcessing = false,
-                        purchaseSuccess = true
-                    )
-                } else if (result is Resource.Error) {
-                    _state.value = _state.value.copy(
-                        isPaymentProcessing = false,
-                        error = result.message
-                    )
-                }
-            }
-        }
+    fun refresh() {
+        loadData()
     }
 }

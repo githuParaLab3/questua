@@ -77,6 +77,8 @@ tasks.withType<KotlinCompile>().configureEach {
 dependencies {
     implementation("androidx.annotation:annotation-experimental:1.5.1")
 
+    implementation("com.stripe:stripe-android:20.48.0")
+
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

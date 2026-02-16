@@ -8,13 +8,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -22,8 +23,8 @@ import com.questua.app.core.common.URIPathHelper
 import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.model.CharacterEntity
 import com.questua.app.domain.model.Persona
-import com.questua.app.domain.model.SpriteSheet
 import com.questua.app.presentation.admin.content.dialogues.ExpandableListSection
+import com.questua.app.presentation.admin.content.dialogues.MediaPickerField
 import com.questua.app.presentation.admin.content.dialogues.SectionTitle
 import java.io.File
 
@@ -34,7 +35,7 @@ fun CharacterFormDialog(
     onDismiss: () -> Unit,
     onConfirm: (
         name: String, avatar: Any?, voice: Any?,
-        sprites: List<Any>, // Lista mista de String (URL existente) ou File (Novo upload)
+        sprites: List<Any>,
         persona: Persona?, isAi: Boolean
     ) -> Unit
 ) {
@@ -71,17 +72,25 @@ fun CharacterFormDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (character == null) "Novo Personagem" else "Editar Personagem") },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(if (character == null) "Novo Personagem" else "Editar Personagem", fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // --- INFO BÁSICA ---
+                SectionTitle("Informações Básicas")
                 QuestuaTextField(value = name, onValueChange = { name = it }, label = "Nome do Personagem")
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = isAiGenerated, onCheckedChange = { isAiGenerated = it })
+                    Checkbox(
+                        checked = isAiGenerated,
+                        onCheckedChange = { isAiGenerated = it },
+                        colors = CheckboxDefaults.colors(checkedColor = QuestuaGold, checkmarkColor = Color.Black)
+                    )
                     Text("Gerado por IA")
                 }
 
@@ -89,53 +98,57 @@ fun CharacterFormDialog(
                 SectionTitle("Assets & Mídia")
 
                 // Avatar
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = { avatarPicker.launch("image/*") }, Modifier.weight(1f)) {
-                        Icon(Icons.Default.Upload, null); Spacer(Modifier.width(8.dp))
-                        Text(if(avatar is File) "Avatar (Novo)" else if (avatar != null) "Avatar (OK)" else "Upload Avatar")
-                    }
-                }
+                MediaPickerField(
+                    label = "Avatar (Imagem)",
+                    value = avatar,
+                    icon = Icons.Default.Image,
+                    onPick = { avatarPicker.launch("image/*") },
+                    onClear = { avatar = null }
+                )
 
                 // Voice
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = { voicePicker.launch("audio/*") }, Modifier.weight(1f)) {
-                        Icon(Icons.Default.Upload, null); Spacer(Modifier.width(8.dp))
-                        Text(if(voice is File) "Voz (Novo)" else if (voice != null) "Voz (OK)" else "Upload Voz (Opcional)")
-                    }
-                    if (voice != null) {
-                        IconButton(onClick = { voice = null }) { Icon(Icons.Default.Delete, "Remover voz") }
-                    }
-                }
+                MediaPickerField(
+                    label = "Voz (Áudio)",
+                    value = voice,
+                    icon = Icons.Default.Mic,
+                    onPick = { voicePicker.launch("audio/*") },
+                    onClear = { voice = null }
+                )
 
                 // Sprite Sheet List
                 ExpandableListSection(title = "Sprite Sheet (${spriteUrls.size})", onAdd = { spritePicker.launch("image/*") }) {
                     spriteUrls.forEachIndexed { index, item ->
                         Row(
-                            Modifier.fillMaxWidth().padding(4.dp).border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp)).padding(8.dp),
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(4.dp)
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                                .padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
                                 if(item is File) "Arquivo: ${item.name.take(15)}..." else "URL: ${(item as String).takeLast(15)}",
                                 style = MaterialTheme.typography.bodySmall,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                             IconButton(onClick = { spriteUrls.removeAt(index) }, modifier = Modifier.size(24.dp)) {
-                                Icon(Icons.Default.Delete, null)
+                                Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
                 }
 
-                HorizontalDivider()
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 // --- PERSONA ---
                 SectionTitle("Persona")
                 QuestuaTextField(value = pDesc, onValueChange = { pDesc = it }, label = "Descrição")
                 QuestuaTextField(value = pBack, onValueChange = { pBack = it }, label = "Background / História")
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuestuaTextField(value = pStyle, onValueChange = { pStyle = it }, label = "Estilo de Fala", modifier = Modifier.weight(1f))
-                    QuestuaTextField(value = pTone, onValueChange = { pTone = it }, label = "Tom de Voz", modifier = Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.weight(1f)) { QuestuaTextField(value = pStyle, onValueChange = { pStyle = it }, label = "Estilo de Fala") }
+                    Box(Modifier.weight(1f)) { QuestuaTextField(value = pTone, onValueChange = { pTone = it }, label = "Tom de Voz") }
                 }
 
                 // Traits List
@@ -143,7 +156,9 @@ fun CharacterFormDialog(
                     pTraits.forEachIndexed { index, trait ->
                         Row(Modifier.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             QuestuaTextField(value = trait, onValueChange = { pTraits[index] = it }, label = "Traço ${index + 1}", modifier = Modifier.weight(1f))
-                            IconButton(onClick = { pTraits.removeAt(index) }) { Icon(Icons.Default.Delete, null) }
+                            IconButton(onClick = { pTraits.removeAt(index) }) {
+                                Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                            }
                         }
                     }
                 }
@@ -159,12 +174,18 @@ fun CharacterFormDialog(
                         voiceTone = pTone.ifBlank { null },
                         background = pBack.ifBlank { null }
                     )
-
                     onConfirm(name, avatar, voice, spriteUrls, finalPersona, isAiGenerated)
                 },
-                enabled = name.isNotBlank() && (avatar != null) // Avatar é obrigatório no modelo
-            ) { Text("Salvar") }
+                enabled = name.isNotBlank() && (avatar != null),
+                colors = ButtonDefaults.buttonColors(containerColor = QuestuaGold, contentColor = Color.Black)
+            ) { Text("Salvar", fontWeight = FontWeight.Bold) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+            ) { Text("Cancelar") }
+        },
+        shape = RoundedCornerShape(24.dp)
     )
 }

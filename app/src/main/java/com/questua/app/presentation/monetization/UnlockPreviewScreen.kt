@@ -1,10 +1,13 @@
 package com.questua.app.presentation.monetization
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
@@ -16,15 +19,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.components.QuestuaButton
 import com.questua.app.domain.model.Product
 import com.questua.app.domain.model.UnlockRequirement
+
+// Cor Dourada Padrão
+val QuestuaGold = Color(0xFFFFC107)
 
 @Composable
 fun UnlockPreviewScreen(
@@ -43,37 +50,65 @@ fun UnlockPreviewScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Gradiente de Fundo
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                QuestuaGold.copy(alpha = 0.15f),
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
+                    )
+            )
+
             if (state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                LoadingSpinner(modifier = Modifier.align(Alignment.Center))
             } else {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp),
+                        .padding(paddingValues)
+                        .padding(24.dp)
+                        .verticalScroll(rememberScrollState()), // Scroll principal da tela
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    // Ícone de Cadeado Dourado
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .background(QuestuaGold.copy(alpha = 0.1f), CircleShape)
+                            .border(1.dp, QuestuaGold.copy(alpha = 0.3f), CircleShape)
+                            .padding(24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                            tint = QuestuaGold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     Text(
                         text = "Conteúdo Bloqueado",
                         style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
                     )
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
                     Text(
-                        text = "Complete os requisitos abaixo para desbloquear este conteúdo.",
+                        text = "Complete os requisitos ou adquira acesso premium para desbloquear esta aventura.",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -98,18 +133,27 @@ fun UnlockPreviewScreen(
 
                     if (state.error != null) {
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = state.error ?: "Erro desconhecido",
-                            color = MaterialTheme.colorScheme.error
-                        )
+                        Surface(
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = state.error ?: "Erro desconhecido",
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.padding(16.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.weight(1f))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     QuestuaButton(
                         text = "Voltar",
                         onClick = onNavigateBack,
-                        isSecondary = true
+                        isSecondary = true,
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }
@@ -120,37 +164,53 @@ fun UnlockPreviewScreen(
 @Composable
 fun RequirementsList(requirement: UnlockRequirement, userLevel: Int) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Requisitos de Progresso",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 8.dp)
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .width(4.dp)
+                        .height(20.dp)
+                        .background(QuestuaGold, RoundedCornerShape(2.dp))
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "Requisitos de Progresso",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
             )
 
             requirement.requiredGamificationLevel?.let { requiredLevel ->
                 RequirementItem(
                     text = "Nível $requiredLevel",
                     isMet = userLevel >= requiredLevel,
-                    description = "Seu nível atual: $userLevel"
+                    description = if (userLevel >= requiredLevel) "Concluído (Nível atual: $userLevel)" else "Necessário subir de nível"
                 )
             }
 
             requirement.requiredCefrLevel?.let { cefr ->
                 RequirementItem(
                     text = "Nível de Idioma $cefr",
-                    isMet = false, // Implementar lógica de comparação de CEFR
+                    isMet = false,
                     description = "Necessário proficiência $cefr"
                 )
             }
 
             if (requirement.requiredQuests.isNotEmpty()) {
                 RequirementItem(
-                    text = "${requirement.requiredQuests.size} Missões Específicas",
-                    isMet = false, // Implementar verificação de missões completas
+                    text = "Completar ${requirement.requiredQuests.size} Missões",
+                    isMet = false,
                     description = "Complete as missões anteriores"
                 )
             }
@@ -169,13 +229,22 @@ fun RequirementItem(text: String, isMet: Boolean, description: String) {
         Icon(
             imageVector = if (isMet) Icons.Default.CheckCircle else Icons.Default.Lock,
             contentDescription = null,
-            tint = if (isMet) Color.Green else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (isMet) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
             modifier = Modifier.size(24.dp)
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(16.dp))
         Column {
-            Text(text = text, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-            Text(text = description, style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = if (isMet) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+            )
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isMet) Color(0xFF4CAF50) else MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -186,19 +255,41 @@ fun PremiumContentSection(
     isProcessing: Boolean,
     onBuyClick: (Product) -> Unit
 ) {
-    Text(
-        text = "Acesso Premium",
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(bottom = 16.dp)
-    )
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 16.dp)) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .height(24.dp)
+                    .background(QuestuaGold, RoundedCornerShape(2.dp))
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "Acesso Premium",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+        }
 
-    if (products.isEmpty()) {
-        Text("Nenhum produto disponível para compra.")
-    } else {
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(products) { product ->
-                ProductCard(product, isProcessing, onBuyClick)
+        if (products.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    "Nenhum produto disponível no momento.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            // FIX: Usar Column em vez de LazyColumn para evitar crash de scroll aninhado
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                products.forEach { product ->
+                    ProductCard(product, isProcessing, onBuyClick)
+                }
             }
         }
     }
@@ -211,24 +302,39 @@ fun ProductCard(
     onBuyClick: (Product) -> Unit
 ) {
     Card(
-        elevation = CardDefaults.cardElevation(4.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = BorderStroke(1.dp, QuestuaGold.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = product.title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            product.description?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(vertical = 4.dp)
-                )
+        Column(modifier = Modifier.padding(20.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = product.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    product.description?.let {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
-            Spacer(modifier = Modifier.height(12.dp))
+
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+            Spacer(modifier = Modifier.height(16.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -236,15 +342,16 @@ fun ProductCard(
             ) {
                 Text(
                     text = "${product.currency} ${(product.priceCents / 100.0)}",
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = QuestuaGold,
+                    fontWeight = FontWeight.ExtraBold
                 )
+
                 QuestuaButton(
                     text = "Comprar",
                     onClick = { onBuyClick(product) },
                     isLoading = isProcessing,
-                    modifier = Modifier.width(120.dp),
+                    modifier = Modifier.width(130.dp),
                     leadingIcon = Icons.Default.ShoppingCart
                 )
             }

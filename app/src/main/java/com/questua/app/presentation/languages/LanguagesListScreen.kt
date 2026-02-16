@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -34,6 +35,8 @@ import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.domain.model.Language
+
+val QuestuaGold = Color(0xFFFFC107)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,9 +82,8 @@ fun LanguagesListScreen(
     if (languageToAbandon != null) {
         AlertDialog(
             onDismissRequest = { languageToAbandon = null },
-            title = {
-                Text(text = "Tem certeza?")
-            },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text(text = "Tem certeza?", fontWeight = FontWeight.Bold) },
             text = {
                 Text(
                     if (languageToAbandon?.isCurrent == true)
@@ -105,14 +107,19 @@ fun LanguagesListScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { languageToAbandon = null }) {
+                TextButton(
+                    onClick = { languageToAbandon = null },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+                ) {
                     Text("Cancelar")
                 }
-            }
+            },
+            shape = RoundedCornerShape(16.dp)
         )
     }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { Text("Meus Idiomas", fontWeight = FontWeight.Bold) },
@@ -122,36 +129,44 @@ fun LanguagesListScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    titleContentColor = MaterialTheme.colorScheme.onBackground,
-                    navigationIconContentColor = MaterialTheme.colorScheme.onBackground
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
                 )
             )
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { showAddModal = true },
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+                containerColor = QuestuaGold,
+                contentColor = Color.Black,
                 icon = { Icon(Icons.Default.Add, "Adicionar") },
-                text = { Text("Aprender Novo Idioma") }
+                text = { Text("Aprender Novo Idioma", fontWeight = FontWeight.Bold) }
             )
         }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(paddingValues)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Gradiente
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                QuestuaGold.copy(alpha = 0.15f),
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
+                    )
+            )
+
             if (state.isLoading && state.languages.isEmpty()) {
-                LoadingSpinner()
+                LoadingSpinner(modifier = Modifier.align(Alignment.Center))
             } else {
-                // Verifica se há mais de 1 idioma para permitir desistência
                 val canAbandonAny = state.languages.size > 1
 
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().padding(paddingValues),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -183,12 +198,11 @@ fun LanguageCard(
     onAbandonRequest: () -> Unit
 ) {
     val isActive = item.isCurrent
-    val borderColor = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-    val containerColor = if (isActive) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surface
+    val borderColor = if (isActive) QuestuaGold else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
 
     Card(
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = Modifier
             .fillMaxWidth()
             .border(
@@ -198,7 +212,8 @@ fun LanguageCard(
             )
             .clickable(enabled = !isActive) {
                 onSelect()
-            }
+            },
+        elevation = CardDefaults.cardElevation(defaultElevation = if(isActive) 4.dp else 2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -243,16 +258,15 @@ fun LanguageCard(
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
                         contentDescription = "Idioma Atual",
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = QuestuaGold,
                         modifier = Modifier.size(32.dp)
                     )
                 }
             }
 
-            // Área de Ação (Visível se houver mais de 1 idioma, permitindo desistir mesmo do ativo)
             if (canAbandon) {
                 Spacer(modifier = Modifier.height(20.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Box(
@@ -267,7 +281,7 @@ fun LanguageCard(
                         ),
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.3f)),
                         shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth(0.85f)
+                        modifier = Modifier.fillMaxWidth(0.9f)
                     ) {
                         Icon(
                             imageVector = Icons.Default.DeleteForever,
@@ -295,7 +309,7 @@ fun AddLanguageDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
@@ -350,7 +364,7 @@ fun AddLanguageDialog(
                                 Spacer(modifier = Modifier.width(16.dp))
                                 Text(
                                     text = lang.name,
-                                    style = MaterialTheme.typography.bodyLarge,
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                                     color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
@@ -368,8 +382,8 @@ fun AddLanguageDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancelar", color = MaterialTheme.colorScheme.primary)
+                    TextButton(onClick = onDismiss, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)) {
+                        Text("Cancelar")
                     }
                 }
             }

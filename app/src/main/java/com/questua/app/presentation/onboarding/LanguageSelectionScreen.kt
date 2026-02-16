@@ -1,5 +1,6 @@
 package com.questua.app.presentation.onboarding
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,7 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -21,19 +22,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.questua.app.core.ui.components.ErrorDialog
 import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.components.QuestuaAsyncImage
-import com.questua.app.core.ui.theme.Amber500
-import com.questua.app.core.ui.theme.Slate200
-import com.questua.app.core.ui.theme.Slate50
-import com.questua.app.core.ui.theme.Slate500
-import com.questua.app.core.ui.theme.Slate800
-import com.questua.app.core.ui.theme.Slate900
-// Helper para rotação que faltava no import
-import androidx.compose.ui.draw.rotate
+
+val QuestuaGold = Color(0xFFFFC107)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,81 +38,56 @@ fun LanguageSelectionScreen(
 ) {
     val state by viewModel.state.collectAsState()
 
-    Box(modifier = Modifier.fillMaxSize().background(Slate50)) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // 1. Header Imersivo (Navy Blue)
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = { Text("Escolha seu destino", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                )
+            )
+        }
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Gradiente
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Slate900)
-                    .padding(top = 24.dp, bottom = 32.dp, start = 24.dp, end = 24.dp)
-            ) {
-                Column {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier
-                            .offset(x = (-12).dp)
-                            .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(50))
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Voltar",
-                            tint = Color.White
+                    .height(200.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                QuestuaGold.copy(alpha = 0.15f),
+                                MaterialTheme.colorScheme.background
+                            )
                         )
-                    }
+                    )
+            )
 
-                    Spacer(modifier = Modifier.height(24.dp))
+            if (state.isLoading) {
+                LoadingSpinner(modifier = Modifier.align(Alignment.Center))
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                ) {
+                    Text(
+                        text = "O que você vai aprender hoje?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)
+                    )
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .background(Amber500, RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Language,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Column {
-                            Text(
-                                text = "Escolha seu destino",
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-                            )
-                            Text(
-                                text = "O que você vai aprender hoje?",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = Slate200.copy(alpha = 0.8f)
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-
-            // 2. Lista de Idiomas (Sobreposta ao header levemente)
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .offset(y = (-20).dp) // Efeito de sobreposição
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .background(Slate50)
-                    .padding(horizontal = 24.dp)
-            ) {
-                if (state.isLoading) {
-                    LoadingSpinner(transparentBackground = true)
-                } else {
                     LazyColumn(
-                        contentPadding = PaddingValues(top = 24.dp, bottom = 24.dp),
+                        contentPadding = PaddingValues(24.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(state.languages) { language ->
@@ -145,11 +114,12 @@ fun LanguageCard(
     iconUrl: String?,
     onClick: () -> Unit
 ) {
-    Surface(
+    Card(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        shadowElevation = 4.dp, // Sombra suave
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -161,10 +131,8 @@ fun LanguageCard(
             // Bandeira / Ícone
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = Slate50,
-                modifier = Modifier
-                    .size(56.dp)
-                    .border(1.dp, Slate200, RoundedCornerShape(12.dp))
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.size(56.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     if (iconUrl != null) {
@@ -179,7 +147,7 @@ fun LanguageCard(
                             text = name.take(2).uppercase(),
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Black,
-                                color = Slate500
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         )
                     }
@@ -193,25 +161,23 @@ fun LanguageCard(
                     text = name,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        color = Slate800
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 )
                 Text(
                     text = "Clique para começar",
                     style = MaterialTheme.typography.bodySmall.copy(
-                        color = Slate500
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 )
             }
 
             // Seta indicativa
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack, // Usando ArrowBack rotacionada para simular ArrowForward se não tiver o ícone
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null,
-                modifier = Modifier.rotate(180f), // Gambiarra visual elegante se não tiver ArrowForward
-                tint = Amber500
+                tint = QuestuaGold
             )
         }
     }
 }
-

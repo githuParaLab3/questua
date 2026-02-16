@@ -23,10 +23,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.questua.app.core.ui.components.QuestuaButton
-import com.questua.app.core.ui.theme.Amber400
-import com.questua.app.core.ui.theme.Amber600
-import com.questua.app.core.ui.theme.Slate200
-import com.questua.app.core.ui.theme.Slate900
+
+val QuestuaGold = Color(0xFFFFC107)
 
 @Composable
 fun InitialScreen(
@@ -36,21 +34,24 @@ fun InitialScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // Substituído o azul sólido por um gradiente vertical profundo
+            // Gradiente estilo Questua Gold (Claro/Branco) em vez de escuro,
+            // ou mantemos o Dark se for a identidade de abertura, mas adaptado para o Gold.
+            // Aqui optei por um fundo escuro elegante que destaca o Dourado,
+            // similar ao estilo "Premium" do app.
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1E293B), // Slate 800 (Um pouco mais suave que o 900)
-                        Slate900           // Slate 900 base
+                        Color(0xFF212121), // Cinza/Preto Profundo
+                        Color.Black
                     )
                 )
             )
     ) {
-        // Elemento decorativo: Brilho de "Sol/Aventura" no topo
+        // Elemento decorativo: Brilho Dourado
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Amber400.copy(alpha = 0.08f), Color.Transparent),
+                    colors = listOf(QuestuaGold.copy(alpha = 0.15f), Color.Transparent),
                     center = Offset(size.width * 0.5f, size.height * 0.2f),
                     radius = 500.dp.toPx()
                 )
@@ -75,7 +76,7 @@ fun InitialScreen(
                             .size(110.dp)
                             .rotate(45f)
                             .background(
-                                color = Amber400.copy(alpha = 0.15f),
+                                color = QuestuaGold.copy(alpha = 0.15f),
                                 shape = RoundedCornerShape(32.dp)
                             )
                     )
@@ -86,7 +87,7 @@ fun InitialScreen(
                             .rotate(45f)
                             .background(
                                 brush = Brush.linearGradient(
-                                    colors = listOf(Amber400, Amber600)
+                                    colors = listOf(QuestuaGold, Color(0xFFFFD54F))
                                 ),
                                 shape = RoundedCornerShape(28.dp)
                             )
@@ -99,7 +100,7 @@ fun InitialScreen(
                             modifier = Modifier
                                 .size(48.dp)
                                 .rotate(-45f),
-                            tint = Slate900
+                            tint = Color.Black // Contraste com o dourado
                         )
                     }
                 }
@@ -116,13 +117,13 @@ fun InitialScreen(
                     color = Color.White
                 )
 
-                // Detalhe Amber abaixo do nome
+                // Detalhe Gold abaixo do nome
                 Box(
                     modifier = Modifier
                         .padding(top = 4.dp)
                         .height(3.dp)
                         .width(40.dp)
-                        .background(Amber400, RoundedCornerShape(50))
+                        .background(QuestuaGold, RoundedCornerShape(50))
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -135,11 +136,11 @@ fun InitialScreen(
                         fontWeight = FontWeight.Medium
                     ),
                     textAlign = TextAlign.Center,
-                    color = Slate200.copy(alpha = 0.85f)
+                    color = Color.White.copy(alpha = 0.85f)
                 )
             }
 
-            // Card Inferior Branco/Surface
+            // Card Inferior
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surface,

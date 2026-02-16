@@ -13,16 +13,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.EmojiEvents
-import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -73,131 +70,163 @@ fun HubScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onNavigateToLanguages,
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = QuestuaGold
+                containerColor = QuestuaGold, // Destaque Dourado
+                contentColor = Color.Black
             ) {
                 Icon(Icons.Default.Language, contentDescription = "Mudar Idioma")
             }
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // --- HEADER & STREAK ---
-            HeaderStats(
-                userName = state.user?.displayName ?: "Explorador",
-                userAvatar = state.user?.avatarUrl,
-                level = state.activeLanguage?.gamificationLevel ?: 1,
-                xp = state.activeLanguage?.xpTotal ?: 0,
-                modifier = Modifier.fillMaxWidth().padding(16.dp)
-            )
-
-            StreakCard(
-                streakDays = state.activeLanguage?.streakDays ?: 0,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // --- 1. CONTINUE SUA JORNADA (IN_PROGRESS) ---
-            if (state.continueJourneyQuests.isNotEmpty()) {
-                SectionTitle(title = "Continue sua Jornada")
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(state.continueJourneyQuests) { userQuest ->
-                        ContinueQuestCard(
-                            userQuest = userQuest,
-                            onClick = { onNavigateToQuest(userQuest.questId) }
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Gradiente de Fundo Global
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                QuestuaGold.copy(alpha = 0.15f),
+                                MaterialTheme.colorScheme.background
+                            )
                         )
-                    }
-                }
+                    )
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                // --- HEADER & STREAK ---
+                HeaderStats(
+                    userName = state.user?.displayName ?: "Explorador",
+                    userAvatar = state.user?.avatarUrl,
+                    level = state.activeLanguage?.gamificationLevel ?: 1,
+                    xp = state.activeLanguage?.xpTotal ?: 0,
+                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp, start = 16.dp, end = 16.dp, bottom = 8.dp)
+                )
+
+                StreakCard(
+                    streakDays = state.activeLanguage?.streakDays ?: 0,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                )
+
                 Spacer(modifier = Modifier.height(32.dp))
-            }
 
-            // --- 2. NOVIDADES (CIDADES, QUESTS, LOCAIS) ---
-            if (state.latestCities.isNotEmpty() || state.latestQuests.isNotEmpty() || state.latestQuestPoints.isNotEmpty()) {
-                SectionTitle(title = "Novidades no Questua")
-
-                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                    // Cidades
-                    if (state.latestCities.isNotEmpty()) {
-                        Text("Cidades Recentes", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom=8.dp, top = 4.dp))
-                        state.latestCities.forEach { item ->
-                            NewContentCard(
-                                title = item.city.name,
-                                imageUrl = item.city.imageUrl,
-                                icon = Icons.Default.Map,
-                                typeLabel = "CIDADE",
-                                isLocked = item.isLocked,
-                                onClick = {
-                                    if(item.isLocked) onNavigateToUnlock(item.city.id, "CITY")
-                                    else onNavigateToContent(item.city.id, "CITY")
-                                }
+                // --- 1. CONTINUE SUA JORNADA (IN_PROGRESS) ---
+                if (state.continueJourneyQuests.isNotEmpty()) {
+                    SectionTitle(title = "Continue sua Jornada")
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(state.continueJourneyQuests) { userQuest ->
+                            ContinueQuestCard(
+                                userQuest = userQuest,
+                                onClick = { onNavigateToQuest(userQuest.questId) }
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
                         }
                     }
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
 
-                    // Missões (Sem Imagem)
-                    if (state.latestQuests.isNotEmpty()) {
-                        Text("Missões Recentes", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom=8.dp, top = 12.dp))
-                        state.latestQuests.forEach { item ->
-                            NewContentCard(
-                                title = item.quest.title,
-                                imageUrl = null, // QUEST NÃO TEM IMAGEM
-                                icon = Icons.Default.Assignment, // Ícone de Fallback
-                                typeLabel = "MISSÃO",
-                                isLocked = item.isLocked,
-                                onClick = {
-                                    if(item.isLocked) onNavigateToUnlock(item.quest.id, "QUEST")
-                                    else onNavigateToContent(item.quest.id, "QUEST")
-                                }
+                // --- 2. NOVIDADES (CIDADES, QUESTS, LOCAIS) ---
+                if (state.latestCities.isNotEmpty() || state.latestQuests.isNotEmpty() || state.latestQuestPoints.isNotEmpty()) {
+                    SectionTitle(title = "Novidades no Questua")
+
+                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                        // Cidades
+                        if (state.latestCities.isNotEmpty()) {
+                            Text(
+                                "Cidades Recentes",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 8.dp, top = 4.dp)
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            state.latestCities.forEach { item ->
+                                NewContentCard(
+                                    title = item.city.name,
+                                    imageUrl = item.city.imageUrl,
+                                    icon = Icons.Default.Map,
+                                    typeLabel = "CIDADE",
+                                    isLocked = item.isLocked,
+                                    onClick = {
+                                        if (item.isLocked) onNavigateToUnlock(item.city.id, "CITY")
+                                        else onNavigateToContent(item.city.id, "CITY")
+                                    }
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+
+                        // Missões
+                        if (state.latestQuests.isNotEmpty()) {
+                            Text(
+                                "Missões Recentes",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 8.dp, top = 12.dp)
+                            )
+                            state.latestQuests.forEach { item ->
+                                NewContentCard(
+                                    title = item.quest.title,
+                                    imageUrl = null, // QUEST NÃO TEM IMAGEM
+                                    icon = Icons.Default.Assignment,
+                                    typeLabel = "MISSÃO",
+                                    isLocked = item.isLocked,
+                                    onClick = {
+                                        if (item.isLocked) onNavigateToUnlock(item.quest.id, "QUEST")
+                                        else onNavigateToContent(item.quest.id, "QUEST")
+                                    }
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
+                        }
+
+                        // Locais
+                        if (state.latestQuestPoints.isNotEmpty()) {
+                            Text(
+                                "Locais Recentes",
+                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = 8.dp, top = 12.dp)
+                            )
+                            state.latestQuestPoints.forEach { item ->
+                                NewContentCard(
+                                    title = item.point.title,
+                                    imageUrl = item.point.imageUrl,
+                                    icon = Icons.Default.Place,
+                                    typeLabel = "LOCAL",
+                                    isLocked = item.isLocked,
+                                    onClick = {
+                                        if (item.isLocked) onNavigateToUnlock(item.point.id, "QUEST_POINT")
+                                        else onNavigateToContent(item.point.id, "QUEST_POINT")
+                                    }
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                            }
                         }
                     }
+                    Spacer(modifier = Modifier.height(32.dp))
+                }
 
-                    // Locais
-                    if (state.latestQuestPoints.isNotEmpty()) {
-                        Text("Locais Recentes", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom=8.dp, top = 12.dp))
-                        state.latestQuestPoints.forEach { item ->
-                            NewContentCard(
-                                title = item.point.title,
-                                imageUrl = item.point.imageUrl,
-                                icon = Icons.Default.Place,
-                                typeLabel = "LOCAL",
-                                isLocked = item.isLocked,
-                                onClick = {
-                                    if(item.isLocked) onNavigateToUnlock(item.point.id, "QUEST_POINT")
-                                    else onNavigateToContent(item.point.id, "QUEST_POINT")
-                                }
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
+                // --- 3. NOVAS CONQUISTAS ---
+                if (state.latestSystemAchievements.isNotEmpty()) {
+                    SectionTitle(title = "Novas Conquistas")
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        items(state.latestSystemAchievements) { achievement ->
+                            SystemAchievementCard(achievement)
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(32.dp))
-            }
 
-            // --- 3. NOVAS CONQUISTAS (DO SISTEMA) ---
-            if (state.latestSystemAchievements.isNotEmpty()) {
-                SectionTitle(title = "Novas Conquistas")
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(state.latestSystemAchievements) { achievement ->
-                        SystemAchievementCard(achievement)
-                    }
-                }
+                Spacer(modifier = Modifier.height(80.dp))
             }
-
-            Spacer(modifier = Modifier.height(80.dp))
         }
     }
 }
@@ -209,7 +238,10 @@ fun SectionTitle(title: String) {
         modifier = Modifier.padding(start = 16.dp, bottom = 16.dp)
     ) {
         Box(
-            modifier = Modifier.width(4.dp).height(24.dp).background(QuestuaGold, RoundedCornerShape(2.dp))
+            modifier = Modifier
+                .width(4.dp)
+                .height(24.dp)
+                .background(QuestuaGold, RoundedCornerShape(2.dp))
         )
         Spacer(modifier = Modifier.width(12.dp))
         Text(
@@ -224,25 +256,37 @@ fun SectionTitle(title: String) {
 @Composable
 fun ContinueQuestCard(userQuest: UserQuest, onClick: () -> Unit) {
     Card(
-        modifier = Modifier.width(280.dp).height(150.dp).clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier
+            .width(280.dp)
+            .height(160.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(4.dp),
         border = BorderStroke(1.dp, QuestuaGold.copy(alpha = 0.3f))
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
+            // Gradiente Sutil no Card
             Box(
-                modifier = Modifier.fillMaxSize().background(
-                    Brush.linearGradient(
-                        colors = listOf(QuestuaGold.copy(alpha = 0.05f), MaterialTheme.colorScheme.surface)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                QuestuaGold.copy(alpha = 0.08f),
+                                MaterialTheme.colorScheme.surface
+                            )
+                        )
                     )
-                )
             )
 
             Column(
-                modifier = Modifier.padding(20.dp).fillMaxSize(),
+                modifier = Modifier
+                    .padding(20.dp)
+                    .fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
+                // Topo: Badge de Status
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
@@ -250,21 +294,23 @@ fun ContinueQuestCard(userQuest: UserQuest, onClick: () -> Unit) {
                 ) {
                     Surface(
                         color = QuestuaGold,
-                        shape = RoundedCornerShape(50)
+                        shape = RoundedCornerShape(50),
+                        shadowElevation = 2.dp
                     ) {
                         Text(
                             text = "EM ANDAMENTO",
                             style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             color = Color.Black,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
                 }
 
+                // Conteúdo: Título e Progresso
                 Column {
                     Text(
-                        text = "Retomar Missão",
+                        text = "Retomar Missão", // Poderia usar o título da quest se disponível no userQuest
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -274,14 +320,17 @@ fun ContinueQuestCard(userQuest: UserQuest, onClick: () -> Unit) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         LinearProgressIndicator(
                             progress = { userQuest.percentComplete },
-                            modifier = Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(4.dp)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(8.dp)
+                                .clip(RoundedCornerShape(4.dp)),
                             color = QuestuaGold,
                             trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = "${(userQuest.percentComplete * 100).toInt()}%",
-                            style = MaterialTheme.typography.labelSmall,
+                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
                             color = QuestuaGold
                         )
@@ -289,17 +338,26 @@ fun ContinueQuestCard(userQuest: UserQuest, onClick: () -> Unit) {
                 }
             }
 
+            // Ícone Play Flutuante
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(16.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    tint = QuestuaGold,
-                    modifier = Modifier.size(32.dp)
-                )
+                Surface(
+                    shape = CircleShape,
+                    color = QuestuaGold.copy(alpha = 0.2f),
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.PlayArrow,
+                            contentDescription = null,
+                            tint = QuestuaGold,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
         }
     }
@@ -315,21 +373,22 @@ fun NewContentCard(
     onClick: () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth().height(100.dp).clickable(onClick = onClick),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(100.dp)
+            .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(2.dp)
+        elevation = CardDefaults.cardElevation(2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
             // --- ÁREA DE IMAGEM / ÍCONE ---
             Box(
                 modifier = Modifier
-                    .width(110.dp)
+                    .width(100.dp)
                     .fillMaxHeight()
-                    .background(
-                        if (imageUrl == null) QuestuaGold.copy(alpha = 0.1f)
-                        else Color.Transparent
-                    ),
+                    .background(MaterialTheme.colorScheme.surfaceVariant), // Fundo padrão para área de imagem
                 contentAlignment = Alignment.Center
             ) {
                 if (imageUrl != null) {
@@ -343,60 +402,80 @@ fun NewContentCard(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    // Fallback para quando não tem imagem (Missões)
+                    // Fallback para quando não tem imagem (ex: Missões)
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = if (isLocked) MaterialTheme.colorScheme.onSurfaceVariant else QuestuaGold,
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(32.dp)
                     )
                 }
 
-                // Overlay de Lock
+                // Overlay de Bloqueio
                 if (isLocked) {
                     Box(
-                        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.6f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Lock, null, tint = Color.White)
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = "Bloqueado",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
                 }
             }
 
             // --- CONTEÚDO ---
             Column(
-                modifier = Modifier.weight(1f).padding(16.dp).fillMaxHeight(),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(16.dp)
+                    .fillMaxHeight(),
                 verticalArrangement = Arrangement.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = typeLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if(isLocked) MaterialTheme.colorScheme.error else QuestuaGold,
-                        fontWeight = FontWeight.ExtraBold
-                    )
+                    // Badge do Tipo
+                    Surface(
+                        color = if (isLocked) MaterialTheme.colorScheme.errorContainer else QuestuaGold.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            text = typeLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isLocked) MaterialTheme.colorScheme.error else QuestuaGold,
+                            fontWeight = FontWeight.ExtraBold,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
             // Seta
             Box(
-                modifier = Modifier.fillMaxHeight().padding(end = 16.dp),
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .padding(end = 16.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                    tint = QuestuaGold // Destaque na seta
                 )
             }
         }
@@ -406,17 +485,22 @@ fun NewContentCard(
 @Composable
 fun SystemAchievementCard(achievement: Achievement) {
     Card(
-        modifier = Modifier.width(140.dp).height(180.dp),
-        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier
+            .width(150.dp)
+            .height(190.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
+        border = BorderStroke(1.dp, QuestuaGold.copy(alpha = 0.3f))
     ) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Ícone da Conquista
             Box(
                 modifier = Modifier
                     .size(70.dp)
@@ -432,7 +516,7 @@ fun SystemAchievementCard(achievement: Achievement) {
                         .build(),
                     contentDescription = null,
                     modifier = Modifier.size(40.dp),
-                    error = rememberVectorPainter(Icons.Default.EmojiEvents)
+                    error = rememberVectorPainter(Icons.Default.EmojiEvents) // Fallback visual
                 )
             }
 
@@ -448,14 +532,21 @@ fun SystemAchievementCard(achievement: Achievement) {
                 lineHeight = 18.sp
             )
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "${achievement.xpReward} XP",
-                style = MaterialTheme.typography.labelSmall,
-                color = QuestuaGold,
-                fontWeight = FontWeight.Bold
-            )
+            // Badge de XP
+            Surface(
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = "${achievement.xpReward} XP",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
     }
 }

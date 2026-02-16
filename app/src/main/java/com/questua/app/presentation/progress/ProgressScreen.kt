@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.questua.app.core.ui.components.LoadingSpinner
 
-// Cor Dourada Padrão (Consistente com outras telas)
+// Cor Dourada Padrão
 val QuestuaGold = Color(0xFFFFC107)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,6 +36,7 @@ fun ProgressScreen(
     val state by viewModel.state.collectAsState()
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
@@ -46,19 +47,15 @@ fun ProgressScreen(
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                     titleContentColor = MaterialTheme.colorScheme.onBackground
                 )
             )
-        },
-        containerColor = MaterialTheme.colorScheme.background
+        }
     ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            // Fundo Gradiente Sutil no Topo
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Gradiente de Fundo (Estilo Padrão)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -66,7 +63,7 @@ fun ProgressScreen(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                QuestuaGold.copy(alpha = 0.05f),
+                                QuestuaGold.copy(alpha = 0.15f), // Ajustado para 0.15f (Padrão Admin)
                                 MaterialTheme.colorScheme.background
                             )
                         )
@@ -94,7 +91,7 @@ fun ProgressScreen(
                 val citiesUnlocked = if (isGlobal) state.globalCitiesCount else state.activeCitiesCount
 
                 LazyColumn(
-                    contentPadding = PaddingValues(24.dp),
+                    contentPadding = PaddingValues(top = paddingValues.calculateTopPadding() + 16.dp, bottom = 24.dp, start = 24.dp, end = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
@@ -163,7 +160,7 @@ fun ProgressScreen(
                                     value = "$streakValue",
                                     subtitle = streakSubtitle,
                                     modifier = Modifier.weight(1f),
-                                    accentColor = Color(0xFFFF5722) // Laranja para fogo
+                                    accentColor = Color(0xFFFF5722) // Laranja
                                 )
                                 StatCard(
                                     icon = Icons.Default.LocationCity,
@@ -202,7 +199,7 @@ fun ProgressScreen(
 
                     // --- Conquistas ---
                     item {
-                        Divider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                         Spacer(modifier = Modifier.height(8.dp))
 
                         val achievementsTitle = if (isGlobal) "Todas as Conquistas" else "Conquistas Locais"
@@ -226,8 +223,9 @@ fun ProgressScreen(
                         item {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                             ) {
                                 Box(
                                     modifier = Modifier.padding(32.dp).fillMaxWidth(),
@@ -270,9 +268,10 @@ fun ProgressScreen(
                             onClick = { state.userLanguage?.userId?.let { viewModel.loadProgressData(it) } },
                             colors = ButtonDefaults.buttonColors(containerColor = QuestuaGold, contentColor = Color.Black)
                         ) {
-                            Text("Tentar Novamente")
+                            Text("Tentar Novamente", fontWeight = FontWeight.Bold)
                         }
-                    }
+                    },
+                    shape = RoundedCornerShape(16.dp)
                 )
             }
         }
@@ -289,11 +288,11 @@ fun StatCard(
     accentColor: Color = MaterialTheme.colorScheme.primary
 ) {
     Card(
-        modifier = modifier.height(130.dp),
+        modifier = modifier.height(140.dp), // Altura levemente aumentada
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)),
-        shape = RoundedCornerShape(20.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier
@@ -305,8 +304,8 @@ fun StatCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(8.dp))
                         .background(accentColor.copy(alpha = 0.15f)),
                     contentAlignment = Alignment.Center
                 ) {
@@ -314,7 +313,7 @@ fun StatCard(
                         imageVector = icon,
                         contentDescription = null,
                         tint = accentColor,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
@@ -353,7 +352,7 @@ fun AchievementItem(achievement: ProgressAchievementUiModel) {
             .fillMaxWidth()
             .padding(bottom = 12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(16.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
@@ -367,9 +366,9 @@ fun AchievementItem(achievement: ProgressAchievementUiModel) {
             Box(
                 modifier = Modifier
                     .size(56.dp)
-                    .clip(CircleShape)
+                    .clip(RoundedCornerShape(12.dp))
                     .background(QuestuaGold.copy(alpha = 0.1f))
-                    .border(1.dp, QuestuaGold.copy(alpha = 0.3f), CircleShape),
+                    .border(1.dp, QuestuaGold.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -437,7 +436,8 @@ fun ProgressFilterSegmentedButton(
                     activeContainerColor = QuestuaGold.copy(alpha = 0.2f),
                     activeContentColor = MaterialTheme.colorScheme.onSurface,
                     activeBorderColor = QuestuaGold,
-                    inactiveContainerColor = MaterialTheme.colorScheme.surface
+                    inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                    inactiveContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             ) {
                 Text(

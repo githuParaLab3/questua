@@ -1,7 +1,10 @@
 package com.questua.app.presentation.admin.content.quests
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -10,10 +13,12 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.questua.app.presentation.admin.content.cities.DetailCard // Certifique-se de que este import está correto para o seu projeto
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,33 +34,29 @@ fun AdminQuestDetailScreen(
         if (state.isDeleted) navController.popBackStack()
     }
 
-    if (showEdit && state.quest != null) {
-        QuestFormDialog(
-            quest = state.quest,
-            questPoints = state.questPoints,
-            dialogues = state.dialogues,
-            onDismiss = { showEdit = false },
-            onConfirm = { title, qpId, dial, desc, diff, ord, xp, unl, foc, prem, ai, pub ->
-                viewModel.saveQuest(qpId, dial, title, desc, diff, ord, xp, unl, foc, prem, ai, pub)
-                showEdit = false
-            }
-        )
-    }
-
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text(state.quest?.title ?: "Detalhes") },
+                title = { Text(state.quest?.title ?: "Detalhes", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f)
+                )
             )
         },
         bottomBar = {
             if (state.quest != null) {
-                Surface(tonalElevation = 8.dp, shadowElevation = 10.dp) {
+                Surface(
+                    tonalElevation = 8.dp,
+                    shadowElevation = 10.dp,
+                    color = MaterialTheme.colorScheme.surface
+                ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -66,78 +67,187 @@ fun AdminQuestDetailScreen(
                         OutlinedButton(
                             onClick = { showDelete = true },
                             modifier = Modifier.weight(1f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
                         ) {
-                            Icon(Icons.Default.Delete, null); Text(" EXCLUIR")
+                            Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("EXCLUIR", fontWeight = FontWeight.Bold)
                         }
-                        Button(onClick = { showEdit = true }, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Default.Edit, null); Text(" EDITAR")
+                        Button(
+                            onClick = { showEdit = true },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = QuestuaGold,
+                                contentColor = Color.Black
+                            )
+                        ) {
+                            Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("EDITAR", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
         }
     ) { padding ->
-        if (state.quest != null) {
-            // Tenta encontrar o nome do QuestPoint na lista carregada, ou usa o ID como fallback
-            val qpName = state.questPoints.find { it.id == state.quest.questPointId }?.title ?: state.quest.questPointId
-
-            Column(
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Gradiente
+            Box(
                 modifier = Modifier
-                    .padding(padding)
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                DetailCard("Principal", listOf(
-                    "Título" to state.quest.title,
-                    "Quest Point" to qpName,
-                    "Diálogo Inicial" to (state.quest.firstDialogueId ?: "Nenhum"),
-                    "Ordem" to state.quest.orderIndex.toString()
-                ))
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                QuestuaGold.copy(alpha = 0.15f),
+                                MaterialTheme.colorScheme.background
+                            )
+                        )
+                    )
+            )
 
-                // --- BLOCO QUE FALTAVA ---
-                state.quest.unlockRequirement?.let { unlock ->
-                    DetailCard("Requisitos de Desbloqueio", listOf(
-                        "Exige Premium" to if(unlock.premiumAccess) "Sim" else "Não",
-                        "Nível Mín." to (unlock.requiredGamificationLevel?.toString() ?: "-"),
-                        "CEFR Mín." to (unlock.requiredCefrLevel ?: "-")
-                    ))
+            if (state.quest != null) {
+                // Tenta encontrar o nome do QuestPoint na lista carregada, ou usa o ID como fallback
+                val qpName = state.questPoints.find { it.id == state.quest.questPointId }?.title ?: state.quest.questPointId
+
+                Column(
+                    modifier = Modifier
+                        .padding(padding)
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    DetailCard(
+                        title = "Principal",
+                        items = listOf(
+                            "Título" to state.quest.title,
+                            "Quest Point" to qpName,
+                            "Diálogo Inicial" to (state.quest.firstDialogueId ?: "Nenhum"),
+                            "Ordem" to state.quest.orderIndex.toString()
+                        )
+                    )
+
+                    state.quest.unlockRequirement?.let { unlock ->
+                        DetailCard(
+                            title = "Requisitos de Desbloqueio",
+                            items = listOf(
+                                "Exige Premium" to if (unlock.premiumAccess) "Sim" else "Não",
+                                "Nível Mín." to (unlock.requiredGamificationLevel?.toString() ?: "-"),
+                                "CEFR Mín." to (unlock.requiredCefrLevel ?: "-")
+                            )
+                        )
+                    }
+
+                    state.quest.learningFocus?.let { focus ->
+                        DetailCard(
+                            title = "Foco de Aprendizado",
+                            items = listOf(
+                                "Gramática" to (focus.grammarTopics?.joinToString(", ") ?: "-"),
+                                "Vocabulário" to (focus.vocabularyThemes?.joinToString(", ") ?: "-"),
+                                "Skills" to (focus.skills?.joinToString(", ") ?: "-")
+                            )
+                        )
+                    }
+
+                    DetailCard(
+                        title = "Configurações & Status",
+                        items = listOf(
+                            "Dificuldade" to "${state.quest.difficulty}/5",
+                            "XP Recompensa" to "${state.quest.xpValue}",
+                            "Conteúdo Premium" to if (state.quest.isPremium) "Sim" else "Não",
+                            "Publicado" to if (state.quest.isPublished) "Sim" else "Não",
+                            "Gerado por IA" to if (state.quest.isAiGenerated) "Sim" else "Não",
+                            "Criado em" to state.quest.createdAt
+                        )
+                    )
+
+                    if (state.quest.description.isNotBlank()) {
+                        DetailCard(title = "Descrição", items = listOf("" to state.quest.description))
+                    }
                 }
-                // -------------------------
-
-                state.quest.learningFocus?.let { focus ->
-                    DetailCard("Foco de Aprendizado", listOf(
-                        "Gramática" to (focus.grammarTopics?.joinToString(", ") ?: "-"),
-                        "Vocabulário" to (focus.vocabularyThemes?.joinToString(", ") ?: "-"),
-                        "Skills" to (focus.skills?.joinToString(", ") ?: "-")
-                    ))
-                }
-
-                DetailCard("Configurações & Status", listOf(
-                    "Dificuldade" to "${state.quest.difficulty}/5",
-                    "XP Recompensa" to "${state.quest.xpValue}",
-                    "Conteúdo Premium" to if(state.quest.isPremium) "Sim" else "Não",
-                    "Publicado" to if(state.quest.isPublished) "Sim" else "Não",
-                    "Gerado por IA" to if(state.quest.isAiGenerated) "Sim" else "Não",
-                    "Criado em" to state.quest.createdAt
-                ))
-
-                DetailCard("Descrição", listOf("" to state.quest.description))
             }
+        }
+
+        if (showEdit && state.quest != null) {
+            QuestFormDialog(
+                quest = state.quest,
+                questPoints = state.questPoints,
+                dialogues = state.dialogues,
+                onDismiss = { showEdit = false },
+                onConfirm = { title, qpId, dial, desc, diff, ord, xp, unl, foc, prem, ai, pub ->
+                    viewModel.saveQuest(qpId, dial, title, desc, diff, ord, xp, unl, foc, prem, ai, pub)
+                    showEdit = false
+                }
+            )
         }
 
         if (showDelete) {
             AlertDialog(
                 onDismissRequest = { showDelete = false },
-                title = { Text("Excluir Quest") },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("Excluir Quest", fontWeight = FontWeight.Bold) },
                 text = { Text("Tem certeza? Esta ação não pode ser desfeita.") },
                 confirmButton = {
-                    TextButton(onClick = { viewModel.deleteQuest(); showDelete = false }) {
-                        Text("Excluir", color = MaterialTheme.colorScheme.error)
+                    Button(
+                        onClick = { viewModel.deleteQuest(); showDelete = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) {
+                        Text("Excluir", fontWeight = FontWeight.Bold)
                     }
                 },
-                dismissButton = { TextButton(onClick = { showDelete = false }) { Text("Cancelar") } }
+                dismissButton = {
+                    TextButton(
+                        onClick = { showDelete = false },
+                        colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+                    ) {
+                        Text("Cancelar")
+                    }
+                },
+                shape = RoundedCornerShape(16.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun DetailCard(title: String, items: List<Pair<String, String>>) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = QuestuaGold.copy(alpha = 0.8f),
+                fontWeight = FontWeight.Bold
+            )
+            HorizontalDivider(
+                modifier = Modifier.padding(vertical = 12.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            )
+            items.forEach { (label, value) ->
+                Column(modifier = Modifier.padding(bottom = 12.dp)) {
+                    if (label.isNotEmpty()) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(4.dp))
+                    }
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
         }
     }
 }

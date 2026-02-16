@@ -1,15 +1,18 @@
 package com.questua.app.presentation.admin.content.quests
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.questua.app.core.ui.components.QuestuaTextField
@@ -24,7 +27,7 @@ import com.questua.app.domain.model.UnlockRequirement
 fun QuestFormDialog(
     quest: Quest? = null,
     questPoints: List<QuestPoint>,
-    dialogues: List<SceneDialogue>, // Para selecionar o primeiro diálogo
+    dialogues: List<SceneDialogue>,
     onDismiss: () -> Unit,
     onConfirm: (
         title: String, qpId: String, dialId: String?, desc: String,
@@ -65,67 +68,96 @@ fun QuestFormDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (quest == null) "Nova Quest" else "Editar Quest") },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(if (quest == null) "Nova Quest" else "Editar Quest", fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 QuestuaTextField(value = title, onValueChange = { title = it }, label = "Título")
 
                 // SELETOR QUEST POINT (Obrigatório)
-                OutlinedCard(onClick = { showQpPicker = true }) {
+                OutlinedCard(
+                    onClick = { showQpPicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
                     val current = questPoints.find { it.id == questPointId }
                     ListItem(
-                        headlineContent = { Text(current?.title ?: "Selecionar Quest Point") },
+                        headlineContent = { Text(current?.title ?: "Selecionar Quest Point", fontWeight = if(current != null) FontWeight.Bold else FontWeight.Normal) },
                         supportingContent = { Text(if(questPointId.isEmpty()) "Obrigatório" else "ID: ...${questPointId.takeLast(8)}") },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }
 
                 // SELETOR DIÁLOGO INICIAL (Opcional)
-                OutlinedCard(onClick = { showDialoguePicker = true }) {
+                OutlinedCard(
+                    onClick = { showDialoguePicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
                     val current = dialogues.find { it.id == firstDialogueId }
                     ListItem(
-                        headlineContent = { Text(current?.textContent?.take(30)?.plus("...") ?: "Selecionar Diálogo Inicial") },
+                        headlineContent = { Text(current?.textContent?.take(30)?.plus("...") ?: "Selecionar Diálogo Inicial", fontWeight = if(current != null) FontWeight.Bold else FontWeight.Normal) },
                         supportingContent = { Text(if(firstDialogueId.isEmpty()) "Opcional (Nenhum)" else "ID: ...${firstDialogueId.takeLast(8)}") },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }
 
                 QuestuaTextField(value = description, onValueChange = { description = it }, label = "Descrição")
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuestuaTextField(value = orderIndex, onValueChange = { orderIndex = it }, label = "Ordem", modifier = Modifier.weight(1f))
-                    QuestuaTextField(value = xpValue, onValueChange = { xpValue = it }, label = "XP", modifier = Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.weight(1f)) { QuestuaTextField(value = orderIndex, onValueChange = { orderIndex = it }, label = "Ordem") }
+                    Box(Modifier.weight(1f)) { QuestuaTextField(value = xpValue, onValueChange = { xpValue = it }, label = "XP") }
                 }
 
                 Column {
-                    Text("Dificuldade: ${difficulty.toInt()}", style = MaterialTheme.typography.labelMedium)
-                    Slider(value = difficulty, onValueChange = { difficulty = it }, valueRange = 1f..5f, steps = 3)
+                    Text("Dificuldade: ${difficulty.toInt()}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Slider(
+                        value = difficulty,
+                        onValueChange = { difficulty = it },
+                        valueRange = 1f..5f,
+                        steps = 3,
+                        colors = SliderDefaults.colors(thumbColor = QuestuaGold, activeTrackColor = QuestuaGold)
+                    )
                 }
 
-                HorizontalDivider()
-                Text("Foco de Aprendizado (Separe por vírgula)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                QuestuaTextField(value = grammar, onValueChange = { grammar = it }, label = "Gramática (ex: Verbos, Past Tense)")
-                QuestuaTextField(value = vocabulary, onValueChange = { vocabulary = it }, label = "Vocabulário (ex: Viagem, Comida)")
-                QuestuaTextField(value = skills, onValueChange = { skills = it }, label = "Habilidades (ex: Listening, Reading)")
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Text("Foco de Aprendizado", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = QuestuaGold)
 
-                HorizontalDivider()
-                Text("Requisitos de Desbloqueio", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                QuestuaTextField(value = grammar, onValueChange = { grammar = it }, label = "Gramática (sep. por vírgula)")
+                QuestuaTextField(value = vocabulary, onValueChange = { vocabulary = it }, label = "Vocabulário (sep. por vírgula)")
+                QuestuaTextField(value = skills, onValueChange = { skills = it }, label = "Habilidades (sep. por vírgula)")
+
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Text("Requisitos de Desbloqueio", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = QuestuaGold)
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = reqPremium, onCheckedChange = { reqPremium = it })
+                    Checkbox(
+                        checked = reqPremium,
+                        onCheckedChange = { reqPremium = it },
+                        colors = CheckboxDefaults.colors(checkedColor = QuestuaGold, checkmarkColor = Color.Black)
+                    )
                     Text("Exigir Premium")
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuestuaTextField(value = reqLevel, onValueChange = { reqLevel = it }, label = "Nível Min.", modifier = Modifier.weight(1f))
-                    QuestuaTextField(value = reqCefr, onValueChange = { reqCefr = it }, label = "CEFR", modifier = Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.weight(1f)) { QuestuaTextField(value = reqLevel, onValueChange = { reqLevel = it }, label = "Nível Min.") }
+                    Box(Modifier.weight(1f)) { QuestuaTextField(value = reqCefr, onValueChange = { reqCefr = it }, label = "CEFR") }
                 }
 
-                HorizontalDivider()
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = isPublished, onCheckedChange = { isPublished = it }); Text("Publicado") }
-                    Row(verticalAlignment = Alignment.CenterVertically) { Checkbox(checked = isPremium, onCheckedChange = { isPremium = it }); Text("Premium") }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = isPublished, onCheckedChange = { isPublished = it }, colors = CheckboxDefaults.colors(checkedColor = QuestuaGold, checkmarkColor = Color.Black))
+                    Text("Publicado")
+                    Spacer(Modifier.width(16.dp))
+                    Checkbox(checked = isPremium, onCheckedChange = { isPremium = it }, colors = CheckboxDefaults.colors(checkedColor = QuestuaGold, checkmarkColor = Color.Black))
+                    Text("Premium")
                 }
             }
         },
@@ -150,10 +182,17 @@ fun QuestFormDialog(
                         unlock, focus, isPremium, isAiGenerated, isPublished
                     )
                 },
-                enabled = title.isNotBlank() && questPointId.isNotBlank()
-            ) { Text("Confirmar") }
+                enabled = title.isNotBlank() && questPointId.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = QuestuaGold, contentColor = Color.Black)
+            ) { Text("Confirmar", fontWeight = FontWeight.Bold) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+            ) { Text("Cancelar") }
+        },
+        shape = RoundedCornerShape(24.dp)
     )
 
     // Dialogs de Seleção
@@ -161,7 +200,12 @@ fun QuestFormDialog(
         SelectorDialog(
             title = "Selecione o Quest Point",
             items = questPoints,
-            itemContent = { qp -> Text(qp.title, fontWeight = FontWeight.Bold); Text(qp.id, style = MaterialTheme.typography.bodySmall) },
+            itemContent = { qp ->
+                Column {
+                    Text(qp.title, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(qp.id, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
             onSelect = { questPointId = it.id; showQpPicker = false },
             onDismiss = { showQpPicker = false }
         )
@@ -171,7 +215,12 @@ fun QuestFormDialog(
         SelectorDialog(
             title = "Selecione o Diálogo Inicial",
             items = dialogues,
-            itemContent = { d -> Text(d.textContent.take(50), fontWeight = FontWeight.Bold); Text(d.id, style = MaterialTheme.typography.bodySmall) },
+            itemContent = { d ->
+                Column {
+                    Text(d.textContent.take(50), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(d.id, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            },
             onSelect = { firstDialogueId = it.id; showDialoguePicker = false },
             onDismiss = { showDialoguePicker = false },
             canClear = true,
@@ -192,7 +241,8 @@ fun <T> SelectorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(title, fontWeight = FontWeight.Bold) },
         text = {
             Box(Modifier.heightIn(max = 400.dp)) {
                 LazyColumn {
@@ -200,21 +250,29 @@ fun <T> SelectorDialog(
                         item {
                             ListItem(
                                 modifier = Modifier.clickable { onClear() },
-                                headlineContent = { Text("Nenhum (Remover Seleção)", color = MaterialTheme.colorScheme.error) }
+                                headlineContent = { Text("Nenhum (Remover Seleção)", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
-                            HorizontalDivider()
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                         }
                     }
                     items(items) { item ->
                         ListItem(
                             modifier = Modifier.clickable { onSelect(item) },
-                            headlineContent = { itemContent(item) }
+                            headlineContent = { itemContent(item) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
-                        HorizontalDivider()
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar") } }
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+            ) { Text("Fechar") }
+        },
+        shape = RoundedCornerShape(24.dp)
     )
 }

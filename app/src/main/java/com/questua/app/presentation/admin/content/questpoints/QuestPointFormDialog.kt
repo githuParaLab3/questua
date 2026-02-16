@@ -1,23 +1,35 @@
 package com.questua.app.presentation.admin.content.questpoints
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.questua.app.core.common.URIPathHelper
+import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.model.City
 import com.questua.app.domain.model.QuestPoint
@@ -52,6 +64,10 @@ fun QuestPointFormDialog(
     var selectedImageFile by remember { mutableStateOf<File?>(null) }
     var selectedIconFile by remember { mutableStateOf<File?>(null) }
 
+    // Previews
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedIconUri by remember { mutableStateOf<Uri?>(null) }
+
     // Flags
     var isPremium by remember { mutableStateOf(questPoint?.isPremium ?: false) }
     var isPublished by remember { mutableStateOf(questPoint?.isPublished ?: true) }
@@ -67,31 +83,100 @@ fun QuestPointFormDialog(
 
     // Launchers de Imagem
     val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { selectedImageFile = URIPathHelper.getFileFromUri(context, it) }
+        uri?.let {
+            selectedImageUri = it
+            selectedImageFile = URIPathHelper.getFileFromUri(context, it)
+        }
     }
     val iconPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        uri?.let { selectedIconFile = URIPathHelper.getFileFromUri(context, it) }
+        uri?.let {
+            selectedIconUri = it
+            selectedIconFile = URIPathHelper.getFileFromUri(context, it)
+        }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (questPoint == null) "Novo Ponto" else "Editar Ponto") },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(if (questPoint == null) "Novo Ponto" else "Editar Ponto", fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Seção de Imagens
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Seletor de Imagem Principal
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(100.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .border(1.dp, QuestuaGold.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .clickable { imagePicker.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val imgModel = selectedImageUri ?: questPoint?.imageUrl?.toFullImageUrl()
+                        if (imgModel != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context).data(imgModel).crossfade(true).build(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.AddPhotoAlternate, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Imagem", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+
+                    // Seletor de Ícone
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(100.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .border(1.dp, QuestuaGold.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                            .clickable { iconPicker.launch("image/*") },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val iconModel = selectedIconUri ?: questPoint?.iconUrl?.toFullImageUrl()
+                        if (iconModel != null) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context).data(iconModel).crossfade(true).build(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.padding(16.dp).fillMaxSize()
+                            )
+                        } else {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Image, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Ícone", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+
                 QuestuaTextField(value = title, onValueChange = { title = it }, label = "Título do Ponto")
 
                 // SELETOR DE CIDADE (Foreign Key)
-                OutlinedCard(onClick = { showCityPicker = true }) {
+                OutlinedCard(
+                    onClick = { showCityPicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
                     val currentCity = cities.find { it.id == cityId }
                     ListItem(
-                        headlineContent = { Text(currentCity?.name ?: "Selecionar Cidade") },
-                        supportingContent = { Text(if(cityId.isEmpty()) "Obrigatório" else "ID: $cityId") },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        headlineContent = { Text(currentCity?.name ?: "Selecionar Cidade", fontWeight = if(currentCity != null) FontWeight.Bold else FontWeight.Normal) },
+                        supportingContent = { Text(if(cityId.isEmpty()) "Obrigatório" else "ID: ...${cityId.takeLast(8)}") },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }
 
@@ -99,54 +184,47 @@ fun QuestPointFormDialog(
 
                 // Dificuldade
                 Column {
-                    Text("Dificuldade: ${difficulty.toInt()}", style = MaterialTheme.typography.labelMedium)
+                    Text("Dificuldade: ${difficulty.toInt()}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Slider(
                         value = difficulty,
                         onValueChange = { difficulty = it },
                         valueRange = 1f..5f,
-                        steps = 3
+                        steps = 3,
+                        colors = SliderDefaults.colors(thumbColor = QuestuaGold, activeTrackColor = QuestuaGold)
                     )
                 }
 
-                // Imagens
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { imagePicker.launch("image/*") }, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Default.Image, null); Spacer(Modifier.width(4.dp))
-                        Text(if(selectedImageFile != null) "Img OK" else "Imagem")
-                    }
-                    Button(onClick = { iconPicker.launch("image/*") }, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Default.Image, null); Spacer(Modifier.width(4.dp))
-                        Text(if(selectedIconFile != null) "Icon OK" else "Ícone")
-                    }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.weight(1f)) { QuestuaTextField(value = lat, onValueChange = { lat = it }, label = "Latitude") }
+                    Box(Modifier.weight(1f)) { QuestuaTextField(value = lon, onValueChange = { lon = it }, label = "Longitude") }
                 }
 
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuestuaTextField(value = lat, onValueChange = { lat = it }, label = "Latitude", modifier = Modifier.weight(1f))
-                    QuestuaTextField(value = lon, onValueChange = { lon = it }, label = "Longitude", modifier = Modifier.weight(1f))
-                }
-
-                HorizontalDivider()
-                Text("Requisitos de Desbloqueio", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Text("Requisitos de Desbloqueio", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = QuestuaGold)
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = reqPremium, onCheckedChange = { reqPremium = it })
+                    Checkbox(
+                        checked = reqPremium,
+                        onCheckedChange = { reqPremium = it },
+                        colors = CheckboxDefaults.colors(checkedColor = QuestuaGold, checkmarkColor = Color.Black)
+                    )
                     Text("Exigir Premium")
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    QuestuaTextField(value = reqLevel, onValueChange = { reqLevel = it }, label = "Nível Min.", modifier = Modifier.weight(1f))
-                    QuestuaTextField(value = reqCefr, onValueChange = { reqCefr = it }, label = "CEFR (Ex: A1)", modifier = Modifier.weight(1f))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.weight(1f)) { QuestuaTextField(value = reqLevel, onValueChange = { reqLevel = it }, label = "Nível Min.") }
+                    Box(Modifier.weight(1f)) { QuestuaTextField(value = reqCefr, onValueChange = { reqCefr = it }, label = "CEFR (Ex: A1)") }
                 }
 
-                HorizontalDivider()
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = isPublished, onCheckedChange = { isPublished = it })
+                        Checkbox(checked = isPublished, onCheckedChange = { isPublished = it }, colors = CheckboxDefaults.colors(checkedColor = QuestuaGold, checkmarkColor = Color.Black))
                         Text("Publicado")
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = isPremium, onCheckedChange = { isPremium = it })
+                        Checkbox(checked = isPremium, onCheckedChange = { isPremium = it }, colors = CheckboxDefaults.colors(checkedColor = QuestuaGold, checkmarkColor = Color.Black))
                         Text("Conteúdo Premium")
                     }
                 }
@@ -167,17 +245,25 @@ fun QuestPointFormDialog(
                         unlock, isPremium, isAiGenerated, isPublished
                     )
                 },
-                enabled = title.isNotBlank() && cityId.isNotBlank()
-            ) { Text("Confirmar") }
+                enabled = title.isNotBlank() && cityId.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(containerColor = QuestuaGold, contentColor = Color.Black)
+            ) { Text("Confirmar", fontWeight = FontWeight.Bold) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+            ) { Text("Cancelar") }
+        },
+        shape = RoundedCornerShape(24.dp)
     )
 
     // Dialog de Seleção de Cidade
     if (showCityPicker) {
         AlertDialog(
             onDismissRequest = { showCityPicker = false },
-            title = { Text("Selecione a Cidade") },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("Selecione a Cidade", fontWeight = FontWeight.Bold) },
             text = {
                 Box(Modifier.heightIn(max = 400.dp)) {
                     LazyColumn {
@@ -188,14 +274,21 @@ fun QuestPointFormDialog(
                                     showCityPicker = false
                                 },
                                 headlineContent = { Text(city.name) },
-                                supportingContent = { Text(city.countryCode) }
+                                supportingContent = { Text(city.countryCode) },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
-                            HorizontalDivider()
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                         }
                     }
                 }
             },
-            confirmButton = { TextButton(onClick = { showCityPicker = false }) { Text("Fechar") } }
+            confirmButton = {
+                TextButton(
+                    onClick = { showCityPicker = false },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+                ) { Text("Fechar") }
+            },
+            shape = RoundedCornerShape(24.dp)
         )
     }
 }

@@ -30,7 +30,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.components.QuestuaButton
 import com.questua.app.domain.model.Product
-import com.questua.app.domain.model.UnlockRequirement
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.rememberPaymentSheet
 import kotlinx.coroutines.delay
@@ -60,7 +59,7 @@ fun UnlockPreviewScreen(
 
     LaunchedEffect(state.showSuccessPopup, state.isUnlocked) {
         if (state.showSuccessPopup && state.isUnlocked) {
-            delay(2500)
+            delay(2000)
             viewModel.dismissSuccessPopup()
             onContentUnlocked(viewModel.contentId, viewModel.contentType)
         }
@@ -121,7 +120,7 @@ fun UnlockPreviewScreen(
             }
 
             if (state.showSuccessPopup) {
-                Dialog(onDismissRequest = { }) {
+                Dialog(onDismissRequest = { viewModel.dismissSuccessPopup() }) {
                     Card(
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -145,17 +144,17 @@ fun UnlockPreviewScreen(
                                 textAlign = TextAlign.Center
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Aguarde enquanto preparamos sua aventura...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(24.dp))
 
                             if (state.isUnlocked) {
-                                Text("Pronto! Redirecionando...", color = QuestuaGreen, fontWeight = FontWeight.Bold)
+                                Text("Redirecionando...", color = QuestuaGreen, fontWeight = FontWeight.Bold)
                             } else {
+                                Text(
+                                    text = "Validando acesso...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
                                 CircularProgressIndicator(modifier = Modifier.size(32.dp))
                             }
                         }
@@ -203,7 +202,7 @@ fun UnlockedView(onStartClick: () -> Unit) {
         }
         Spacer(modifier = Modifier.height(24.dp))
         Text(
-            text = "Conteúdo Disponível",
+            text = "Conteúdo Desbloqueado",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = QuestuaGreen
@@ -245,15 +244,6 @@ fun LockedView(state: UnlockPreviewState, onBuyClick: (String) -> Unit) {
             color = MaterialTheme.colorScheme.onBackground
         )
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Adquira acesso premium para desbloquear.",
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
         Spacer(modifier = Modifier.height(32.dp))
 
         state.requirement?.let { req ->
@@ -279,7 +269,7 @@ fun PremiumContentSection(
     onBuyClick: (String) -> Unit
 ) {
     if (products.isEmpty()) {
-        Text("Nenhum produto disponível.", color = MaterialTheme.colorScheme.error)
+        Text("Sem produtos disponíveis.")
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             products.forEach { product ->

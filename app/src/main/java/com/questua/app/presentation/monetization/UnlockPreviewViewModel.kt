@@ -9,6 +9,7 @@ import com.questua.app.domain.model.Product
 import com.questua.app.domain.model.UnlockRequirement
 import com.questua.app.domain.repository.PaymentRepository
 import com.questua.app.domain.usecase.exploration.GetUnlockPreviewUseCase
+import com.questua.app.domain.usecase.language_learning.GetUserLanguagesUseCase
 import com.questua.app.domain.usecase.user.GetUserStatsUseCase
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,6 +18,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -38,6 +41,7 @@ class UnlockPreviewViewModel @Inject constructor(
     private val getUnlockPreviewUseCase: GetUnlockPreviewUseCase,
     private val paymentRepository: PaymentRepository,
     private val getUserStatsUseCase: GetUserStatsUseCase,
+    private val getUserLanguagesUseCase: GetUserLanguagesUseCase,
     private val tokenManager: TokenManager,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -76,22 +80,18 @@ class UnlockPreviewViewModel @Inject constructor(
         }
     }
 
-    private fun loadData() {
+    fun loadData() {
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
 
             getUnlockPreviewUseCase(contentId, contentType).collectLatest { result ->
                 when (result) {
                     is Resource.Success -> {
-                        val isUnlockedNow = result.data == null
-
                         _state.value = _state.value.copy(
                             requirement = result.data,
-                            isUnlocked = isUnlockedNow,
                             isLoading = false
                         )
-
-                        if (!isUnlockedNow && result.data?.premiumAccess == true) {
+                        if (result.data?.premiumAccess == true) {
                             fetchProducts()
                         }
                     }
@@ -165,25 +165,47 @@ class UnlockPreviewViewModel @Inject constructor(
             is PaymentSheetResult.Failed -> {
                 _state.value = _state.value.copy(
                     isProcessingPayment = false,
-                    error = "Erro no pagamento: ${paymentResult.error.localizedMessage}"
+                    error = "Erro no pagamento"
                 )
             }
         }
     }
 
     private fun startPollingForUnlock() {
+        val userId = _state.value.userId ?: return
         viewModelScope.launch {
-            repeat(10) {
-                delay(1500)
+            var attempts = 0
+            val maxAttempts = 15
+            var unlocked = false
 
-                getUnlockPreviewUseCase(contentId, contentType).collectLatest { result ->
-                    if (result is Resource.Success && result.data == null) {
-                        _state.value = _state.value.copy(isUnlocked = true)
-                        return@collectLatest
+            while (attempts < maxAttempts && !unlocked) {
+                delay(2000)
+
+                try {
+                    val result = getUserLanguagesUseCase(userId).filter { it !is Resource.Loading }.first()
+
+                    if (result is Resource.Success) {
+                        val activeLang = result.data?.find { it.status.name == "ACTIVE" }
+                        val isIdInList = activeLang?.unlockedContent?.cities?.contains(contentId) == true ||
+                                activeLang?.unlockedContent?.questPoints?.contains(contentId) == true ||
+                                activeLang?.unlockedContent?.quests?.contains(contentId) == true
+
+                        if (isIdInList) {
+                            unlocked = true
+                            _state.value = _state.value.copy(isUnlocked = true)
+                        }
                     }
+                } catch (e: Exception) {
                 }
+                attempts++
+            }
 
-                if (_state.value.isUnlocked) return@launch
+            if (!unlocked) {
+                _state.value = _state.value.copy(
+                    showSuccessPopup = false,
+                    error = "Verificação pendente. Tente recarregar."
+                )
+                loadData()
             }
         }
     }

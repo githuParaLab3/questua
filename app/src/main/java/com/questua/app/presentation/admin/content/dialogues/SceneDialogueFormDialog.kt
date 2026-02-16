@@ -2,6 +2,7 @@ package com.questua.app.presentation.admin.content.dialogues
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -14,14 +15,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -96,11 +100,14 @@ fun SceneDialogueFormDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (dialogue == null) "Novo Diálogo" else "Editar Diálogo") },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(if (dialogue == null) "Novo Diálogo" else "Editar Diálogo", fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 // --- BÁSICO ---
                 SectionTitle("Informações Básicas")
@@ -144,22 +151,40 @@ fun SceneDialogueFormDialog(
 
                 // --- ATORES ---
                 SectionTitle("Quem Fala?")
-                OutlinedCard(onClick = { showSpeakerPicker = true }) {
+                OutlinedCard(
+                    onClick = { showSpeakerPicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
                     val current = characters.find { it.id == speakerId }
                     ListItem(
-                        headlineContent = { Text(current?.name ?: "Narrador / Nenhum") },
-                        supportingContent = { Text(if(speakerId.isEmpty()) "Opcional" else "ID: ...${speakerId.takeLast(8)}") }
+                        headlineContent = { Text(current?.name ?: "Narrador / Nenhum", fontWeight = if(current != null) FontWeight.Bold else FontWeight.Normal) },
+                        supportingContent = { Text(if(speakerId.isEmpty()) "Opcional" else "ID: ...${speakerId.takeLast(8)}") },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }
 
                 // --- FLUXO ---
                 SectionTitle("Fluxo & Interação")
-                OutlinedCard(onClick = { showModePicker = true }) {
-                    ListItem(headlineContent = { Text("Modo de Entrada: ${inputMode.name}") })
+                OutlinedCard(
+                    onClick = { showModePicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
+                    ListItem(
+                        headlineContent = { Text("Modo de Entrada: ${inputMode.name}", fontWeight = FontWeight.Bold) },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                    )
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = expectsUserResponse, onCheckedChange = { expectsUserResponse = it })
+                    Checkbox(
+                        checked = expectsUserResponse,
+                        onCheckedChange = { expectsUserResponse = it },
+                        colors = CheckboxDefaults.colors(checkedColor = QuestuaGold, checkmarkColor = Color.Black)
+                    )
                     Text("Aguarda Resposta do Usuário")
                 }
 
@@ -167,29 +192,47 @@ fun SceneDialogueFormDialog(
                     QuestuaTextField(value = expectedResponse, onValueChange = { expectedResponse = it }, label = "Resposta Esperada (Opcional)")
                 }
 
-                OutlinedCard(onClick = { showNextDialogPicker = true }) {
+                OutlinedCard(
+                    onClick = { showNextDialogPicker = true },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                ) {
                     val current = allDialogues.find { it.id == nextDialogueId }
                     ListItem(
-                        headlineContent = { Text(current?.textContent?.take(30)?.plus("...") ?: "Fim da Cena / Nenhum") },
-                        supportingContent = { Text("Próximo Diálogo (ID: ...${nextDialogueId.takeLast(8)})") }
+                        headlineContent = { Text(current?.textContent?.take(30)?.plus("...") ?: "Fim da Cena / Nenhum", fontWeight = if(current != null) FontWeight.Bold else FontWeight.Normal) },
+                        supportingContent = { Text("Próximo Diálogo (ID: ...${nextDialogueId.takeLast(8)})") },
+                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                     )
                 }
 
                 // --- LISTAS COMPLEXAS ---
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
                 // 1. Character States
                 ExpandableListSection(title = "Estados dos Personagens (${characterStates.size})", onAdd = { characterStates.add(CharacterState("", "", "")) }) {
                     characterStates.forEachIndexed { index, state ->
-                        Column(Modifier.padding(8.dp).border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp)).padding(8.dp)) {
+                        Column(
+                            Modifier
+                                .padding(8.dp)
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Personagem", style = MaterialTheme.typography.labelSmall)
+                                Text("Personagem", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.weight(1f))
-                                IconButton(onClick = { characterStates.removeAt(index) }, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.Delete, null) }
+                                IconButton(onClick = { characterStates.removeAt(index) }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                                }
                             }
-                            OutlinedCard(onClick = { showStateCharPicker = index }) {
+                            OutlinedCard(
+                                onClick = { showStateCharPicker = index },
+                                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            ) {
                                 val name = characters.find { it.id == state.characterId }?.name ?: "Selecionar..."
-                                Text(name, Modifier.padding(8.dp))
+                                Text(name, Modifier.padding(12.dp), fontWeight = FontWeight.SemiBold)
                             }
+                            Spacer(Modifier.height(8.dp))
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 QuestuaTextField(value = state.expression ?: "", onValueChange = { characterStates[index] = state.copy(expression = it) }, label = "Expressão", modifier = Modifier.weight(1f))
                                 QuestuaTextField(value = state.position ?: "", onValueChange = { characterStates[index] = state.copy(position = it) }, label = "Posição", modifier = Modifier.weight(1f))
@@ -201,17 +244,27 @@ fun SceneDialogueFormDialog(
                 // 2. Choices
                 ExpandableListSection(title = "Opções de Escolha (${choices.size})", onAdd = { choices.add(Choice("", null)) }) {
                     choices.forEachIndexed { index, choice ->
-                        Column(Modifier.padding(8.dp).border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp)).padding(8.dp)) {
+                        Column(
+                            Modifier
+                                .padding(8.dp)
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Texto da Escolha", style = MaterialTheme.typography.labelSmall)
+                                Text("Texto da Escolha", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.weight(1f))
-                                IconButton(onClick = { choices.removeAt(index) }, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.Delete, null) }
+                                IconButton(onClick = { choices.removeAt(index) }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                                }
                             }
                             QuestuaTextField(value = choice.text, onValueChange = { choices[index] = choice.copy(text = it) }, label = "")
 
-                            OutlinedCard(onClick = { showChoiceDialogPicker = index }) {
+                            OutlinedCard(
+                                onClick = { showChoiceDialogPicker = index },
+                                colors = CardDefaults.outlinedCardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            ) {
                                 val nextName = allDialogues.find { it.id == choice.nextDialogueId }?.textContent?.take(20) ?: "Nenhum"
-                                Text("Vai para: $nextName", Modifier.padding(8.dp))
+                                Text("Vai para: $nextName", Modifier.padding(12.dp), fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
@@ -220,11 +273,18 @@ fun SceneDialogueFormDialog(
                 // 3. Effects
                 ExpandableListSection(title = "Efeitos de Cena (${sceneEffects.size})", onAdd = { sceneEffects.add(SceneEffect("SHAKE", 1.0, 1.0, null)) }) {
                     sceneEffects.forEachIndexed { index, effect ->
-                        Column(Modifier.padding(8.dp).border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp)).padding(8.dp)) {
+                        Column(
+                            Modifier
+                                .padding(8.dp)
+                                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+                                .padding(8.dp)
+                        ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("Tipo", style = MaterialTheme.typography.labelSmall)
+                                Text("Tipo", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.weight(1f))
-                                IconButton(onClick = { sceneEffects.removeAt(index) }, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.Delete, null) }
+                                IconButton(onClick = { sceneEffects.removeAt(index) }, modifier = Modifier.size(24.dp)) {
+                                    Icon(Icons.Default.Delete, null, tint = MaterialTheme.colorScheme.error)
+                                }
                             }
                             QuestuaTextField(value = effect.type, onValueChange = { sceneEffects[index] = effect.copy(type = it) }, label = "Ex: SHAKE, FADE")
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -237,50 +297,63 @@ fun SceneDialogueFormDialog(
             }
         },
         confirmButton = {
-            Button(onClick = {
-                onConfirm(
-                    textContent, description, background, bgMusic,
-                    characterStates.ifEmpty { null }, sceneEffects.ifEmpty { null },
-                    speakerId.ifEmpty { null }, audio,
-                    expectsUserResponse, inputMode, expectedResponse.ifEmpty { null },
-                    choices.ifEmpty { null }, nextDialogueId.ifEmpty { null }, isAiGenerated
-                )
-            }) { Text("Salvar") }
+            Button(
+                onClick = {
+                    onConfirm(
+                        textContent, description, background, bgMusic,
+                        characterStates.ifEmpty { null }, sceneEffects.ifEmpty { null },
+                        speakerId.ifEmpty { null }, audio,
+                        expectsUserResponse, inputMode, expectedResponse.ifEmpty { null },
+                        choices.ifEmpty { null }, nextDialogueId.ifEmpty { null }, isAiGenerated
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = QuestuaGold, contentColor = Color.Black)
+            ) { Text("Salvar", fontWeight = FontWeight.Bold) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+            ) { Text("Cancelar") }
+        },
+        shape = RoundedCornerShape(24.dp)
     )
 
     // --- SELETORES ---
 
     if (showSpeakerPicker) {
-        SelectorDialog("Selecione quem fala", characters, { Text(it.name) }, { speakerId = it.id; showSpeakerPicker = false }, { showSpeakerPicker = false }, true, { speakerId = ""; showSpeakerPicker = false })
+        SelectorDialog("Selecione quem fala", characters, { Text(it.name, fontWeight = FontWeight.Bold) }, { speakerId = it.id; showSpeakerPicker = false }, { showSpeakerPicker = false }, true, { speakerId = ""; showSpeakerPicker = false })
     }
 
     if (showNextDialogPicker) {
-        SelectorDialog("Próximo Diálogo", allDialogues, { Text(it.textContent.take(50)) }, { nextDialogueId = it.id; showNextDialogPicker = false }, { showNextDialogPicker = false }, true, { nextDialogueId = ""; showNextDialogPicker = false })
+        SelectorDialog("Próximo Diálogo", allDialogues, { Text(it.textContent.take(50), fontWeight = FontWeight.SemiBold) }, { nextDialogueId = it.id; showNextDialogPicker = false }, { showNextDialogPicker = false }, true, { nextDialogueId = ""; showNextDialogPicker = false })
     }
 
     if (showModePicker) {
         AlertDialog(
             onDismissRequest = { showModePicker = false },
-            title = { Text("Modo de Entrada") },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("Modo de Entrada", fontWeight = FontWeight.Bold) },
             text = {
                 Column {
                     InputMode.values().forEach { mode ->
                         ListItem(
                             modifier = Modifier.clickable { inputMode = mode; showModePicker = false },
-                            headlineContent = { Text(mode.name) }
+                            headlineContent = { Text(mode.name) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                     }
                 }
             },
-            confirmButton = {}
+            confirmButton = { TextButton(onClick = { showModePicker = false }) { Text("Fechar") } },
+            shape = RoundedCornerShape(24.dp)
         )
     }
 
     // Seletores de Lista
     showStateCharPicker?.let { idx ->
-        SelectorDialog("Selecione Personagem", characters, { Text(it.name) }, {
+        SelectorDialog("Selecione Personagem", characters, { Text(it.name, fontWeight = FontWeight.Bold) }, {
             val old = characterStates[idx]
             characterStates[idx] = old.copy(characterId = it.id)
             showStateCharPicker = null
@@ -288,7 +361,7 @@ fun SceneDialogueFormDialog(
     }
 
     showChoiceDialogPicker?.let { idx ->
-        SelectorDialog("Destino da Escolha", allDialogues, { Text(it.textContent.take(50)) }, {
+        SelectorDialog("Destino da Escolha", allDialogues, { Text(it.textContent.take(50), fontWeight = FontWeight.SemiBold) }, {
             val old = choices[idx]
             choices[idx] = old.copy(nextDialogueId = it.id)
             showChoiceDialogPicker = null
@@ -310,14 +383,15 @@ fun MediaPickerField(
     onClear: () -> Unit
 ) {
     Column {
-        Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(bottom = 4.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
         OutlinedButton(
             onClick = onPick,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+            border = BorderStroke(1.dp, if(value != null) QuestuaGold else MaterialTheme.colorScheme.outline)
         ) {
-            Icon(if(value == null) icon else Icons.Default.Upload, null, modifier = Modifier.size(18.dp))
+            Icon(if(value == null) icon else Icons.Default.Upload, null, modifier = Modifier.size(18.dp), tint = if(value != null) QuestuaGold else MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.width(8.dp))
             Text(
                 text = when(value) {
@@ -326,7 +400,8 @@ fun MediaPickerField(
                     else -> "Selecionar"
                 },
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 1
+                maxLines = 1,
+                color = if(value != null) QuestuaGold else MaterialTheme.colorScheme.onSurface
             )
         }
         if (value != null) {
@@ -353,7 +428,8 @@ fun <T> SelectorDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(title) },
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = { Text(title, fontWeight = FontWeight.Bold) },
         text = {
             Box(Modifier.heightIn(max = 400.dp)) {
                 LazyColumn {
@@ -361,38 +437,70 @@ fun <T> SelectorDialog(
                         item {
                             ListItem(
                                 modifier = Modifier.clickable { onClear() },
-                                headlineContent = { Text("Nenhum (Remover Seleção)", color = MaterialTheme.colorScheme.error) }
+                                headlineContent = { Text("Nenhum (Remover Seleção)", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold) },
+                                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                             )
-                            HorizontalDivider()
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                         }
                     }
                     items(items) { item ->
                         ListItem(
                             modifier = Modifier.clickable { onSelect(item) },
-                            headlineContent = { itemContent(item) }
+                            headlineContent = { itemContent(item) },
+                            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                         )
-                        HorizontalDivider()
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
                     }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Fechar") } }
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onSurface)
+            ) { Text("Fechar") }
+        },
+        shape = RoundedCornerShape(24.dp)
     )
 }
 
 @Composable
 fun SectionTitle(title: String) {
-    Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        color = QuestuaGold,
+        modifier = Modifier.padding(top = 8.dp)
+    )
 }
 
 @Composable
 fun ExpandableListSection(title: String, onAdd: () -> Unit, content: @Composable () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha=0.3f), RoundedCornerShape(8.dp)).padding(8.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { expanded = !expanded }) {
-            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+            .padding(8.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { expanded = !expanded }
+        ) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.weight(1f))
-            if(expanded) IconButton(onClick = onAdd, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.Add, null) }
+            Icon(
+                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.width(8.dp))
+            if(expanded) {
+                IconButton(onClick = onAdd, modifier = Modifier.size(24.dp)) {
+                    Icon(Icons.Default.Add, null, tint = QuestuaGold)
+                }
+            }
         }
         if (expanded) {
             Spacer(Modifier.height(8.dp))

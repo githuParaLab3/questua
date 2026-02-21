@@ -6,9 +6,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
+import com.questua.app.domain.enums.AchievementConditionType
 import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.model.Achievement
-import com.questua.app.domain.model.AchievementMetadata
 import com.questua.app.domain.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -60,8 +60,10 @@ class AdminAchievementViewModel @Inject constructor(
     }
 
     fun saveAchievement(
-        id: String?, key: String, name: String, desc: String,
-        icon: Any?, rarity: RarityType, xp: Int, meta: AchievementMetadata?
+        id: String?, key: String, name: String, desc: String, icon: Any?,
+        rarity: RarityType, xp: Int, isHidden: Boolean, isGlobal: Boolean,
+        category: String, conditionType: AchievementConditionType, targetId: String,
+        requiredAmount: Int
     ) {
         viewModelScope.launch {
             state = state.copy(isLoading = true)
@@ -71,11 +73,25 @@ class AdminAchievementViewModel @Inject constructor(
                 repository.uploadFile(icon, "icons").collect { if (it is Resource.Success) finalIconUrl = it.data }
             }
 
-            repository.saveAchievement(id, key, name, desc.ifBlank { null }, finalIconUrl, rarity, xp, meta)
-                .collect { result ->
-                    if (result is Resource.Success) fetchAchievements()
-                    else if (result is Resource.Error) state = state.copy(error = result.message, isLoading = false)
-                }
+            repository.saveAchievement(
+                id = id,
+                keyName = key,
+                nameAchievement = name,
+                descriptionAchievement = desc.ifBlank { "" },
+                iconUrl = finalIconUrl,
+                rarity = rarity,
+                xpReward = xp,
+                isHidden = isHidden,
+                isGlobal = isGlobal,
+                category = category.ifBlank { null },
+                conditionType = conditionType,
+                targetId = targetId.ifBlank { null },
+                requiredAmount = requiredAmount,
+                metadata = null
+            ).collect { result ->
+                if (result is Resource.Success) fetchAchievements()
+                else if (result is Resource.Error) state = state.copy(error = result.message, isLoading = false)
+            }
         }
     }
 }

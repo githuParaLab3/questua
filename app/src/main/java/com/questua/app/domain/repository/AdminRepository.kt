@@ -1,6 +1,7 @@
 package com.questua.app.domain.repository
 
 import com.questua.app.core.common.Resource
+import com.questua.app.domain.enums.AchievementConditionType
 import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.enums.TargetType
 import com.questua.app.domain.enums.UserRole
@@ -111,12 +112,18 @@ interface AdminRepository {
     fun deleteAchievement(id: String): Flow<Resource<Unit>>
     fun saveAchievement(
         id: String?,
-        keyName: String,
-        name: String,
-        description: String?,
+        keyName: String?,
+        nameAchievement: String,
+        descriptionAchievement: String,
         iconUrl: String?,
         rarity: RarityType,
         xpReward: Int,
+        isHidden: Boolean,
+        isGlobal: Boolean,
+        category: String?,
+        conditionType: AchievementConditionType,
+        targetId: String?,
+        requiredAmount: Int,
         metadata: AchievementMetadata?
     ): Flow<Resource<Achievement>>
 

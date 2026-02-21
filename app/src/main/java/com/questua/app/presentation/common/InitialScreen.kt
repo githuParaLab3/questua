@@ -34,10 +34,6 @@ fun InitialScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            // Gradiente estilo Questua Gold (Claro/Branco) em vez de escuro,
-            // ou mantemos o Dark se for a identidade de abertura, mas adaptado para o Gold.
-            // Aqui optei por um fundo escuro elegante que destaca o Dourado,
-            // similar ao estilo "Premium" do app.
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
@@ -47,7 +43,6 @@ fun InitialScreen(
                 )
             )
     ) {
-        // Elemento decorativo: Brilho Dourado
         Canvas(modifier = Modifier.fillMaxSize()) {
             drawCircle(
                 brush = Brush.radialGradient(

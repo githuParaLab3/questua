@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -18,9 +19,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.questua.app.core.common.URIPathHelper
 import com.questua.app.core.ui.components.QuestuaTextField
+import com.questua.app.domain.enums.AchievementConditionType
 import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.model.Achievement
-import com.questua.app.domain.model.AchievementMetadata
 import com.questua.app.presentation.admin.content.dialogues.MediaPickerField
 import com.questua.app.presentation.admin.content.dialogues.SectionTitle
 import java.io.File
@@ -32,28 +33,32 @@ fun AchievementFormDialog(
     onDismiss: () -> Unit,
     onConfirm: (
         key: String, name: String, desc: String,
-        icon: Any?, // String ou File
-        rarity: RarityType, xp: Int, meta: AchievementMetadata?
+        icon: Any?,
+        rarity: RarityType, xp: Int, isHidden: Boolean, isGlobal: Boolean,
+        category: String, conditionType: AchievementConditionType, targetId: String,
+        requiredAmount: Int
     ) -> Unit
 ) {
     val context = LocalContext.current
 
-    // Básico
     var keyName by remember { mutableStateOf(achievement?.keyName ?: "") }
     var name by remember { mutableStateOf(achievement?.name ?: "") }
     var description by remember { mutableStateOf(achievement?.description ?: "") }
     var xpReward by remember { mutableStateOf(achievement?.xpReward?.toString() ?: "50") }
     var rarity by remember { mutableStateOf(achievement?.rarity ?: RarityType.COMMON) }
 
-    // Icon
+    var isHidden by remember { mutableStateOf(achievement?.isHidden ?: false) }
+    var isGlobal by remember { mutableStateOf(achievement?.isGlobal ?: true) }
+    var category by remember { mutableStateOf(achievement?.category ?: "") }
+    var conditionType by remember { mutableStateOf(achievement?.conditionType ?: AchievementConditionType.COMPLETE_SPECIFIC_QUEST) }
+    var targetId by remember { mutableStateOf(achievement?.targetId ?: "") }
+    var requiredAmount by remember { mutableStateOf(achievement?.requiredAmount?.toString() ?: "1") }
+
     var selectedIcon by remember { mutableStateOf<Any?>(achievement?.iconUrl) }
 
-    // Metadata
-    var metaCategory by remember { mutableStateOf(achievement?.metadata?.category ?: "") }
-    var metaDescExtra by remember { mutableStateOf(achievement?.metadata?.descriptionExtra ?: "") }
-
-    // Auxiliares
     var showRarityPicker by remember { mutableStateOf(false) }
+    var expandedCondition by remember { mutableStateOf(false) }
+
     val iconPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { selectedIcon = URIPathHelper.getFileFromUri(context, it) }
     }
@@ -72,6 +77,8 @@ fun AchievementFormDialog(
                 SectionTitle("Informações Básicas")
                 QuestuaTextField(value = name, onValueChange = { name = it }, label = "Nome da Conquista")
                 QuestuaTextField(value = keyName, onValueChange = { keyName = it }, label = "Chave Única (ID interno)")
+                QuestuaTextField(value = description, onValueChange = { description = it }, label = "Descrição")
+                QuestuaTextField(value = xpReward, onValueChange = { xpReward = it }, label = "Recompensa (XP)")
 
                 OutlinedCard(
                     onClick = { showRarityPicker = true },
@@ -83,8 +90,54 @@ fun AchievementFormDialog(
                     )
                 }
 
-                QuestuaTextField(value = xpReward, onValueChange = { xpReward = it }, label = "Recompensa (XP)")
-                QuestuaTextField(value = description, onValueChange = { description = it }, label = "Descrição")
+                SectionTitle("Regras e Condições")
+
+                ExposedDropdownMenuBox(
+                    expanded = expandedCondition,
+                    onExpandedChange = { expandedCondition = !expandedCondition }
+                ) {
+                    OutlinedTextField(
+                        value = conditionType.name,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Condição de Desbloqueio") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedCondition) },
+                        modifier = Modifier.menuAnchor().fillMaxWidth()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expandedCondition,
+                        onDismissRequest = { expandedCondition = false }
+                    ) {
+                        AchievementConditionType.values().forEach { type ->
+                            DropdownMenuItem(
+                                text = { Text(type.name) },
+                                onClick = {
+                                    conditionType = type
+                                    expandedCondition = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                QuestuaTextField(value = targetId, onValueChange = { targetId = it }, label = "Target ID (Opcional)")
+                QuestuaTextField(value = requiredAmount, onValueChange = { requiredAmount = it }, label = "Quantidade Necessária")
+                QuestuaTextField(value = category, onValueChange = { category = it }, label = "Categoria do Jogo")
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = isHidden, onCheckedChange = { isHidden = it })
+                        Text("Oculto")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = isGlobal, onCheckedChange = { isGlobal = it })
+                        Text("Global")
+                    }
+                }
 
                 SectionTitle("Visual")
                 MediaPickerField(
@@ -94,27 +147,19 @@ fun AchievementFormDialog(
                     onPick = { iconPicker.launch("image/*") },
                     onClear = { selectedIcon = null }
                 )
-
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                SectionTitle("Metadados (Opcional)")
-
-                QuestuaTextField(value = metaCategory, onValueChange = { metaCategory = it }, label = "Categoria")
-                QuestuaTextField(value = metaDescExtra, onValueChange = { metaDescExtra = it }, label = "Info Extra")
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val metadata = if(metaCategory.isBlank() && metaDescExtra.isBlank()) null
-                    else AchievementMetadata(metaCategory.ifBlank { null }, metaDescExtra.ifBlank { null })
-
                     onConfirm(
                         keyName, name, description, selectedIcon,
-                        rarity, xpReward.toIntOrNull() ?: 0, metadata
+                        rarity, xpReward.toIntOrNull() ?: 0, isHidden, isGlobal,
+                        category, conditionType, targetId, requiredAmount.toIntOrNull() ?: 1
                     )
                 },
                 enabled = name.isNotBlank() && keyName.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = QuestuaGold, contentColor = Color.Black)
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFC107), contentColor = Color.Black)
             ) { Text("Salvar", fontWeight = FontWeight.Bold) }
         },
         dismissButton = {

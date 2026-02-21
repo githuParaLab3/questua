@@ -17,7 +17,8 @@ data class UserQuestRequestDTO(
     val lastActivityAt: String,
     val completedAt: String? = null,
     val responses: List<Response>? = null,
-    val overallAssessment: List<SkillAssessment>? = null
+    val overallAssessment: List<SkillAssessment>? = null,
+    val startedAt: String? = null
 )
 
 @Serializable
@@ -33,7 +34,8 @@ data class UserQuestResponseDTO(
     val lastActivityAt: String,
     val completedAt: String?,
     val responses: List<Response>?,
-    val overallAssessment: List<SkillAssessment>?
+    val overallAssessment: List<SkillAssessment>?,
+    val startedAt: String?
 )
 
 @Serializable

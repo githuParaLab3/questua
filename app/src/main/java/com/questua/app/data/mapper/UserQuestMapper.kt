@@ -16,6 +16,7 @@ fun UserQuestResponseDTO.toDomain(): UserQuest {
         lastActivityAt = this.lastActivityAt,
         completedAt = this.completedAt,
         responses = this.responses,
-        overallAssessment = this.overallAssessment
+        overallAssessment = this.overallAssessment,
+        startedAt = this.startedAt
     )
 }

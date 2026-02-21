@@ -5,6 +5,7 @@ import com.questua.app.core.network.SafeApiCall
 import com.questua.app.data.mapper.toDomain
 import com.questua.app.data.remote.api.*
 import com.questua.app.data.remote.dto.*
+import com.questua.app.domain.enums.AchievementConditionType
 import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.enums.TargetType
 import com.questua.app.domain.enums.UserRole
@@ -92,8 +93,6 @@ class AdminRepositoryImpl @Inject constructor(
     override fun deleteCity(id: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         emit(safeApiCall { cityApi.delete(id) })
-
-
     }
 
     override fun uploadFile(file: java.io.File, folder: String): Flow<Resource<String>> = flow {
@@ -161,6 +160,7 @@ class AdminRepositoryImpl @Inject constructor(
             else -> Unit
         }
     }
+
     override fun getQuestPoints(query: String?): Flow<Resource<List<QuestPoint>>> = flow {
         emit(Resource.Loading())
         val response = safeApiCall { questPointApi.list(size = 100) }
@@ -198,7 +198,7 @@ class AdminRepositoryImpl @Inject constructor(
             cityId = cityId,
             title = title,
             descriptionQpoint = description,
-            difficulty = difficulty.toShort(), // Convertendo Int para Short conforme DTO
+            difficulty = difficulty.toShort(),
             lat = lat,
             lon = lon,
             imageUrl = imageUrl,
@@ -278,6 +278,7 @@ class AdminRepositoryImpl @Inject constructor(
             emit(Resource.Error(result.message ?: "Erro ao salvar quest"))
         }
     }
+
     override fun getCharacters(query: String?): Flow<Resource<List<CharacterEntity>>> = flow {
         emit(Resource.Loading())
         val response = safeApiCall { characterApi.list(size = 100) }
@@ -311,7 +312,7 @@ class AdminRepositoryImpl @Inject constructor(
             nameCharacter = name,
             avatarUrl = avatarUrl,
             voiceUrl = voiceUrl,
-            spriteSheet = spriteSheet, // Certifique-se de adicionar este campo no seu DTO
+            spriteSheet = spriteSheet,
             persona = persona,
             isAiGenerated = isAiGenerated
         )
@@ -517,7 +518,6 @@ class AdminRepositoryImpl @Inject constructor(
 
     override fun createProduct(product: Product): Flow<Resource<Product>> = flow {
         emit(Resource.Loading())
-        // Mapeando do domínio para DTO
         val dto = ProductRequestDTO(
             sku = product.sku,
             title = product.title,
@@ -547,7 +547,6 @@ class AdminRepositoryImpl @Inject constructor(
 
     override fun getAllCities(page: Int, size: Int): Flow<Resource<List<City>>> = flow {
         emit(Resource.Loading())
-        // CORREÇÃO: Usando argumentos nomeados para pular o parâmetro 'filter'
         val result = safeApiCall { cityApi.list(page = page, size = size) }
         when (result) {
             is Resource.Success -> {
@@ -561,7 +560,6 @@ class AdminRepositoryImpl @Inject constructor(
 
     override fun getAllQuests(page: Int, size: Int): Flow<Resource<List<Quest>>> = flow {
         emit(Resource.Loading())
-        // QuestApi.getAll não tem filter, mas usar nomeado é mais seguro
         val result = safeApiCall { questApi.getAll(page = page, size = size) }
         when (result) {
             is Resource.Success -> {
@@ -575,7 +573,6 @@ class AdminRepositoryImpl @Inject constructor(
 
     override fun getAllQuestPoints(page: Int, size: Int): Flow<Resource<List<QuestPoint>>> = flow {
         emit(Resource.Loading())
-        // CORREÇÃO: Mesmo caso da CityApi, o list espera um map primeiro
         val result = safeApiCall { questPointApi.list(page = page, size = size) }
         when (result) {
             is Resource.Success -> {
@@ -598,7 +595,6 @@ class AdminRepositoryImpl @Inject constructor(
             targetType = product.targetType,
             targetId = product.targetId
         )
-        // Assumindo que sua API tem um método update(id, dto)
         val result = safeApiCall { productApi.update(product.id, request) }
         when (result) {
             is Resource.Success -> emit(Resource.Success(result.data!!.toDomain()))
@@ -625,23 +621,35 @@ class AdminRepositoryImpl @Inject constructor(
 
     override fun saveAchievement(
         id: String?,
-        keyName: String,
-        name: String,
-        description: String?,
+        keyName: String?,
+        nameAchievement: String,
+        descriptionAchievement: String,
         iconUrl: String?,
         rarity: RarityType,
         xpReward: Int,
+        isHidden: Boolean,
+        isGlobal: Boolean,
+        category: String?,
+        conditionType: AchievementConditionType,
+        targetId: String?,
+        requiredAmount: Int,
         metadata: AchievementMetadata?
     ): Flow<Resource<Achievement>> = flow {
         emit(Resource.Loading())
 
         val dto = AchievementRequestDTO(
             keyName = keyName,
-            nameAchievement = name,
-            descriptionAchievement = description,
+            nameAchievement = nameAchievement,
+            descriptionAchievement = descriptionAchievement,
             iconUrl = iconUrl,
             rarity = rarity,
             xpReward = xpReward,
+            isHidden = isHidden,
+            isGlobal = isGlobal,
+            category = category,
+            conditionType = conditionType,
+            targetId = targetId,
+            requiredAmount = requiredAmount,
             metadata = metadata
         )
 
@@ -657,9 +665,9 @@ class AdminRepositoryImpl @Inject constructor(
             emit(Resource.Error(apiResult.message ?: "Erro ao salvar conquista"))
         }
     }
+
     override fun getDialogues(query: String?): Flow<Resource<List<SceneDialogue>>> = flow {
         emit(Resource.Loading())
-        // CORREÇÃO: Usando 'list' com argumentos nomeados para pular o Map de filtros
         val response = safeApiCall<PageResponse<SceneDialogueResponseDTO>> {
             sceneDialogueApi.list(page = 0, size = 100)
         }

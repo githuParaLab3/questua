@@ -45,8 +45,8 @@ fun AdminAchievementDetailScreen(
         AchievementFormDialog(
             achievement = state.achievement,
             onDismiss = { showEdit = false },
-            onConfirm = { key, name, desc, icon, rar, xp, meta ->
-                viewModel.saveAchievement(key, name, desc, icon, rar, xp, meta)
+            onConfirm = { key, name, desc, icon, rar, xp, hidden, global, cat, cond, targ, req ->
+                viewModel.saveAchievement(key, name, desc, icon, rar, xp, hidden, global, cat, cond, targ, req)
                 showEdit = false
             }
         )
@@ -96,7 +96,7 @@ fun AdminAchievementDetailScreen(
                             onClick = { showEdit = true },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = QuestuaGold,
+                                containerColor = Color(0xFFFFC107),
                                 contentColor = Color.Black
                             )
                         ) {
@@ -110,7 +110,6 @@ fun AdminAchievementDetailScreen(
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
-            // Gradiente
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -118,7 +117,7 @@ fun AdminAchievementDetailScreen(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                QuestuaGold.copy(alpha = 0.15f),
+                                Color(0xFFFFC107).copy(alpha = 0.15f),
                                 MaterialTheme.colorScheme.background
                             )
                         )
@@ -140,7 +139,6 @@ fun AdminAchievementDetailScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Ícone Destaque
                     Box(
                         modifier = Modifier
                             .size(100.dp)
@@ -169,22 +167,25 @@ fun AdminAchievementDetailScreen(
 
                     DetailCard("Principal", listOf(
                         "Nome" to state.achievement.name,
-                        "Chave" to state.achievement.keyName,
+                        "Chave" to (state.achievement.keyName ?: "N/A"),
+                        "Descrição" to state.achievement.description,
                         "Raridade" to state.achievement.rarity.name,
                         "XP" to state.achievement.xpReward.toString()
                     ))
 
-                    DetailCard("Visual", listOf(
-                        "Ícone URL" to (state.achievement.iconUrl ?: "N/A"),
-                        "Descrição" to (state.achievement.description ?: "N/A")
+                    DetailCard("Regras e Condições", listOf(
+                        "Condição" to state.achievement.conditionType.name,
+                        "Qtd. Necessária" to state.achievement.requiredAmount.toString(),
+                        "Target ID" to (state.achievement.targetId ?: "N/A"),
+                        "Oculto" to if (state.achievement.isHidden) "Sim" else "Não",
+                        "Global" to if (state.achievement.isGlobal) "Sim" else "Não",
+                        "Categoria" to (state.achievement.category ?: "N/A"),
+                        "Language ID" to (state.achievement.languageId ?: "N/A")
                     ))
 
-                    state.achievement.metadata?.let { meta ->
-                        DetailCard("Metadados", listOf(
-                            "Categoria" to (meta.category ?: "-"),
-                            "Info Extra" to (meta.descriptionExtra ?: "-")
-                        ))
-                    }
+                    DetailCard("Visual", listOf(
+                        "Ícone URL" to (state.achievement.iconUrl ?: "N/A")
+                    ))
                 }
             }
         }

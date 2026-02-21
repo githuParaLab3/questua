@@ -37,8 +37,6 @@ import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.model.Achievement
 import com.questua.app.presentation.navigation.Screen
 
-val QuestuaGold = Color(0xFFFFC107)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AdminAchievementScreen(
@@ -76,7 +74,7 @@ fun AdminAchievementScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { isCreating = true },
-                containerColor = QuestuaGold,
+                containerColor = Color(0xFFFFC107),
                 contentColor = Color.Black,
                 elevation = FloatingActionButtonDefaults.elevation(4.dp)
             ) {
@@ -85,7 +83,6 @@ fun AdminAchievementScreen(
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize()) {
-            // Gradiente de fundo
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -93,7 +90,7 @@ fun AdminAchievementScreen(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                QuestuaGold.copy(alpha = 0.15f),
+                                Color(0xFFFFC107).copy(alpha = 0.15f),
                                 MaterialTheme.colorScheme.background
                             )
                         )
@@ -105,7 +102,6 @@ fun AdminAchievementScreen(
                     .fillMaxSize()
                     .padding(padding)
             ) {
-                // Barra de Busca
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -120,7 +116,6 @@ fun AdminAchievementScreen(
                     )
                 }
 
-                // Conteúdo da Lista
                 Box(modifier = Modifier.weight(1f)) {
                     if (state.isLoading) {
                         LoadingSpinner(modifier = Modifier.align(Alignment.Center))
@@ -165,8 +160,8 @@ fun AdminAchievementScreen(
         AchievementFormDialog(
             achievement = null,
             onDismiss = { isCreating = false },
-            onConfirm = { key, name, desc, icon, rar, xp, meta ->
-                viewModel.saveAchievement(null, key, name, desc, icon, rar, xp, meta)
+            onConfirm = { key, name, desc, icon, rar, xp, hidden, global, cat, cond, targ, req ->
+                viewModel.saveAchievement(null, key, name, desc, icon, rar, xp, hidden, global, cat, cond, targ, req)
                 isCreating = false
             }
         )
@@ -200,7 +195,6 @@ fun AchievementCardItem(
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Ícone
             Box(
                 modifier = Modifier
                     .size(56.dp)

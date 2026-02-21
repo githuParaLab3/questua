@@ -7,9 +7,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
+import com.questua.app.domain.enums.AchievementConditionType
 import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.model.Achievement
-import com.questua.app.domain.model.AchievementMetadata
 import com.questua.app.domain.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.launchIn
@@ -50,8 +50,10 @@ class AdminAchievementDetailViewModel @Inject constructor(
     }
 
     fun saveAchievement(
-        key: String, name: String, desc: String,
-        icon: Any?, rarity: RarityType, xp: Int, meta: AchievementMetadata?
+        key: String, name: String, desc: String, icon: Any?,
+        rarity: RarityType, xp: Int, isHidden: Boolean, isGlobal: Boolean,
+        category: String, conditionType: AchievementConditionType, targetId: String,
+        requiredAmount: Int
     ) {
         viewModelScope.launch {
             state = state.copy(isLoading = true)
@@ -61,11 +63,25 @@ class AdminAchievementDetailViewModel @Inject constructor(
                 repository.uploadFile(icon, "icons").collect { if (it is Resource.Success) finalIconUrl = it.data }
             }
 
-            repository.saveAchievement(achievementId, key, name, desc.ifBlank { null }, finalIconUrl, rarity, xp, meta)
-                .collect { result ->
-                    if (result is Resource.Success) fetchDetails()
-                    else state = state.copy(error = result.message, isLoading = false)
-                }
+            repository.saveAchievement(
+                id = achievementId,
+                keyName = key,
+                nameAchievement = name,
+                descriptionAchievement = desc.ifBlank { "" },
+                iconUrl = finalIconUrl,
+                rarity = rarity,
+                xpReward = xp,
+                isHidden = isHidden,
+                isGlobal = isGlobal,
+                category = category.ifBlank { null },
+                conditionType = conditionType,
+                targetId = targetId.ifBlank { null },
+                requiredAmount = requiredAmount,
+                metadata = null // FORÇADO A NULL
+            ).collect { result ->
+                if (result is Resource.Success) fetchDetails()
+                else state = state.copy(error = result.message, isLoading = false)
+            }
         }
     }
 

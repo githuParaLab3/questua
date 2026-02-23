@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -55,14 +56,15 @@ val QuestuaGold = Color(0xFFFFC107)
 fun WorldMapScreen(
     onNavigateBack: (() -> Unit)? = null,
     onNavigateToCity: (String) -> Unit,
+    onNavigateToUnlock: (String, String) -> Unit, // Novo callback para rota de Desbloqueio
     viewModel: WorldMapViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Estado para controlar qual cidade está selecionada no mapa
-    var selectedCity by remember { mutableStateOf<City?>(null) }
+    // CORREÇÃO 1: Mantendo o UiModel inteiro para reter a flag de bloqueio
+    var selectedCity by remember { mutableStateOf<CityUiModel?>(null) }
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(20.0, 0.0), 1f)
@@ -99,7 +101,7 @@ fun WorldMapScreen(
                 cities = state.cities,
                 onCityClick = { cityUi ->
                     scope.launch {
-                        selectedCity = cityUi.city // Seleciona a cidade
+                        selectedCity = cityUi // Retém estado completo
                         cameraPositionState.animate(
                             CameraUpdateFactory.newLatLngZoom(
                                 LatLng(cityUi.city.lat, cityUi.city.lon),
@@ -131,47 +133,43 @@ fun WorldMapScreen(
                     state.cities.forEach { cityUi ->
                         val city = cityUi.city
 
-                        // CORREÇÃO CRÍTICA: Apenas UM marcador por cidade
                         MarkerComposable(
                             keys = arrayOf(city.id),
                             state = MarkerState(position = LatLng(city.lat, city.lon)),
                             onClick = {
                                 scope.launch {
-                                    selectedCity = city // Ativa o Card Flutuante
+                                    selectedCity = cityUi // CORREÇÃO 2: Passa o UiModel
                                     cameraPositionState.animate(
                                         CameraUpdateFactory.newLatLngZoom(LatLng(city.lat, city.lon), 8f)
                                     )
-                                    // Fecha o sheet levemente para dar espaço ao card, se quiser
-                                    // scaffoldState.bottomSheetState.partialExpand()
                                 }
-                                true // Consome o evento, não faz mais nada no mapa
+                                true
                             }
                         ) {
-                            QuestuaPinMarker(isSelected = selectedCity?.id == city.id)
+                            QuestuaPinMarker(isSelected = selectedCity?.city?.id == city.id)
                         }
                     }
                 }
 
-                // OVERLAY: Card Flutuante de Seleção (Substitui o InfoWindow nativo instável)
-                // Aparece no topo da tela quando uma cidade é selecionada
+                // OVERLAY: Card Flutuante de Seleção
                 AnimatedVisibility(
                     visible = selectedCity != null,
                     enter = fadeIn() + slideInVertically { -it },
                     exit = fadeOut() + slideOutVertically { -it },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 80.dp) // Espaço para não cobrir a toolbar se houver
+                        .padding(top = 80.dp)
                 ) {
-                    selectedCity?.let { city ->
+                    selectedCity?.let { cityUi ->
                         CitySelectionOverlay(
-                            city = city,
-                            onAccess = { onNavigateToCity(city.id) },
+                            cityUi = cityUi,
+                            onAccess = { onNavigateToCity(cityUi.city.id) },
+                            onUnlock = { onNavigateToUnlock(cityUi.city.id, "CITY") },
                             onClose = { selectedCity = null }
                         )
                     }
                 }
 
-                // Botão Voltar
                 if (onNavigateBack != null) {
                     SmallFloatingActionButton(
                         onClick = onNavigateBack,
@@ -193,10 +191,14 @@ fun WorldMapScreen(
 
 @Composable
 fun CitySelectionOverlay(
-    city: City,
+    cityUi: CityUiModel,
     onAccess: () -> Unit,
+    onUnlock: () -> Unit,
     onClose: () -> Unit
 ) {
+    val city = cityUi.city
+    val isUnlocked = cityUi.isUnlocked
+
     Card(
         modifier = Modifier
             .width(280.dp)
@@ -230,17 +232,24 @@ fun CitySelectionOverlay(
 
             Spacer(modifier = Modifier.height(16.dp))
 
+            // CORREÇÃO 3: Define comportamento com base no bloqueio
             Button(
-                onClick = onAccess,
+                onClick = if (isUnlocked) onAccess else onUnlock,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = QuestuaGold,
                     contentColor = Color.Black
                 )
             ) {
-                Text("ACESSAR CIDADE", fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (isUnlocked) "ACESSAR CIDADE" else "DESBLOQUEAR",
+                    fontWeight = FontWeight.Bold
+                )
                 Spacer(modifier = Modifier.width(8.dp))
-                Icon(Icons.Default.PlayArrow, null)
+                Icon(
+                    imageVector = if (isUnlocked) Icons.Default.PlayArrow else Icons.Default.Lock,
+                    contentDescription = null
+                )
             }
         }
     }

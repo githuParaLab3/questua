@@ -16,7 +16,7 @@ import com.questua.app.core.ui.components.HubTab
 import com.questua.app.domain.enums.ReportType
 import com.questua.app.presentation.exploration.worldmap.WorldMapScreen
 import com.questua.app.presentation.hub.HubScreen
-import com.questua.app.presentation.navigation.Screen // Certifique-se de ter este import
+import com.questua.app.presentation.navigation.Screen
 import com.questua.app.presentation.profile.ProfileScreen
 import com.questua.app.presentation.progress.ProgressScreen
 
@@ -25,6 +25,7 @@ fun MainScreen(
     onNavigateToLogin: () -> Unit,
     onNavigateToLanguages: () -> Unit,
     onNavigateToCity: (String) -> Unit,
+    onNavigateToUnlock: (String, String) -> Unit,
     onNavigateToAdmin: () -> Unit,
     onNavigateToHelp: () -> Unit,
     onNavigateToFeedback: (ReportType) -> Unit,
@@ -49,26 +50,16 @@ fun MainScreen(
         ) {
             when (currentTab) {
                 HubTab.HOME -> {
-                    // --- ATUALIZAÇÃO AQUI ---
                     HubScreen(
                         onNavigateToLanguages = onNavigateToLanguages,
-
-                        // 1. Rota para "Continue sua Jornada"
                         onNavigateToQuest = { questId ->
                             navController.navigate(Screen.QuestIntro.passId(questId))
                         },
-
-                        // 2. Rota para itens bloqueados (Cadeado)
-                        onNavigateToUnlock = { contentId, contentType ->
-                            navController.navigate(Screen.UnlockPreview.passArgs(contentId, contentType))
-                        },
-
-                        // 3. Rota para "Novidades" (Disponíveis)
+                        onNavigateToUnlock = onNavigateToUnlock,
                         onNavigateToContent = { contentId, contentType ->
                             when (contentType) {
                                 "CITY" -> onNavigateToCity(contentId)
                                 "QUEST" -> navController.navigate(Screen.QuestIntro.passId(contentId))
-                                // AQUI ESTAVA FALTANDO:
                                 "QUEST_POINT" -> navController.navigate(Screen.QuestPoint.passId(contentId))
                             }
                         }
@@ -77,7 +68,8 @@ fun MainScreen(
                 HubTab.MAP -> {
                     WorldMapScreen(
                         onNavigateBack = null,
-                        onNavigateToCity = onNavigateToCity
+                        onNavigateToCity = onNavigateToCity,
+                        onNavigateToUnlock = onNavigateToUnlock
                     )
                 }
                 HubTab.PROFILE -> {

@@ -86,6 +86,9 @@ fun SetupNavGraph(
                 onNavigateToCity = { cityId ->
                     navController.navigate(Screen.CityDetail.passId(cityId))
                 },
+                onNavigateToUnlock = { contentId, contentType ->
+                    navController.navigate(Screen.UnlockPreview.passArgs(contentId, contentType))
+                },
                 onNavigateToAdmin = {
                     navController.navigate(Screen.AdminHome.route)
                 },

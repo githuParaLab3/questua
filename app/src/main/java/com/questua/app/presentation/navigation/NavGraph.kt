@@ -196,12 +196,25 @@ fun SetupNavGraph(
             UnlockPreviewScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onContentUnlocked = { id, type ->
-                    if (type == "QUEST") {
-                        navController.navigate(Screen.QuestIntro.passId(id)) {
-                            popUpTo(Screen.UnlockPreview.route) { inclusive = true }
+                    when (type) {
+                        "QUEST" -> {
+                            navController.navigate(Screen.QuestIntro.passId(id)) {
+                                popUpTo(Screen.UnlockPreview.route) { inclusive = true }
+                            }
                         }
-                    } else {
-                        navController.popBackStack()
+                        "CITY" -> {
+                            navController.navigate(Screen.CityDetail.passId(id)) {
+                                popUpTo(Screen.UnlockPreview.route) { inclusive = true }
+                            }
+                        }
+                        "QUEST_POINT" -> {
+                            navController.navigate(Screen.QuestPoint.passId(id)) {
+                                popUpTo(Screen.UnlockPreview.route) { inclusive = true }
+                            }
+                        }
+                        else -> {
+                            navController.popBackStack()
+                        }
                     }
                 }
             )

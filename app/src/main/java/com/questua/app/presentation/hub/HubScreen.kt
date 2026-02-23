@@ -22,7 +22,7 @@ import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -34,12 +34,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
@@ -48,21 +51,29 @@ import com.questua.app.domain.model.UserQuest
 import com.questua.app.presentation.hub.components.HeaderStats
 import com.questua.app.presentation.hub.components.StreakCard
 
-// Padrão visual dourado
 val QuestuaGold = Color(0xFFFFC107)
 
 @Composable
 fun HubScreen(
     onNavigateToLanguages: () -> Unit,
     onNavigateToQuest: (String) -> Unit,
-    onNavigateToUnlock: (String, String) -> Unit, // id, type (CITY, QUEST, QUEST_POINT)
-    onNavigateToContent: (String, String) -> Unit, // id, type
+    onNavigateToUnlock: (String, String) -> Unit,
+    onNavigateToContent: (String, String) -> Unit,
     viewModel: HubViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(Unit) {
-        viewModel.refreshData()
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshData()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     Scaffold(
@@ -70,15 +81,14 @@ fun HubScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onNavigateToLanguages,
-                containerColor = QuestuaGold, // Destaque Dourado
+                containerColor = QuestuaGold,
                 contentColor = Color.Black
             ) {
-                Icon(Icons.Default.Language, contentDescription = "Mudar Idioma")
+                Icon(Icons.Default.Language, contentDescription = null)
             }
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
-            // Gradiente de Fundo Global
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -99,7 +109,6 @@ fun HubScreen(
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
             ) {
-                // --- HEADER & STREAK ---
                 HeaderStats(
                     userName = state.user?.displayName ?: "Explorador",
                     userAvatar = state.user?.avatarUrl,
@@ -115,7 +124,6 @@ fun HubScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // --- 1. CONTINUE SUA JORNADA (IN_PROGRESS) ---
                 if (state.continueJourneyQuests.isNotEmpty()) {
                     SectionTitle(title = "Continue sua Jornada")
                     LazyRow(
@@ -132,12 +140,10 @@ fun HubScreen(
                     Spacer(modifier = Modifier.height(32.dp))
                 }
 
-                // --- 2. NOVIDADES (CIDADES, QUESTS, LOCAIS) ---
                 if (state.latestCities.isNotEmpty() || state.latestQuests.isNotEmpty() || state.latestQuestPoints.isNotEmpty()) {
                     SectionTitle(title = "Novidades no Questua")
 
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                        // Cidades
                         if (state.latestCities.isNotEmpty()) {
                             Text(
                                 "Cidades Recentes",
@@ -161,7 +167,6 @@ fun HubScreen(
                             }
                         }
 
-                        // Missões
                         if (state.latestQuests.isNotEmpty()) {
                             Text(
                                 "Missões Recentes",
@@ -172,7 +177,7 @@ fun HubScreen(
                             state.latestQuests.forEach { item ->
                                 NewContentCard(
                                     title = item.quest.title,
-                                    imageUrl = null, // QUEST NÃO TEM IMAGEM
+                                    imageUrl = null,
                                     icon = Icons.Default.Assignment,
                                     typeLabel = "MISSÃO",
                                     isLocked = item.isLocked,
@@ -185,7 +190,6 @@ fun HubScreen(
                             }
                         }
 
-                        // Locais
                         if (state.latestQuestPoints.isNotEmpty()) {
                             Text(
                                 "Locais Recentes",
@@ -212,7 +216,6 @@ fun HubScreen(
                     Spacer(modifier = Modifier.height(32.dp))
                 }
 
-                // --- 3. NOVAS CONQUISTAS ---
                 if (state.latestSystemAchievements.isNotEmpty()) {
                     SectionTitle(title = "Novas Conquistas")
                     LazyRow(
@@ -266,7 +269,6 @@ fun ContinueQuestCard(userQuest: UserQuest, onClick: () -> Unit) {
         border = BorderStroke(1.dp, QuestuaGold.copy(alpha = 0.3f))
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Gradiente Sutil no Card
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -286,7 +288,6 @@ fun ContinueQuestCard(userQuest: UserQuest, onClick: () -> Unit) {
                     .fillMaxSize(),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Topo: Badge de Status
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
@@ -307,10 +308,9 @@ fun ContinueQuestCard(userQuest: UserQuest, onClick: () -> Unit) {
                     }
                 }
 
-                // Conteúdo: Título e Progresso
                 Column {
                     Text(
-                        text = "Retomar Missão", // Poderia usar o título da quest se disponível no userQuest
+                        text = "Retomar Missão",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -338,7 +338,6 @@ fun ContinueQuestCard(userQuest: UserQuest, onClick: () -> Unit) {
                 }
             }
 
-            // Ícone Play Flutuante
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -383,12 +382,11 @@ fun NewContentCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
-            // --- ÁREA DE IMAGEM / ÍCONE ---
             Box(
                 modifier = Modifier
                     .width(100.dp)
                     .fillMaxHeight()
-                    .background(MaterialTheme.colorScheme.surfaceVariant), // Fundo padrão para área de imagem
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 if (imageUrl != null) {
@@ -402,7 +400,6 @@ fun NewContentCard(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    // Fallback para quando não tem imagem (ex: Missões)
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
@@ -411,7 +408,6 @@ fun NewContentCard(
                     )
                 }
 
-                // Overlay de Bloqueio
                 if (isLocked) {
                     Box(
                         modifier = Modifier
@@ -421,7 +417,7 @@ fun NewContentCard(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Lock,
-                            contentDescription = "Bloqueado",
+                            contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
                         )
@@ -429,7 +425,6 @@ fun NewContentCard(
                 }
             }
 
-            // --- CONTEÚDO ---
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -438,7 +433,6 @@ fun NewContentCard(
                 verticalArrangement = Arrangement.Center
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Badge do Tipo
                     Surface(
                         color = if (isLocked) MaterialTheme.colorScheme.errorContainer else QuestuaGold.copy(alpha = 0.15f),
                         shape = RoundedCornerShape(4.dp)
@@ -465,7 +459,6 @@ fun NewContentCard(
                 )
             }
 
-            // Seta
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
@@ -475,7 +468,7 @@ fun NewContentCard(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                     contentDescription = null,
-                    tint = QuestuaGold // Destaque na seta
+                    tint = QuestuaGold
                 )
             }
         }
@@ -500,7 +493,6 @@ fun SystemAchievementCard(achievement: Achievement) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Ícone da Conquista
             Box(
                 modifier = Modifier
                     .size(70.dp)
@@ -516,7 +508,7 @@ fun SystemAchievementCard(achievement: Achievement) {
                         .build(),
                     contentDescription = null,
                     modifier = Modifier.size(40.dp),
-                    error = rememberVectorPainter(Icons.Default.EmojiEvents) // Fallback visual
+                    error = rememberVectorPainter(Icons.Default.EmojiEvents)
                 )
             }
 
@@ -534,7 +526,6 @@ fun SystemAchievementCard(achievement: Achievement) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Badge de XP
             Surface(
                 color = MaterialTheme.colorScheme.surfaceVariant,
                 shape = RoundedCornerShape(8.dp)

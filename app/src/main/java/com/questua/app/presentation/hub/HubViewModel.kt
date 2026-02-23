@@ -21,6 +21,7 @@ import com.questua.app.domain.usecase.onboarding.GetLanguageDetailsUseCase
 import com.questua.app.domain.usecase.user.GetUserProfileUseCase
 import com.questua.app.domain.usecase.user.GetUserStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,6 +66,10 @@ class HubViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     private var currentUserId: String? = null
+    private var profileJob: Job? = null
+    private var statsJob: Job? = null
+    private var contentJob: Job? = null
+    private var achievementsJob: Job? = null
 
     init {
         observeUserSession()
@@ -90,13 +95,15 @@ class HubViewModel @Inject constructor(
     private fun loadHubData(userId: String) {
         _state.value = _state.value.copy(isLoading = true)
 
-        getUserProfileUseCase(userId).onEach { result ->
+        profileJob?.cancel()
+        profileJob = getUserProfileUseCase(userId).onEach { result ->
             if (result is Resource.Success) {
                 _state.value = _state.value.copy(user = result.data)
             }
         }.launchIn(viewModelScope)
 
-        getUserStatsUseCase(userId).onEach { result ->
+        statsJob?.cancel()
+        statsJob = getUserStatsUseCase(userId).onEach { result ->
             if (result is Resource.Success) {
                 val userLang = result.data
                 _state.value = _state.value.copy(activeLanguage = userLang)
@@ -122,7 +129,6 @@ class HubViewModel @Inject constructor(
                 return@launch
             }
 
-            // Otimização: Pegar apenas os últimos 10 desbloqueados para checar status
             val recentUnlocked = unlockedIds.takeLast(10)
 
             val deferreds = recentUnlocked.map { questId ->
@@ -133,8 +139,6 @@ class HubViewModel @Inject constructor(
 
             val inProgress = results.mapNotNull { it?.data }
                 .filter { it.status == ProgressStatus.IN_PROGRESS }
-                // Ordena por lastActivityAt (supondo que UserQuest tenha esse campo corrigido)
-                // Se UserQuest não tiver data, o reversed() da lista de desbloqueio serve como fallback cronológico
                 .sortedByDescending { it.lastActivityAt }
                 .take(3)
 
@@ -143,33 +147,40 @@ class HubViewModel @Inject constructor(
     }
 
     private fun loadNewContent(userLanguage: UserLanguage) {
-        viewModelScope.launch {
+        contentJob?.cancel()
+        contentJob = viewModelScope.launch {
             val unlocked = userLanguage.unlockedContent
 
-            contentRepository.getCities(userLanguage.languageId).collect { result ->
-                if (result is Resource.Success) {
-                    val items = result.data?.takeLast(3)?.reversed()?.map { city ->
-                        HubCityItem(city, unlocked?.cities?.contains(city.id) != true)
-                    } ?: emptyList()
-                    _state.value = _state.value.copy(latestCities = items)
+            launch {
+                contentRepository.getCities(userLanguage.languageId).collectLatest { result ->
+                    if (result is Resource.Success) {
+                        val items = result.data?.takeLast(3)?.reversed()?.map { city ->
+                            HubCityItem(city, unlocked?.cities?.contains(city.id) != true)
+                        } ?: emptyList()
+                        _state.value = _state.value.copy(latestCities = items)
+                    }
                 }
             }
 
-            adminRepository.getAllQuests(page = 0, size = 5).collect { result ->
-                if (result is Resource.Success) {
-                    val items = result.data?.take(3)?.map { quest ->
-                        HubQuestItem(quest, unlocked?.quests?.contains(quest.id) != true)
-                    } ?: emptyList()
-                    _state.value = _state.value.copy(latestQuests = items)
+            launch {
+                adminRepository.getAllQuests(page = 0, size = 50).collectLatest { result ->
+                    if (result is Resource.Success) {
+                        val items = result.data?.takeLast(3)?.reversed()?.map { quest ->
+                            HubQuestItem(quest, unlocked?.quests?.contains(quest.id) != true)
+                        } ?: emptyList()
+                        _state.value = _state.value.copy(latestQuests = items)
+                    }
                 }
             }
 
-            adminRepository.getAllQuestPoints(page = 0, size = 5).collect { result ->
-                if (result is Resource.Success) {
-                    val items = result.data?.take(3)?.map { point ->
-                        HubPointItem(point, unlocked?.questPoints?.contains(point.id) != true)
-                    } ?: emptyList()
-                    _state.value = _state.value.copy(latestQuestPoints = items)
+            launch {
+                adminRepository.getAllQuestPoints(page = 0, size = 50).collectLatest { result ->
+                    if (result is Resource.Success) {
+                        val items = result.data?.takeLast(3)?.reversed()?.map { point ->
+                            HubPointItem(point, unlocked?.questPoints?.contains(point.id) != true)
+                        } ?: emptyList()
+                        _state.value = _state.value.copy(latestQuestPoints = items)
+                    }
                 }
             }
 
@@ -178,8 +189,9 @@ class HubViewModel @Inject constructor(
     }
 
     private fun loadSystemAchievements() {
-        viewModelScope.launch {
-            adminRepository.getAchievements(query = null).collect { result ->
+        achievementsJob?.cancel()
+        achievementsJob = viewModelScope.launch {
+            adminRepository.getAchievements(query = null).collectLatest { result ->
                 if (result is Resource.Success) {
                     val recent = result.data?.takeLast(3)?.reversed() ?: emptyList()
                     _state.value = _state.value.copy(latestSystemAchievements = recent)

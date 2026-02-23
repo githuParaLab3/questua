@@ -57,9 +57,9 @@ fun UnlockPreviewScreen(
         }
     }
 
-    LaunchedEffect(state.showSuccessPopup, state.isUnlocked) {
-        if (state.showSuccessPopup && state.isUnlocked) {
-            delay(2000)
+    LaunchedEffect(state.isUnlocked) {
+        if (state.isUnlocked) {
+            delay(1500)
             viewModel.dismissSuccessPopup()
             onContentUnlocked(viewModel.contentId, viewModel.contentType)
         }
@@ -120,7 +120,9 @@ fun UnlockPreviewScreen(
             }
 
             if (state.showSuccessPopup) {
-                Dialog(onDismissRequest = { viewModel.dismissSuccessPopup() }) {
+                Dialog(onDismissRequest = {
+                    if (!state.isUnlocked) viewModel.dismissSuccessPopup()
+                }) {
                     Card(
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),

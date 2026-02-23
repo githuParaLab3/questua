@@ -10,6 +10,7 @@ import com.questua.app.domain.repository.ContentRepository
 import com.questua.app.domain.usecase.exploration.GetCityDetailsUseCase
 import com.questua.app.domain.usecase.exploration.GetCityQuestPointsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -30,7 +31,6 @@ data class CityState(
 class CityViewModel @Inject constructor(
     private val getCityDetailsUseCase: GetCityDetailsUseCase,
     private val getCityQuestPointsUseCase: GetCityQuestPointsUseCase,
-    // private val gameRepository: GameRepository, // Futuro: Usar para checar progresso real
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -38,18 +38,23 @@ class CityViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     private val cityId: String? = savedStateHandle["cityId"]
+    private var cityJob: Job? = null
 
     init {
+        loadCityData()
+    }
+
+    fun refreshData() {
         loadCityData()
     }
 
     fun loadCityData() {
         if (cityId == null) return
 
-        viewModelScope.launch {
+        cityJob?.cancel()
+        cityJob = viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
 
-            // Combina as duas chamadas para atualizar o estado apenas quando ambas terminarem (ou fluírem)
             combine(
                 getCityDetailsUseCase(cityId),
                 getCityQuestPointsUseCase(cityId)
@@ -57,20 +62,17 @@ class CityViewModel @Inject constructor(
 
                 var newState = _state.value
 
-                // Processa Cidade
                 when (cityResult) {
                     is Resource.Success -> newState = newState.copy(city = cityResult.data)
                     is Resource.Error -> newState = newState.copy(error = cityResult.message)
                     is Resource.Loading -> Unit
                 }
 
-                // Processa Pontos
                 when (pointsResult) {
                     is Resource.Success -> {
                         val points = pointsResult.data ?: emptyList()
                         newState = newState.copy(questPoints = points)
 
-                        // Lógica de "Sugestão de Ponto"
                         val (suggested, hasProgress) = determineSuggestedPoint(points)
                         newState = newState.copy(
                             suggestedPoint = suggested,
@@ -81,7 +83,6 @@ class CityViewModel @Inject constructor(
                     is Resource.Loading -> Unit
                 }
 
-                // Define loading final
                 val stillLoading = cityResult is Resource.Loading || pointsResult is Resource.Loading
                 newState.copy(isLoading = stillLoading)
 
@@ -93,25 +94,7 @@ class CityViewModel @Inject constructor(
 
     private fun determineSuggestedPoint(points: List<QuestPoint>): Pair<QuestPoint?, Boolean> {
         if (points.isEmpty()) return Pair(null, false)
-
-        // Ordena por dificuldade (assumindo que dificuldade menor = início)
         val sortedPoints = points.sortedBy { it.difficulty }
-
-        // TODO: Implementar verificação real de progresso do usuário
-        // Aqui checaríamos no GameRepository se o usuário tem alguma quest "IN_PROGRESS"
-        // em algum desses pontos.
-
-        // Exemplo de lógica futura:
-        /*
-        val activePoint = sortedPoints.find { point ->
-            gameRepository.hasUserStartedPoint(point.id)
-        }
-        if (activePoint != null) {
-            return Pair(activePoint, true)
-        }
-        */
-
-        // Padrão: Retorna o primeiro ponto (mais fácil) e flag false (significa "Começar")
         return Pair(sortedPoints.firstOrNull(), false)
     }
 }

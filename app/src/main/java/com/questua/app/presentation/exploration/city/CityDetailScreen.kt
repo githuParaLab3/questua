@@ -20,11 +20,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -37,7 +40,6 @@ import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.domain.model.City
 import com.questua.app.domain.model.QuestPoint
 
-// Cor Dourada Padrão Questua
 val QuestuaGold = Color(0xFFFFC107)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,10 +51,23 @@ fun CityDetailScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val cameraPositionState = rememberCameraPositionState()
     val scaffoldState = rememberBottomSheetScaffoldState()
 
-    // Configuração do Mapa
+    // --- LÓGICA DE HOT RELOAD ---
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshData()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     val mapProperties = remember(state.city) {
         var bounds: LatLngBounds? = null
 
@@ -119,7 +134,6 @@ fun CityDetailScreen(
                         rotationGesturesEnabled = false
                     )
                 ) {
-                    // Contorno Dourado da Cidade
                     state.city?.boundingPolygon?.coordinates?.let { rawCoords ->
                         val polygonPoints = rawCoords.mapNotNull {
                             if (it.size >= 2) LatLng(it[0], it[1]) else null
@@ -135,36 +149,29 @@ fun CityDetailScreen(
                         }
                     }
 
-                    // Renderização dos Pontos
                     state.questPoints.forEach { point ->
-
-                        // MARCADOR NO MAPA (Ícone Personalizado)
                         MarkerComposable(
                             keys = arrayOf(point.id, point.iconUrl ?: "no_icon"),
                             state = MarkerState(position = LatLng(point.lat, point.lon)),
                             onClick = {
-                                return@MarkerComposable false // Retorna false para abrir o InfoWindow padrão
+                                return@MarkerComposable false
                             }
                         ) {
                             QuestuaMapMarker(iconUrl = point.iconUrl)
                         }
 
-                        // JANELA DE INFORMAÇÃO (Ao clicar no marcador)
                         MarkerInfoWindow(
                             state = MarkerState(position = LatLng(point.lat, point.lon)),
-                            anchor = Offset(0.5f, 0.0f), // Ancora no topo do pino
+                            anchor = Offset(0.5f, 0.0f),
                             onInfoWindowClick = {
-                                // Ação de navegação segura
                                 onNavigateToQuestPoint(point.id)
                             }
                         ) {
-                            // Conteúdo visual da janela (Estático e leve para evitar crash)
                             SimpleInfoWindowContent(point = point)
                         }
                     }
                 }
 
-                // Botão Voltar
                 SmallFloatingActionButton(
                     onClick = onNavigateBack,
                     modifier = Modifier
@@ -190,7 +197,6 @@ fun QuestuaMapMarker(iconUrl: String?) {
         modifier = Modifier.size(70.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Base do Pino (Triângulo)
         Box(
             modifier = Modifier
                 .padding(bottom = 2.dp)
@@ -198,7 +204,6 @@ fun QuestuaMapMarker(iconUrl: String?) {
                 .background(QuestuaGold, shape = TriangleShape)
         )
 
-        // Cabeça do Pino (Círculo)
         Box(
             modifier = Modifier
                 .padding(bottom = 12.dp)
@@ -211,7 +216,6 @@ fun QuestuaMapMarker(iconUrl: String?) {
                 .background(MaterialTheme.colorScheme.surface)
         ) {
             if (!iconUrl.isNullOrBlank()) {
-                // CORREÇÃO: Uso de toFullImageUrl()
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(iconUrl.toFullImageUrl())
@@ -237,7 +241,6 @@ fun QuestuaMapMarker(iconUrl: String?) {
 
 @Composable
 fun SimpleInfoWindowContent(point: QuestPoint) {
-    // InfoWindow simplificado para estabilidade (sem imagens pesadas, apenas texto e estilo)
     Card(
         modifier = Modifier
             .width(200.dp)
@@ -261,7 +264,6 @@ fun SimpleInfoWindowContent(point: QuestPoint) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Indicador visual de ação
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.background(
@@ -338,7 +340,7 @@ fun CityBottomSheetContent(city: City) {
         if (!city.imageUrl.isNullOrBlank()) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
-                    .data(city.imageUrl.toFullImageUrl()) // CORREÇÃO
+                    .data(city.imageUrl.toFullImageUrl())
                     .crossfade(true)
                     .build(),
                 contentDescription = "Imagem de ${city.name}",

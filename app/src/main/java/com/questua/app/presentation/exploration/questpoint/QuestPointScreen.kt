@@ -16,7 +16,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,10 +27,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
@@ -47,9 +50,19 @@ fun QuestPointScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(Unit) {
-        viewModel.loadData()
+    // --- LÓGICA DE HOT RELOAD ---
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshData()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     Scaffold(
@@ -67,14 +80,12 @@ fun QuestPointScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 32.dp)
                 ) {
-                    // --- HEADER IMERSIVO ---
                     item {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(380.dp) // Aumentado para 380dp para dar mais área visual
+                                .height(380.dp)
                         ) {
-                            // Imagem de Fundo
                             state.questPoint?.let { point ->
                                 AsyncImage(
                                     model = ImageRequest.Builder(context)
@@ -91,7 +102,6 @@ fun QuestPointScreen(
                                     .background(MaterialTheme.colorScheme.surfaceVariant)
                             )
 
-                            // Gradiente Overlay (Mais forte no fundo para contraste)
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -107,17 +117,13 @@ fun QuestPointScreen(
                                     )
                             )
 
-                            // Informações do Ponto
                             Column(
                                 modifier = Modifier
                                     .align(Alignment.BottomStart)
                                     .fillMaxWidth()
                                     .padding(horizontal = 24.dp, vertical = 24.dp)
-                                    // LIMITADOR DE ALTURA:
-                                    // Garante que o texto nunca suba além de 280dp (deixando 100dp livres no topo para o botão voltar)
                                     .heightIn(max = 280.dp)
                             ) {
-                                // Badge
                                 Surface(
                                     color = QuestuaGold,
                                     shape = RoundedCornerShape(4.dp),
@@ -142,7 +148,7 @@ fun QuestPointScreen(
                                         )
                                     ),
                                     color = Color.White,
-                                    maxLines = 3, // Limita linhas para não quebrar o layout
+                                    maxLines = 3,
                                     overflow = TextOverflow.Ellipsis
                                 )
 
@@ -158,7 +164,6 @@ fun QuestPointScreen(
 
                                 Spacer(modifier = Modifier.height(20.dp))
 
-                                // Barra de Progresso
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.fillMaxWidth()
@@ -184,12 +189,10 @@ fun QuestPointScreen(
                         }
                     }
 
-                    // --- ESPAÇAMENTO ENTRE IMAGEM E MISSÕES ---
                     item {
                         Spacer(modifier = Modifier.height(32.dp))
                     }
 
-                    // --- Título da Seção ---
                     item {
                         PaddingValues(horizontal = 24.dp, vertical = 8.dp).let {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -210,7 +213,6 @@ fun QuestPointScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                     }
 
-                    // --- Lista de Missões ---
                     items(state.quests) { questItem ->
                         QuestItemCard(
                             item = questItem,
@@ -225,8 +227,6 @@ fun QuestPointScreen(
                     }
                 }
 
-                // --- BOTÃO VOLTAR FLUTUANTE ---
-                // Mantido fora da LazyColumn para ficar fixo no topo
                 SmallFloatingActionButton(
                     onClick = onNavigateBack,
                     modifier = Modifier
@@ -240,7 +240,6 @@ fun QuestPointScreen(
                 }
             }
 
-            // Tratamento de Erro
             state.error?.let {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Card(

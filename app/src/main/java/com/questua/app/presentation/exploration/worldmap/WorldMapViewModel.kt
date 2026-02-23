@@ -9,6 +9,7 @@ import com.questua.app.domain.usecase.exploration.GetWorldMapUseCase
 import com.questua.app.domain.usecase.exploration.UnlockContentUseCase
 import com.questua.app.domain.usecase.user.GetUserStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
@@ -37,12 +38,19 @@ class WorldMapViewModel @Inject constructor(
     private val _state = MutableStateFlow(WorldMapState())
     val state = _state.asStateFlow()
 
+    private var mapJob: Job? = null
+
     init {
         loadMapData()
     }
 
+    fun refreshData() {
+        loadMapData()
+    }
+
     fun loadMapData() {
-        viewModelScope.launch {
+        mapJob?.cancel()
+        mapJob = viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
             val userId = tokenManager.userId.first()
 

@@ -13,6 +13,7 @@ import com.questua.app.domain.usecase.exploration.GetQuestPointDetailsUseCase
 import com.questua.app.domain.usecase.exploration.GetQuestPointQuestsUseCase
 import com.questua.app.domain.usecase.user.GetUserStatsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
@@ -53,15 +54,21 @@ class QuestPointViewModel @Inject constructor(
     val state = _state.asStateFlow()
 
     private val pointId: String? = savedStateHandle["pointId"]
+    private var questJob: Job? = null
 
     init {
+        loadData()
+    }
+
+    fun refreshData() {
         loadData()
     }
 
     fun loadData() {
         if (pointId == null) return
 
-        viewModelScope.launch {
+        questJob?.cancel()
+        questJob = viewModelScope.launch {
             val userId = tokenManager.userId.first() ?: return@launch
 
             // 1. Carrega detalhes estáticos do Ponto
@@ -72,8 +79,6 @@ class QuestPointViewModel @Inject constructor(
             }
 
             // 2. OBSERVAÇÃO CONTÍNUA (COMBINE)
-            // Combinamos a lista de quests com os status do usuário.
-            // Se qualquer um dos dois mudar (ex: atualização da rede), a UI recalcula.
             combine(
                 getQuestPointQuestsUseCase(pointId),
                 getUserStatsUseCase(userId)
@@ -86,11 +91,7 @@ class QuestPointViewModel @Inject constructor(
                 if (statsRes is Resource.Error) error = statsRes.message
 
                 val rawQuests = questsRes.data?.sortedBy { it.orderIndex } ?: emptyList()
-
-                // Pega a lista de IDs desbloqueados (garante lista vazia se loading/erro)
                 val unlockedQuestIds = statsRes.data?.unlockedContent?.quests ?: emptyList()
-
-                // Processa o status combinando tudo
                 val questsWithStatus = processQuestStatus(rawQuests, userId, unlockedQuestIds)
 
                 val totalQuests = questsWithStatus.size
@@ -98,7 +99,7 @@ class QuestPointViewModel @Inject constructor(
                 val progress = if (totalQuests > 0) (completedQuests.toFloat() / totalQuests) else 0f
 
                 QuestPointState(
-                    isLoading = isLoading && rawQuests.isEmpty(), // Só mostra loading se não tiver dados
+                    isLoading = isLoading && rawQuests.isEmpty(),
                     questPoint = _state.value.questPoint,
                     quests = questsWithStatus,
                     totalProgressPercent = progress,
@@ -116,21 +117,17 @@ class QuestPointViewModel @Inject constructor(
         unlockedQuestIds: List<String>
     ): List<QuestItemState> {
         val resultList = mutableListOf<QuestItemState>()
-
-        // Mantém a lógica híbrida: A primeira é sempre liberada se não tiver anterior
         var isPreviousCompleted = true
 
         for (quest in quests) {
             var status = QuestStatus.LOCKED
             var userScore = 0
 
-            // Lógica: Backend autoriza OU Sequência local autoriza
             val isUnlockedByBackend = unlockedQuestIds.any { it.equals(quest.id, ignoreCase = true) }
             val shouldBeUnlocked = isUnlockedByBackend || isPreviousCompleted
 
             if (shouldBeUnlocked) {
                 try {
-                    // Busca estado individual (XP/Status real)
                     val userQuestResource = gameRepository.getUserQuestStatus(quest.id, userId).first()
 
                     if (userQuestResource is Resource.Success && userQuestResource.data != null) {

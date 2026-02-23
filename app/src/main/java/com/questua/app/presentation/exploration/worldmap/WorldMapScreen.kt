@@ -32,10 +32,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -48,7 +51,6 @@ import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.domain.model.City
 import kotlinx.coroutines.launch
 
-// Cor Dourada Padrão Questua
 val QuestuaGold = Color(0xFFFFC107)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,15 +58,31 @@ val QuestuaGold = Color(0xFFFFC107)
 fun WorldMapScreen(
     onNavigateBack: (() -> Unit)? = null,
     onNavigateToCity: (String) -> Unit,
-    onNavigateToUnlock: (String, String) -> Unit, // Novo callback para rota de Desbloqueio
+    onNavigateToUnlock: (String, String) -> Unit,
     viewModel: WorldMapViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    // CORREÇÃO 1: Mantendo o UiModel inteiro para reter a flag de bloqueio
     var selectedCity by remember { mutableStateOf<CityUiModel?>(null) }
+
+    // --- LÓGICA DE HOT RELOAD ---
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshData()
+
+                // Recalcula o estado do card selecionado se houver algum aberto
+                selectedCity = null
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(20.0, 0.0), 1f)
@@ -101,7 +119,7 @@ fun WorldMapScreen(
                 cities = state.cities,
                 onCityClick = { cityUi ->
                     scope.launch {
-                        selectedCity = cityUi // Retém estado completo
+                        selectedCity = cityUi
                         cameraPositionState.animate(
                             CameraUpdateFactory.newLatLngZoom(
                                 LatLng(cityUi.city.lat, cityUi.city.lon),
@@ -127,7 +145,7 @@ fun WorldMapScreen(
                     properties = mapProperties,
                     uiSettings = mapUiSettings,
                     onMapClick = {
-                        selectedCity = null // Clicar no vazio fecha a seleção
+                        selectedCity = null
                     }
                 ) {
                     state.cities.forEach { cityUi ->
@@ -138,7 +156,7 @@ fun WorldMapScreen(
                             state = MarkerState(position = LatLng(city.lat, city.lon)),
                             onClick = {
                                 scope.launch {
-                                    selectedCity = cityUi // CORREÇÃO 2: Passa o UiModel
+                                    selectedCity = cityUi
                                     cameraPositionState.animate(
                                         CameraUpdateFactory.newLatLngZoom(LatLng(city.lat, city.lon), 8f)
                                     )
@@ -151,7 +169,6 @@ fun WorldMapScreen(
                     }
                 }
 
-                // OVERLAY: Card Flutuante de Seleção
                 AnimatedVisibility(
                     visible = selectedCity != null,
                     enter = fadeIn() + slideInVertically { -it },
@@ -232,7 +249,6 @@ fun CitySelectionOverlay(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // CORREÇÃO 3: Define comportamento com base no bloqueio
             Button(
                 onClick = if (isUnlocked) onAccess else onUnlock,
                 modifier = Modifier.fillMaxWidth(),
@@ -363,6 +379,17 @@ fun CityHubCard(
                         Icon(Icons.Default.LocationOn, null, tint = Color.Gray)
                     }
                 }
+
+                if (!cityUi.isUnlocked) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.5f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Lock, null, tint = Color.White)
+                    }
+                }
             }
 
             Column(
@@ -393,9 +420,9 @@ fun CityHubCard(
                     ),
                     contentPadding = PaddingValues(horizontal = 8.dp)
                 ) {
-                    Text("VIAJAR", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Text(if (cityUi.isUnlocked) "VIAJAR" else "VER", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.width(4.dp))
-                    Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(12.dp))
+                    Icon(if (cityUi.isUnlocked) Icons.Default.PlayArrow else Icons.Default.Lock, null, modifier = Modifier.size(12.dp))
                 }
             }
         }

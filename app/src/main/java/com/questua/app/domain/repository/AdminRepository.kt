@@ -73,6 +73,7 @@ interface AdminRepository {
         difficulty: Int,
         orderIndex: Int,
         xpValue: Int,
+        xpPerQuestion: Int, // Novo parâmetro adicionado aqui
         unlockRequirement: UnlockRequirement?,
         learningFocus: LearningFocus?,
         isPremium: Boolean,

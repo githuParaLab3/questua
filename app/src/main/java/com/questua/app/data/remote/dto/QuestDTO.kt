@@ -13,6 +13,7 @@ data class QuestRequestDTO(
     val difficulty: Short = 1,
     val orderIndex: Short = 1,
     val xpValue: Int = 0,
+    val xpPerQuestion: Int = 10,
     val unlockRequirement: UnlockRequirement? = null,
     val learningFocus: LearningFocus? = null,
     val isPremium: Boolean = false,
@@ -30,6 +31,7 @@ data class QuestResponseDTO(
     val difficulty: Short,
     val orderIndex: Short,
     val xpValue: Int,
+    val xpPerQuestion: Int, // Adicionado
     val unlockRequirement: UnlockRequirement?,
     val learningFocus: LearningFocus?,
     val isPremium: Boolean,

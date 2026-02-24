@@ -36,6 +36,7 @@ class AdminRepositoryImpl @Inject constructor(
     private val aiGenerationApi: AiGenerationApi
 ) : AdminRepository, SafeApiCall() {
 
+    // ... (outros métodos mantidos iguais até o saveQuest) ...
     override fun generateQuestPoint(cityId: String, theme: String): Flow<Resource<QuestPoint>> = flow {
         emit(Resource.Loading())
         val result = safeApiCall { aiApi.generateQuestPoint(GenerateQuestPointRequestDTO(cityId, theme)) }
@@ -246,6 +247,7 @@ class AdminRepositoryImpl @Inject constructor(
         difficulty: Int,
         orderIndex: Int,
         xpValue: Int,
+        xpPerQuestion: Int,
         unlockRequirement: UnlockRequirement?,
         learningFocus: LearningFocus?,
         isPremium: Boolean,
@@ -262,6 +264,7 @@ class AdminRepositoryImpl @Inject constructor(
             difficulty = difficulty.toShort(),
             orderIndex = orderIndex.toShort(),
             xpValue = xpValue,
+            xpPerQuestion = xpPerQuestion,
             unlockRequirement = unlockRequirement,
             learningFocus = learningFocus,
             isPremium = isPremium,
@@ -279,6 +282,7 @@ class AdminRepositoryImpl @Inject constructor(
         }
     }
 
+    // ... (o resto do arquivo segue inalterado) ...
     override fun getCharacters(query: String?): Flow<Resource<List<CharacterEntity>>> = flow {
         emit(Resource.Loading())
         val response = safeApiCall { characterApi.list(size = 100) }

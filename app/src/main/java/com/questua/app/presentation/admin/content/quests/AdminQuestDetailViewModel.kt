@@ -18,7 +18,7 @@ data class AdminQuestDetailState(
     val isLoading: Boolean = false,
     val quest: Quest? = null,
     val questPoints: List<QuestPoint> = emptyList(),
-    val dialogues: List<SceneDialogue> = emptyList(),
+    val dialogues: List<SceneDialogue> = emptyList(), // Dependência para o seletor
     val error: String? = null,
     val isDeleted: Boolean = false
 )
@@ -40,10 +40,15 @@ class AdminQuestDetailViewModel @Inject constructor(
     }
 
     fun fetchDetails() {
-        repository.getQuests(null).onEach { result -> // Ou getQuestById se existir
+        // Idealmente teríamos um getQuestById, mas usando getQuests por enquanto como no AdminQuestViewModel
+        repository.getQuests(null).onEach { result ->
             if (result is Resource.Success) {
                 val found = result.data?.find { it.id == questId }
                 state = state.copy(quest = found, isLoading = false)
+            } else if (result is Resource.Loading) {
+                state = state.copy(isLoading = true)
+            } else if (result is Resource.Error) {
+                state = state.copy(isLoading = false, error = result.message)
             }
         }.launchIn(viewModelScope)
     }
@@ -60,15 +65,15 @@ class AdminQuestDetailViewModel @Inject constructor(
 
     fun saveQuest(
         qpId: String, dialId: String?, title: String, desc: String,
-        diff: Int, order: Int, xp: Int,
+        diff: Int, order: Int, xpValue: Int, xpPerQuestion: Int,
         unlock: UnlockRequirement?, focus: LearningFocus?,
         isPrem: Boolean, isAi: Boolean, isPub: Boolean
     ) {
         repository.saveQuest(
-            questId, qpId, dialId, title, desc, diff, order, xp, unlock, focus, isPrem, isAi, isPub
+            questId, qpId, dialId, title, desc, diff, order, xpValue, xpPerQuestion, unlock, focus, isPrem, isAi, isPub
         ).onEach { result ->
             if (result is Resource.Success) {
-                fetchDetails()
+                fetchDetails() // Recarrega os dados atualizados
             } else if (result is Resource.Error) {
                 state = state.copy(error = result.message)
             }

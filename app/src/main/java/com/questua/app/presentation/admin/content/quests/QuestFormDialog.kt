@@ -31,7 +31,7 @@ fun QuestFormDialog(
     onDismiss: () -> Unit,
     onConfirm: (
         title: String, qpId: String, dialId: String?, desc: String,
-        diff: Int, order: Int, xp: Int,
+        diff: Int, order: Int, xpValue: Int, xpPerQuestion: Int,
         unlock: UnlockRequirement?, focus: LearningFocus?,
         prem: Boolean, ai: Boolean, pub: Boolean
     ) -> Unit
@@ -45,7 +45,10 @@ fun QuestFormDialog(
     // Numéricos
     var difficulty by remember { mutableStateOf(quest?.difficulty?.toFloat() ?: 1f) }
     var orderIndex by remember { mutableStateOf(quest?.orderIndex?.toString() ?: "1") }
-    var xpValue by remember { mutableStateOf(quest?.xpValue?.toString() ?: "100") }
+
+    // XP
+    var xpValue by remember { mutableStateOf(quest?.xpValue?.toString() ?: "0") }
+    var xpPerQuestion by remember { mutableStateOf(quest?.xpPerQuestion?.toString() ?: "10") }
 
     // Learning Focus (Comma Separated)
     var grammar by remember { mutableStateOf(quest?.learningFocus?.grammarTopics?.joinToString(", ") ?: "") }
@@ -113,7 +116,25 @@ fun QuestFormDialog(
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.weight(1f)) { QuestuaTextField(value = orderIndex, onValueChange = { orderIndex = it }, label = "Ordem") }
-                    Box(Modifier.weight(1f)) { QuestuaTextField(value = xpValue, onValueChange = { xpValue = it }, label = "XP") }
+                }
+
+                // Seção XP
+                Text("Recompensas de XP", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = QuestuaGold)
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.weight(1f)) {
+                        QuestuaTextField(
+                            value = xpValue,
+                            onValueChange = { xpValue = it },
+                            label = "XP Conclusão" // XP base da missão
+                        )
+                    }
+                    Box(Modifier.weight(1f)) {
+                        QuestuaTextField(
+                            value = xpPerQuestion,
+                            onValueChange = { xpPerQuestion = it },
+                            label = "XP/Pergunta" // XP por acerto
+                        )
+                    }
                 }
 
                 Column {
@@ -176,9 +197,14 @@ fun QuestFormDialog(
                         skills = skills.split(",").map { it.trim() }.filter { it.isNotEmpty() }.ifEmpty { null }
                     )
 
+                    // Uso de trim() para evitar que espaços em branco causem null (e depois virem 0)
+                    val finalXpValue = xpValue.trim().toIntOrNull() ?: 0
+                    val finalXpPerQuestion = xpPerQuestion.trim().toIntOrNull() ?: 10
+
                     onConfirm(
                         title, questPointId, firstDialogueId.ifEmpty { null }, description,
-                        difficulty.toInt(), orderIndex.toIntOrNull() ?: 1, xpValue.toIntOrNull() ?: 0,
+                        difficulty.toInt(), orderIndex.toIntOrNull() ?: 1,
+                        finalXpValue, finalXpPerQuestion,
                         unlock, focus, isPremium, isAiGenerated, isPublished
                     )
                 },
@@ -195,7 +221,7 @@ fun QuestFormDialog(
         shape = RoundedCornerShape(24.dp)
     )
 
-    // Dialogs de Seleção
+    // Dialogs de Seleção (Mantidos iguais)
     if (showQpPicker) {
         SelectorDialog(
             title = "Selecione o Quest Point",

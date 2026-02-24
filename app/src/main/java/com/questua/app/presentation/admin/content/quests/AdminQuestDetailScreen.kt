@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -19,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.questua.app.core.ui.components.LoadingSpinner
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,9 +109,12 @@ fun AdminQuestDetailScreen(
                     )
             )
 
-            if (state.quest != null) {
+            if (state.isLoading) {
+                LoadingSpinner(modifier = Modifier.align(Alignment.Center))
+            } else if (state.quest != null) {
                 // Tenta encontrar o nome do QuestPoint na lista carregada, ou usa o ID como fallback
                 val qpName = state.questPoints.find { it.id == state.quest.questPointId }?.title ?: state.quest.questPointId
+                val dialogueName = state.dialogues.find { it.id == state.quest.firstDialogueId }?.textContent?.take(30)?.plus("...") ?: state.quest.firstDialogueId ?: "Nenhum"
 
                 Column(
                     modifier = Modifier
@@ -123,10 +128,39 @@ fun AdminQuestDetailScreen(
                         items = listOf(
                             "Título" to state.quest.title,
                             "Quest Point" to qpName,
-                            "Diálogo Inicial" to (state.quest.firstDialogueId ?: "Nenhum"),
+                            "Diálogo Inicial" to dialogueName,
                             "Ordem" to state.quest.orderIndex.toString()
                         )
                     )
+
+                    DetailCard(
+                        title = "Configurações & Status",
+                        items = listOf(
+                            "Dificuldade" to "${state.quest.difficulty}/5",
+                            "XP Conclusão" to "${state.quest.xpValue}",
+                            "XP por Questão" to "${state.quest.xpPerQuestion}",
+                            "Conteúdo Premium" to if (state.quest.isPremium) "Sim" else "Não",
+                            "Publicado" to if (state.quest.isPublished) "Sim" else "Não",
+                            "Gerado por IA" to if (state.quest.isAiGenerated) "Sim" else "Não",
+                            "Criado em" to state.quest.createdAt
+                        )
+                    )
+
+                    if (state.quest.description.isNotBlank()) {
+                        // Usando um card customizado simples para descrição se o DetailCard esperar Pares fixos
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text("Descrição", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = QuestuaGold)
+                                Spacer(Modifier.height(8.dp))
+                                Text(state.quest.description, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
 
                     state.quest.unlockRequirement?.let { unlock ->
                         DetailCard(
@@ -149,22 +183,6 @@ fun AdminQuestDetailScreen(
                             )
                         )
                     }
-
-                    DetailCard(
-                        title = "Configurações & Status",
-                        items = listOf(
-                            "Dificuldade" to "${state.quest.difficulty}/5",
-                            "XP Recompensa" to "${state.quest.xpValue}",
-                            "Conteúdo Premium" to if (state.quest.isPremium) "Sim" else "Não",
-                            "Publicado" to if (state.quest.isPublished) "Sim" else "Não",
-                            "Gerado por IA" to if (state.quest.isAiGenerated) "Sim" else "Não",
-                            "Criado em" to state.quest.createdAt
-                        )
-                    )
-
-                    if (state.quest.description.isNotBlank()) {
-                        DetailCard(title = "Descrição", items = listOf("" to state.quest.description))
-                    }
                 }
             }
         }
@@ -175,8 +193,8 @@ fun AdminQuestDetailScreen(
                 questPoints = state.questPoints,
                 dialogues = state.dialogues,
                 onDismiss = { showEdit = false },
-                onConfirm = { title, qpId, dial, desc, diff, ord, xp, unl, foc, prem, ai, pub ->
-                    viewModel.saveQuest(qpId, dial, title, desc, diff, ord, xp, unl, foc, prem, ai, pub)
+                onConfirm = { title, qpId, dial, desc, diff, ord, xpValue, xpPerQuestion, unl, foc, prem, ai, pub ->
+                    viewModel.saveQuest(qpId, dial, title, desc, diff, ord, xpValue, xpPerQuestion, unl, foc, prem, ai, pub)
                     showEdit = false
                 }
             )

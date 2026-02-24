@@ -12,6 +12,7 @@ data class Quest(
     val difficulty: Int,
     val orderIndex: Int,
     val xpValue: Int,
+    val xpPerQuestion: Int,
     val unlockRequirement: UnlockRequirement? = null,
     val learningFocus: LearningFocus? = null,
     val isPremium: Boolean,

@@ -160,8 +160,8 @@ fun AdminQuestScreen(
             questPoints = state.questPoints,
             dialogues = state.dialogues,
             onDismiss = { isCreating = false },
-            onConfirm = { title, qpId, dial, desc, diff, ord, xp, unl, foc, prem, ai, pub ->
-                viewModel.saveQuest(null, qpId, dial, title, desc, diff, ord, xp, unl, foc, prem, ai, pub)
+            onConfirm = { title, qpId, dial, desc, diff, ord, xpValue, xpPerQuestion, unl, foc, prem, ai, pub ->
+                viewModel.saveQuest(null, qpId, dial, title, desc, diff, ord, xpValue, xpPerQuestion, unl, foc, prem, ai, pub)
                 isCreating = false
             }
         )
@@ -244,7 +244,7 @@ fun QuestCardItem(
                         shape = RoundedCornerShape(4.dp)
                     ) {
                         Text(
-                            text = "${quest.xpValue} XP",
+                            text = "${quest.xpValue} XP + ${quest.xpPerQuestion}/q",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant

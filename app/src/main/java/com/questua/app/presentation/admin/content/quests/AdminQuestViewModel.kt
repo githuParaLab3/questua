@@ -77,12 +77,12 @@ class AdminQuestViewModel @Inject constructor(
 
     fun saveQuest(
         id: String?, qpId: String, dialId: String?, title: String, desc: String,
-        diff: Int, order: Int, xp: Int,
+        diff: Int, order: Int, xpValue: Int, xpPerQuestion: Int,
         unlock: UnlockRequirement?, focus: LearningFocus?,
         isPrem: Boolean, isAi: Boolean, isPub: Boolean
     ) {
         repository.saveQuest(
-            id, qpId, dialId, title, desc, diff, order, xp, unlock, focus, isPrem, isAi, isPub
+            id, qpId, dialId, title, desc, diff, order, xpValue, xpPerQuestion, unlock, focus, isPrem, isAi, isPub
         ).onEach { result ->
             if (result is Resource.Success) fetchQuests()
             else if (result is Resource.Error) state = state.copy(error = result.message)

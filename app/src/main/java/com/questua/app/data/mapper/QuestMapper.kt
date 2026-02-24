@@ -13,6 +13,7 @@ fun QuestResponseDTO.toDomain(): Quest {
         difficulty = this.difficulty.toInt(),
         orderIndex = this.orderIndex.toInt(),
         xpValue = this.xpValue,
+        xpPerQuestion = this.xpPerQuestion,
         unlockRequirement = this.unlockRequirement,
         learningFocus = this.learningFocus,
         isPremium = this.isPremium,

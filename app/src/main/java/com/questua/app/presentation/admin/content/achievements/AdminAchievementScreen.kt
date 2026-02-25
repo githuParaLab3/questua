@@ -159,6 +159,9 @@ fun AdminAchievementScreen(
     if (isCreating) {
         AchievementFormDialog(
             achievement = null,
+            cities = state.cities,
+            quests = state.quests,
+            questPoints = state.questPoints,
             onDismiss = { isCreating = false },
             onConfirm = { key, name, desc, icon, rar, xp, hidden, global, cat, cond, targ, req ->
                 viewModel.saveAchievement(null, key, name, desc, icon, rar, xp, hidden, global, cat, cond, targ, req)

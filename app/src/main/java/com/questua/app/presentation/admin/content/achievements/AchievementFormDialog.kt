@@ -22,14 +22,21 @@ import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.enums.AchievementConditionType
 import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.model.Achievement
+import com.questua.app.domain.model.City
+import com.questua.app.domain.model.Product
+import com.questua.app.domain.model.Quest
+import com.questua.app.domain.model.QuestPoint
 import com.questua.app.presentation.admin.content.dialogues.MediaPickerField
 import com.questua.app.presentation.admin.content.dialogues.SectionTitle
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AchievementFormDialog(
     achievement: Achievement? = null,
+    cities: List<City> = emptyList(),
+    quests: List<Quest> = emptyList(),
+    questPoints: List<QuestPoint> = emptyList(),
+    products: List<Product> = emptyList(), // Adicionado para o Picker de Premium
     onDismiss: () -> Unit,
     onConfirm: (
         key: String, name: String, desc: String,
@@ -58,10 +65,24 @@ fun AchievementFormDialog(
 
     var showRarityPicker by remember { mutableStateOf(false) }
     var expandedCondition by remember { mutableStateOf(false) }
+    var expandedTarget by remember { mutableStateOf(false) }
 
     val iconPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         uri?.let { selectedIcon = URIPathHelper.getFileFromUri(context, it) }
     }
+
+    // Lógica do Picker: Identifica qual lista usar baseada na Condição
+    val targetOptions: List<Pair<String, String>> = remember(conditionType, cities, quests, questPoints, products) {
+        when {
+            conditionType == AchievementConditionType.UNLOCK_PREMIUM_CONTENT -> products.map { it.id to it.title }
+            conditionType.name.contains("CITY") -> cities.map { it.id to it.name }
+            conditionType.name.contains("QUEST_POINT") -> questPoints.map { it.id to it.title }
+            conditionType.name.contains("QUEST") -> quests.map { it.id to it.title }
+            else -> emptyList()
+        }
+    }
+
+    val selectedTargetName = targetOptions.find { it.first == targetId }?.second ?: targetId
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -113,6 +134,7 @@ fun AchievementFormDialog(
                                 text = { Text(type.name) },
                                 onClick = {
                                     conditionType = type
+                                    targetId = "" // Reseta o target se mudar o tipo
                                     expandedCondition = false
                                 }
                             )
@@ -120,7 +142,45 @@ fun AchievementFormDialog(
                     }
                 }
 
-                QuestuaTextField(value = targetId, onValueChange = { targetId = it }, label = "Target ID (Opcional)")
+                // Picker de Target (Aparece se houver opções válidas para o tipo selecionado)
+                if (targetOptions.isNotEmpty()) {
+                    ExposedDropdownMenuBox(
+                        expanded = expandedTarget,
+                        onExpandedChange = { expandedTarget = !expandedTarget }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedTargetName,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = {
+                                Text(when(conditionType) {
+                                    AchievementConditionType.UNLOCK_PREMIUM_CONTENT -> "Selecione o Produto Premium"
+                                    else -> "Selecione o Alvo (Target)"
+                                })
+                            },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTarget) },
+                            modifier = Modifier.menuAnchor().fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expandedTarget,
+                            onDismissRequest = { expandedTarget = false }
+                        ) {
+                            targetOptions.forEach { (id, title) ->
+                                DropdownMenuItem(
+                                    text = { Text(title) },
+                                    onClick = {
+                                        targetId = id
+                                        expandedTarget = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback para input manual se não for um tipo com picker mapeado
+                    QuestuaTextField(value = targetId, onValueChange = { targetId = it }, label = "Target ID (Manual/Opcional)")
+                }
+
                 QuestuaTextField(value = requiredAmount, onValueChange = { requiredAmount = it }, label = "Quantidade Necessária")
                 QuestuaTextField(value = category, onValueChange = { category = it }, label = "Categoria do Jogo")
 

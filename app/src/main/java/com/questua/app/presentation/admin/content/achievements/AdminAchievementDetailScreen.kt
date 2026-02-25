@@ -44,6 +44,9 @@ fun AdminAchievementDetailScreen(
     if (showEdit && state.achievement != null) {
         AchievementFormDialog(
             achievement = state.achievement,
+            cities = state.cities,
+            quests = state.quests,
+            questPoints = state.questPoints,
             onDismiss = { showEdit = false },
             onConfirm = { key, name, desc, icon, rar, xp, hidden, global, cat, cond, targ, req ->
                 viewModel.saveAchievement(key, name, desc, icon, rar, xp, hidden, global, cat, cond, targ, req)
@@ -132,6 +135,23 @@ fun AdminAchievementDetailScreen(
                     else -> Color.Gray
                 }
 
+                // Resolver o nome do Target se possível
+                val targetName = remember(state.achievement.targetId, state.cities, state.quests, state.questPoints) {
+                    val id = state.achievement.targetId
+                    if (id.isNullOrBlank()) "Global / Nenhum"
+                    else {
+                        state.cities.find { it.id == id }?.name
+                            ?: state.quests.find { it.id == id }?.title
+                            ?: state.questPoints.find { it.id == id }?.title
+                            ?: id
+                    }
+                }
+
+                // Resolver o nome do Idioma
+                val languageName = remember(state.achievement.languageId, state.languages) {
+                    state.languages.find { it.id == state.achievement.languageId }?.name ?: "Todos"
+                }
+
                 Column(
                     modifier = Modifier
                         .padding(padding)
@@ -167,25 +187,27 @@ fun AdminAchievementDetailScreen(
 
                     DetailCard("Principal", listOf(
                         "Nome" to state.achievement.name,
-                        "Chave" to (state.achievement.keyName ?: "N/A"),
+                        "Chave (ID)" to (state.achievement.keyName ?: "N/A"),
                         "Descrição" to state.achievement.description,
                         "Raridade" to state.achievement.rarity.name,
-                        "XP" to state.achievement.xpReward.toString()
+                        "XP Reward" to "${state.achievement.xpReward} XP"
                     ))
 
-                    DetailCard("Regras e Condições", listOf(
+                    DetailCard("Regras e Escopo", listOf(
                         "Condição" to state.achievement.conditionType.name,
                         "Qtd. Necessária" to state.achievement.requiredAmount.toString(),
-                        "Target ID" to (state.achievement.targetId ?: "N/A"),
-                        "Oculto" to if (state.achievement.isHidden) "Sim" else "Não",
-                        "Global" to if (state.achievement.isGlobal) "Sim" else "Não",
-                        "Categoria" to (state.achievement.category ?: "N/A"),
-                        "Language ID" to (state.achievement.languageId ?: "N/A")
+                        "Alvo (Target)" to targetName,
+                        "Idioma" to languageName,
+                        "Categoria" to (state.achievement.category ?: "Geral"),
+                        "Visibilidade" to if (state.achievement.isHidden) "Oculta (Secreta)" else "Visível",
+                        "Global" to if (state.achievement.isGlobal) "Sim" else "Não (Específico)"
                     ))
 
-                    DetailCard("Visual", listOf(
-                        "Ícone URL" to (state.achievement.iconUrl ?: "N/A")
-                    ))
+                    if (!state.achievement.iconUrl.isNullOrBlank()) {
+                        DetailCard("Recursos", listOf(
+                            "URL Ícone" to state.achievement.iconUrl
+                        ))
+                    }
                 }
             }
         }

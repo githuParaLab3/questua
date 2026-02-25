@@ -9,7 +9,15 @@ import com.questua.app.core.common.Resource
 import com.questua.app.domain.enums.AchievementConditionType
 import com.questua.app.domain.enums.RarityType
 import com.questua.app.domain.model.Achievement
+import com.questua.app.domain.model.City
+import com.questua.app.domain.model.Product
+import com.questua.app.domain.model.Quest
+import com.questua.app.domain.model.QuestPoint
 import com.questua.app.domain.repository.AdminRepository
+import com.questua.app.domain.usecase.admin.sales.GetProductsUseCase
+import com.questua.app.domain.usecase.admin.selectors.GetCitiesSelectorUseCase
+import com.questua.app.domain.usecase.admin.selectors.GetQuestPointsSelectorUseCase
+import com.questua.app.domain.usecase.admin.selectors.GetQuestsSelectorUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -22,13 +30,21 @@ import javax.inject.Inject
 data class AdminAchievementState(
     val isLoading: Boolean = false,
     val achievements: List<Achievement> = emptyList(),
+    val cities: List<City> = emptyList(),
+    val quests: List<Quest> = emptyList(),
+    val questPoints: List<QuestPoint> = emptyList(),
+    val products: List<Product> = emptyList(), // Lista de Produtos
     val searchQuery: String = "",
     val error: String? = null
 )
 
 @HiltViewModel
 class AdminAchievementViewModel @Inject constructor(
-    private val repository: AdminRepository
+    private val repository: AdminRepository,
+    private val getCitiesSelectorUseCase: GetCitiesSelectorUseCase,
+    private val getQuestsSelectorUseCase: GetQuestsSelectorUseCase,
+    private val getQuestPointsSelectorUseCase: GetQuestPointsSelectorUseCase,
+    private val getProductsUseCase: GetProductsUseCase // Injeção do UseCase de Produtos
 ) : ViewModel() {
 
     var state by mutableStateOf(AdminAchievementState())
@@ -38,6 +54,7 @@ class AdminAchievementViewModel @Inject constructor(
 
     init {
         fetchAchievements()
+        fetchSelectors()
     }
 
     fun onSearchQueryChange(query: String) {
@@ -56,6 +73,28 @@ class AdminAchievementViewModel @Inject constructor(
                 is Resource.Success -> state.copy(achievements = result.data ?: emptyList(), isLoading = false)
                 is Resource.Error -> state.copy(error = result.message, isLoading = false)
             }
+        }.launchIn(viewModelScope)
+    }
+
+    private fun fetchSelectors() {
+        // Carrega Cidades
+        getCitiesSelectorUseCase().onEach { res ->
+            if (res is Resource.Success) state = state.copy(cities = res.data ?: emptyList())
+        }.launchIn(viewModelScope)
+
+        // Carrega Quests
+        getQuestsSelectorUseCase().onEach { res ->
+            if (res is Resource.Success) state = state.copy(quests = res.data ?: emptyList())
+        }.launchIn(viewModelScope)
+
+        // Carrega Quest Points
+        getQuestPointsSelectorUseCase().onEach { res ->
+            if (res is Resource.Success) state = state.copy(questPoints = res.data ?: emptyList())
+        }.launchIn(viewModelScope)
+
+        // Carrega Produtos (Para UNLOCK_PREMIUM_CONTENT)
+        getProductsUseCase().onEach { res ->
+            if (res is Resource.Success) state = state.copy(products = res.data ?: emptyList())
         }.launchIn(viewModelScope)
     }
 

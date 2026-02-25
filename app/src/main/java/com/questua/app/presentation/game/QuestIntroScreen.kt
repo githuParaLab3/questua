@@ -2,8 +2,11 @@ package com.questua.app.presentation.game
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -33,9 +36,9 @@ import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.theme.Amber500
 import com.questua.app.core.ui.theme.Green500
 import com.questua.app.domain.enums.ProgressStatus
+import com.questua.app.domain.model.Achievement
 import kotlinx.coroutines.flow.collectLatest
 
-// Cor Dourada Padrão
 val QuestuaGold = Color(0xFFFFC107)
 
 @Composable
@@ -79,7 +82,6 @@ fun QuestIntroScreen(
 
                         Button(
                             onClick = {
-                                // Lógica original restaurada: chama o ViewModel
                                 viewModel.onStartQuestClicked()
                             },
                             modifier = Modifier
@@ -99,7 +101,6 @@ fun QuestIntroScreen(
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
-                                // Apenas o texto mudou, conforme solicitado
                                 text = when (state.userQuest?.status) {
                                     ProgressStatus.COMPLETED -> "VER RESULTADOS"
                                     ProgressStatus.IN_PROGRESS -> "CONTINUAR MISSÃO"
@@ -264,6 +265,25 @@ fun QuestIntroScreen(
                                 )
                             }
 
+                            // --- Seção de Conquistas Pendentes (NOVO) ---
+                            if (state.pendingAchievements.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(32.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.EmojiEvents, null, tint = QuestuaGold, modifier = Modifier.size(20.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "Conquistas Desta Missão",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                                state.pendingAchievements.forEach { achievement ->
+                                    QuestAchievementCard(achievement)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                            }
+
                             Spacer(modifier = Modifier.height(32.dp))
 
                             quest.learningFocus?.let { focus ->
@@ -356,6 +376,56 @@ fun QuestIntroScreen(
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(text = state.error!!, color = MaterialTheme.colorScheme.error)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun QuestAchievementCard(achievement: Achievement) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, QuestuaGold.copy(alpha = 0.3f))
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(QuestuaGold.copy(alpha = 0.1f))
+                    .border(1.dp, QuestuaGold.copy(alpha = 0.3f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (achievement.iconUrl != null) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(achievement.iconUrl.toFullImageUrl())
+                            .crossfade(true).build(),
+                        contentDescription = null,
+                        modifier = Modifier.size(28.dp)
+                    )
+                } else {
+                    Icon(Icons.Default.EmojiEvents, null, tint = QuestuaGold, modifier = Modifier.size(24.dp))
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = achievement.name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Complete para ganhar ${achievement.xpReward} XP",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

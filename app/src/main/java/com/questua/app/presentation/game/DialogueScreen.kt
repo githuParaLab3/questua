@@ -1,40 +1,37 @@
 package com.questua.app.presentation.game
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
+import android.media.MediaPlayer
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
@@ -42,9 +39,13 @@ import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.components.QuestuaButton
 import com.questua.app.core.ui.components.QuestuaTextField
 import com.questua.app.domain.enums.InputMode
-import com.questua.app.domain.model.CharacterEntity
 import com.questua.app.domain.model.Choice
-import com.questua.app.domain.model.SceneDialogue
+import kotlinx.coroutines.delay
+
+// Cores de Feedback (Estilo Duolingo/Gamificado)
+private val SuccessGreen = Color(0xFF58CC02)
+private val ErrorRed = Color(0xFFFF4B4B)
+private val OverlayScrim = Color(0xFF000000).copy(alpha = 0.4f)
 
 @Composable
 fun DialogueScreen(
@@ -53,6 +54,10 @@ fun DialogueScreen(
     viewModel: DialogueViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val context = LocalContext.current
+
+    // Estado para controlar o replay do áudio
+    var audioReplayTrigger by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(state.navigateToResult) {
         if (state.navigateToResult) {
@@ -63,32 +68,36 @@ fun DialogueScreen(
         }
     }
 
-    Scaffold { paddingValues ->
-        // Usamos Box para criar camadas (Layers)
+    // --- SISTEMA DE ÁUDIO ---
+    AudioHandler(
+        bgMusicUrl = state.currentDialogue?.bgMusicUrl,
+        voiceUrl = state.currentDialogue?.audioUrl,
+        replayTrigger = audioReplayTrigger
+    )
+
+    Scaffold(
+        containerColor = Color.Black // Fundo base preto para imersão
+    ) { paddingValues ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(MaterialTheme.colorScheme.background)
         ) {
 
-            // --- CAMADA 1: Fundo Imersivo ---
+            // --- CAMADA 1: Cenário (Background) ---
             state.currentDialogue?.backgroundUrl?.let { url ->
                 AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
+                    model = ImageRequest.Builder(context)
                         .data(url.toFullImageUrl())
-                        .crossfade(true)
+                        .crossfade(1000)
                         .build(),
-                    contentDescription = "Cenário",
+                    contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-            } ?: run {
-                // Fallback se não houver imagem
-                Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant))
             }
 
-            // Scrim (Gradiente para legibilidade)
+            // Scrim Gradiente (Escurece a parte de baixo para facilitar leitura)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -96,175 +105,181 @@ fun DialogueScreen(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                MaterialTheme.colorScheme.scrim.copy(alpha = 0.2f),
-                                MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f)
+                                Color.Black.copy(alpha = 0.2f),
+                                Color.Black.copy(alpha = 0.9f)
                             ),
-                            startY = 0.3f
+                            startY = 0.4f
                         )
                     )
             )
 
-            // --- Barra de Topo Flutuante ---
+            // --- CAMADA 2: Personagem ---
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(top = 8.dp)
-                    .align(Alignment.TopCenter)
+                    .fillMaxSize()
+                    .padding(bottom = 220.dp), // Espaço para a caixa de texto não cobrir o rosto
+                contentAlignment = Alignment.BottomCenter // Centralizado ou BottomEnd
             ) {
-                DialogueTopBar(
-                    progress = state.questProgress,
-                    onClose = onNavigateBack
-                )
-            }
-
-
-            if (state.isLoading) {
-                LoadingSpinner(modifier = Modifier.align(Alignment.Center))
-            } else {
-                state.currentDialogue?.let { dialogue ->
-
-                    // --- CAMADA 2: Personagem (Speaker) ---
-                    // Posicionado na parte inferior direita, "atrás" da caixa de texto mas "na frente" do fundo
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(bottom = 200.dp), // Espaço para a caixa de diálogo
-                        contentAlignment = Alignment.BottomEnd
+                state.speaker?.avatarUrl?.let { avatarUrl ->
+                    AnimatedVisibility(
+                        visible = true,
+                        enter = fadeIn()
                     ) {
-                        state.speaker?.avatarUrl?.let { avatarUrl ->
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(avatarUrl.toFullImageUrl())
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = state.speaker?.name,
-                                contentScale = ContentScale.Fit,
-                                modifier = Modifier
-                                    .heightIn(max = 400.dp) // Limita altura
-                                    .padding(end = 16.dp)
-                            )
-                        }
-                    }
-
-                    // --- CAMADA 3: Interface de Diálogo (Visual Novel Style) ---
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .imePadding(), // Ajusta teclado
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-
-                        // Feedback flutuante (acima da caixa)
-                        FeedbackOverlay(state.feedbackState)
-
-                        // Caixa de Diálogo Principal
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-                            tonalElevation = 8.dp,
-                            shadowElevation = 16.dp
-                        ) {
-                            Column(
-                                modifier = Modifier
-                                    .padding(24.dp)
-                                    .verticalScroll(rememberScrollState())
-                            ) {
-                                // Nome do Personagem
-                                Text(
-                                    text = state.speaker?.name ?: "Narrador",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                // Texto do Diálogo
-                                Text(
-                                    text = dialogue.textContent,
-                                    style = MaterialTheme.typography.headlineSmall.copy(
-                                        fontWeight = FontWeight.Normal,
-                                        fontSize = 20.sp,
-                                        lineHeight = 28.sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-
-                                Spacer(modifier = Modifier.height(24.dp))
-
-                                // Área de Interação (Opções ou Texto)
-                                InteractionSection(
-                                    inputMode = dialogue.inputMode,
-                                    userInput = state.userInput,
-                                    choices = dialogue.choices,
-                                    isSubmitting = state.isSubmitting,
-                                    onInputChange = viewModel::onUserInputChange,
-                                    onTextSubmit = viewModel::onSubmitText,
-                                    onChoiceClick = viewModel::onChoiceSelected,
-                                    onContinueClick = viewModel::onContinue
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Tratamento de Erro Global
-            state.error?.let {
-                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.7f)), contentAlignment = Alignment.Center) {
-                    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)) {
-                        Text(
-                            text = it,
-                            color = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.padding(16.dp)
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(avatarUrl.toFullImageUrl())
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = state.speaker?.name,
+                            // CRUCIAL: Fit garante a proporção correta (não alarga).
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .fillMaxHeight(0.85f) // Ocupa 85% da altura da tela (Visual Novel style)
+                                .widthIn(max = 800.dp) // Limita largura máxima para tablets
                         )
                     }
                 }
             }
+
+            // --- CAMADA 3: HUD Superior (Barra de Progresso) ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .padding(top = 8.dp)
+            ) {
+                DialogueHUD(
+                    progress = state.questProgress,
+                    xp = state.xpEarned,
+                    onClose = onNavigateBack
+                )
+            }
+
+            // --- CAMADA 4: Caixa de Diálogo e Interação ---
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .imePadding() // Sobe com o teclado
+            ) {
+                if (state.isLoading) {
+                    Box(modifier = Modifier.height(200.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        LoadingSpinner()
+                    }
+                } else {
+                    state.currentDialogue?.let { dialogue ->
+                        VNTextBox(
+                            speakerName = state.speaker?.name ?: "???",
+                            text = dialogue.textContent,
+                            inputMode = dialogue.inputMode,
+                            userInput = state.userInput,
+                            choices = dialogue.choices,
+                            isSubmitting = state.isSubmitting,
+                            hasAudio = !dialogue.audioUrl.isNullOrBlank(),
+                            onInputChange = viewModel::onUserInputChange,
+                            onTextSubmit = viewModel::onSubmitText,
+                            onChoiceClick = viewModel::onChoiceSelected,
+                            onContinueClick = viewModel::onContinue,
+                            onReplayAudio = { audioReplayTrigger++ }
+                        )
+                    }
+                }
+            }
+
+            // --- CAMADA 5: Feedback Overlay (Z-Index Máximo) ---
+            // Fica por cima de TUDO, alinhado ao fundo
+            FeedbackOverlay(
+                state = state.feedbackState,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }
 
+// --- COMPONENTES VISUAIS (ESTÉTICA QUESTUA) ---
+
 @Composable
-fun DialogueTopBar(progress: Float, onClose: () -> Unit) {
-    Row(
+fun VNTextBox(
+    speakerName: String,
+    text: String,
+    inputMode: InputMode,
+    userInput: String,
+    choices: List<Choice>?,
+    isSubmitting: Boolean,
+    hasAudio: Boolean,
+    onInputChange: (String) -> Unit,
+    onTextSubmit: () -> Unit,
+    onChoiceClick: (Choice) -> Unit,
+    onContinueClick: () -> Unit,
+    onReplayAudio: () -> Unit
+) {
+    // Card estilo "Vidro Fosco" ou Sólido do App
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(start = 12.dp, end = 12.dp, bottom = 12.dp, top = 0.dp),
+        shape = RoundedCornerShape(24.dp), // Estilo Questua (arredondado)
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.95f), // Quase sólido para legibilidade
+        tonalElevation = 8.dp,
+        shadowElevation = 12.dp
     ) {
-        // Botão Fechar com fundo translúcido para visibilidade sobre imagem
-        Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
-            modifier = Modifier.size(40.dp)
+        Column(
+            modifier = Modifier.padding(20.dp)
         ) {
-            IconButton(onClick = onClose) {
-                Icon(Icons.Default.Close, contentDescription = "Sair", tint = MaterialTheme.colorScheme.onSurface)
+            // Cabeçalho: Nome + Botão de Áudio
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = speakerName,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                if (hasAudio) {
+                    IconButton(
+                        onClick = onReplayAudio,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VolumeUp,
+                            contentDescription = "Ouvir novamente",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Texto do Diálogo
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    lineHeight = 24.sp,
+                    fontSize = 17.sp
+                ),
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Área de Interação
+            InteractionArea(
+                inputMode, userInput, choices, isSubmitting,
+                onInputChange, onTextSubmit, onChoiceClick, onContinueClick
+            )
         }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        // Barra de progresso mais grossa e visível
-        LinearProgressIndicator(
-            progress = { progress / 100f },
-            modifier = Modifier
-                .weight(1f)
-                .height(10.dp)
-                .clip(RoundedCornerShape(5.dp))
-                .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(5.dp)), // Borda sutil
-            color = MaterialTheme.colorScheme.primary,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f),
-        )
     }
 }
 
 @Composable
-fun InteractionSection(
+fun InteractionArea(
     inputMode: InputMode,
     userInput: String,
     choices: List<Choice>?,
@@ -274,26 +289,32 @@ fun InteractionSection(
     onChoiceClick: (Choice) -> Unit,
     onContinueClick: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         when (inputMode) {
             InputMode.CHOICE -> {
                 choices?.forEach { choice ->
-                    QuestuaOptionButton(
-                        text = choice.text,
+                    // Botão estilo Questua/Duolingo
+                    OutlinedButton(
                         onClick = { onChoiceClick(choice) },
-                        enabled = !isSubmitting
-                    )
+                        enabled = !isSubmitting,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Text(
+                            text = choice.text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
             InputMode.TEXT -> {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     QuestuaTextField(
                         value = userInput,
                         onValueChange = onInputChange,
@@ -302,22 +323,27 @@ fun InteractionSection(
                         enabled = !isSubmitting
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
+
+                    // Botão Enviar
+                    FilledIconButton(
                         onClick = onTextSubmit,
+                        modifier = Modifier.size(56.dp),
                         enabled = !isSubmitting && userInput.isNotBlank(),
-                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        colors = IconButtonDefaults.filledIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
                     ) {
                         if (isSubmitting) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
                         } else {
-                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Enviar")
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = null)
                         }
                     }
                 }
             }
             InputMode.NONE -> {
                 QuestuaButton(
-                    text = "Continuar",
+                    text = "CONTINUAR",
                     onClick = onContinueClick,
                     enabled = !isSubmitting,
                     modifier = Modifier.fillMaxWidth()
@@ -327,91 +353,169 @@ fun InteractionSection(
     }
 }
 
-// Novo componente de botão estilo "Pílula" / Cartão de Opção
 @Composable
-fun QuestuaOptionButton(
-    text: String,
-    onClick: () -> Unit,
-    isSelected: Boolean = false,
-    enabled: Boolean = true
-) {
-    val containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
-    val contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = containerColor,
-            contentColor = contentColor,
-            disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
-        ),
-        border = BorderStroke(1.dp, borderColor),
-        contentPadding = PaddingValues(vertical = 16.dp, horizontal = 16.dp)
+fun DialogueHUD(progress: Float, xp: Int, onClose: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
+        // Fundo translúcido no botão X para contraste
+        Surface(
+            shape = CircleShape,
+            color = Color.Black.copy(alpha = 0.4f),
+            modifier = Modifier.size(40.dp)
+        ) {
+            IconButton(onClick = onClose) {
+                Icon(Icons.Default.Close, contentDescription = "Sair", tint = Color.White)
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        // Barra de Progresso
+        LinearProgressIndicator(
+            progress = { progress / 100f },
+            modifier = Modifier
+                .weight(1f)
+                .height(12.dp)
+                .clip(RoundedCornerShape(6.dp)),
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = Color.White.copy(alpha = 0.3f),
         )
     }
 }
 
 @Composable
-fun FeedbackOverlay(state: FeedbackState) {
+fun FeedbackOverlay(state: FeedbackState, modifier: Modifier = Modifier) {
     AnimatedVisibility(
         visible = state !is FeedbackState.None,
-        enter = slideInVertically(initialOffsetY = { it }) + fadeIn()
+        enter = slideInVertically { it } + fadeIn(), // Sobe do fundo
+        exit = slideOutVertically { it } + fadeOut(),
+        modifier = modifier // Recebe o alinhamento do pai
     ) {
-        val (bgColor, textColor, iconColor, text) = when (state) {
-            is FeedbackState.Success -> Quadruple(
-                MaterialTheme.colorScheme.primaryContainer,
-                MaterialTheme.colorScheme.onPrimaryContainer,
-                MaterialTheme.colorScheme.primary,
-                state.message
-            )
-            is FeedbackState.Error -> Quadruple(
-                MaterialTheme.colorScheme.errorContainer,
-                MaterialTheme.colorScheme.onErrorContainer,
-                MaterialTheme.colorScheme.error,
-                state.message
-            )
-            else -> Quadruple(Color.Transparent, Color.Transparent, Color.Transparent, "")
+        val (bgColor, textColor, msg) = when (state) {
+            is FeedbackState.Success -> Triple(SuccessGreen, Color.White, state.message ?: "Correto!")
+            is FeedbackState.Error -> Triple(ErrorRed, Color.White, state.message ?: "Incorreto!")
+            else -> Triple(Color.Transparent, Color.Transparent, "")
         }
 
-        Card(
-            colors = CardDefaults.cardColors(containerColor = bgColor),
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 16.dp), // Espaço entre feedback e caixa de texto
-            shape = RoundedCornerShape(12.dp)
+                .padding(12.dp), // Margem flutuante
+            color = bgColor,
+            shape = RoundedCornerShape(16.dp),
+            shadowElevation = 10.dp
         ) {
             Row(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(24.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Indicador visual simples
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(iconColor)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
+                // Ícone de status (opcional) ou apenas texto grande
                 Text(
-                    text = text ?: "",
-                    color = textColor,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold
+                    text = msg,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = textColor
                 )
             }
         }
     }
 }
 
-// Helper class simples para o return do when
-data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+// --- ENGINE DE ÁUDIO OTIMIZADA ---
+
+@Composable
+fun AudioHandler(
+    bgMusicUrl: String?,
+    voiceUrl: String?,
+    replayTrigger: Int
+) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+
+    val bgmPlayer = remember { MediaPlayer() }
+    val voicePlayer = remember { MediaPlayer() }
+
+    var currentBgmUrl by remember { mutableStateOf<String?>(null) }
+    var currentVoiceUrl by remember { mutableStateOf<String?>(null) }
+
+    // 1. Background Music (Volume Baixo)
+    LaunchedEffect(bgMusicUrl) {
+        if (bgMusicUrl != null && bgMusicUrl != currentBgmUrl) {
+            try {
+                if (bgmPlayer.isPlaying) bgmPlayer.stop()
+                bgmPlayer.reset()
+
+                val fullUrl = bgMusicUrl.toFullImageUrl()
+                bgmPlayer.setDataSource(fullUrl)
+                bgmPlayer.isLooping = true
+                // VOLUME: Esquerda e Direita em 15% (Background)
+                bgmPlayer.setVolume(0.15f, 0.15f)
+                bgmPlayer.prepareAsync()
+                bgmPlayer.setOnPreparedListener { it.start() }
+
+                currentBgmUrl = bgMusicUrl
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        } else if (bgMusicUrl == null) {
+            if (bgmPlayer.isPlaying) bgmPlayer.stop()
+            currentBgmUrl = null
+        }
+    }
+
+    // 2. Voz do Personagem (Volume Alto)
+    fun playVoice(url: String?) {
+        if (url == null) return
+        try {
+            if (voicePlayer.isPlaying) voicePlayer.stop()
+            voicePlayer.reset()
+
+            val fullUrl = url.toFullImageUrl()
+            voicePlayer.setDataSource(fullUrl)
+            // VOLUME: 100% (Destaque)
+            voicePlayer.setVolume(1.0f, 1.0f)
+            voicePlayer.prepareAsync()
+            voicePlayer.setOnPreparedListener { it.start() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    // Toca quando a URL muda (novo diálogo)
+    LaunchedEffect(voiceUrl) {
+        if (voiceUrl != null) {
+            currentVoiceUrl = voiceUrl
+            playVoice(voiceUrl)
+        }
+    }
+
+    // Toca quando o botão de replay é clicado
+    LaunchedEffect(replayTrigger) {
+        if (replayTrigger > 0 && currentVoiceUrl != null) {
+            playVoice(currentVoiceUrl)
+        }
+    }
+
+    // Lifecycle Management
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) {
+                if (bgmPlayer.isPlaying) bgmPlayer.pause()
+                if (voicePlayer.isPlaying) voicePlayer.pause()
+            } else if (event == Lifecycle.Event.ON_RESUME) {
+                if (currentBgmUrl != null && !bgmPlayer.isPlaying) bgmPlayer.start()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            bgmPlayer.release()
+            voicePlayer.release()
+        }
+    }
+}

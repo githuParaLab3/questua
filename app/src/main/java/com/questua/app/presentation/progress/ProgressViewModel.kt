@@ -22,8 +22,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.launch
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 enum class ProgressFilter {
@@ -32,7 +33,9 @@ enum class ProgressFilter {
 
 data class ProgressAchievementUiModel(
     val userAchievement: UserAchievement,
-    val name: String
+    val name: String,
+    val description: String,
+    val iconUrl: String?
 )
 
 data class ProgressState(
@@ -40,18 +43,21 @@ data class ProgressState(
     val filter: ProgressFilter = ProgressFilter.ACTIVE_LANGUAGE,
     val userLanguage: UserLanguage? = null,
 
-    // Estatísticas
     val globalXp: Int = 0,
     val globalQuestsCount: Int = 0,
-    val globalQuestPointsCount: Int = 0, // Novo
-    val globalCitiesCount: Int = 0,      // Novo
+    val globalQuestPointsCount: Int = 0,
+    val globalCitiesCount: Int = 0,
     val activeQuestsCount: Int = 0,
-    val activeQuestPointsCount: Int = 0, // Novo
-    val activeCitiesCount: Int = 0,      // Novo
+    val activeQuestPointsCount: Int = 0,
+    val activeCitiesCount: Int = 0,
 
     val globalLevel: Int = 0,
     val globalStreak: Int = 0,
     val bestStreakLanguageName: String? = null,
+
+    // Novos Dados de Atividade
+    val achievementsThisWeek: Int = 0,
+    val achievementsThisMonth: Int = 0,
 
     val achievements: List<ProgressAchievementUiModel> = emptyList(),
     val languageDetails: Language? = null,
@@ -113,7 +119,6 @@ class ProgressViewModel @Inject constructor(
 
                 val error = statsRes.message ?: allLangsRes.message ?: achievementsRes.message
 
-                // --- Lógica Global ---
                 val totalXp = allLangs.sumOf { it.xpTotal }
                 val totalQuests = allLangs.sumOf { it.unlockedContent?.quests?.size ?: 0 }
                 val totalQuestPoints = allLangs.sumOf { it.unlockedContent?.questPoints?.size ?: 0 }
@@ -121,7 +126,6 @@ class ProgressViewModel @Inject constructor(
 
                 val totalLevel = allLangs.sumOf { it.gamificationLevel }
 
-                // Ofensiva Global
                 val bestStreakUserLang = allLangs.maxByOrNull { it.streakDays }
                 val bestStreakVal = bestStreakUserLang?.streakDays ?: 0
 
@@ -132,23 +136,51 @@ class ProgressViewModel @Inject constructor(
                     langRes.data?.name
                 } else null
 
-                // --- Lógica Ativa ---
                 val currentQuests = activeUserLang?.unlockedContent?.quests?.size ?: 0
                 val currentQuestPoints = activeUserLang?.unlockedContent?.questPoints?.size ?: 0
                 val currentCities = activeUserLang?.unlockedContent?.cities?.size ?: 0
 
-                // --- Filtragem de Conquistas (CORRIGIDO) ---
+                // Filtro e Ordenação
                 val filteredAchievements = when (currentFilter) {
-                    ProgressFilter.GLOBAL -> rawAchievements // Mostra tudo (Globais + Idiomas)
+                    ProgressFilter.GLOBAL -> rawAchievements
                     ProgressFilter.ACTIVE_LANGUAGE -> {
                         val activeLangId = activeUserLang?.languageId
-                        // Mostra APENAS conquistas deste idioma específico.
-                        // Removemos a verificação "|| it.languageId == null" para não mostrar globais aqui.
                         rawAchievements.filter { it.languageId == activeLangId }
+                    }
+                }.sortedByDescending { it.awardedAt } // Ordenação: Mais recente primeiro
+
+                // Cálculo de Atividade (Semana/Mês)
+                val now = try { LocalDateTime.now() } catch (e: Exception) { null }
+                var countWeek = 0
+                var countMonth = 0
+
+                if (now != null) {
+                    val oneWeekAgo = now.minusDays(7)
+                    val oneMonthAgo = now.minusDays(30)
+
+                    // Formato esperado do backend, ajuste se necessário
+                    val formatters = listOf(
+                        DateTimeFormatter.ISO_DATE_TIME,
+                        DateTimeFormatter.ISO_LOCAL_DATE_TIME,
+                        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                    )
+
+                    filteredAchievements.forEach { ach ->
+                        var date: LocalDateTime? = null
+                        for (formatter in formatters) {
+                            try {
+                                date = LocalDateTime.parse(ach.awardedAt.replace("Z", ""), formatter)
+                                break
+                            } catch (e: Exception) { continue }
+                        }
+
+                        if (date != null) {
+                            if (date.isAfter(oneWeekAgo)) countWeek++
+                            if (date.isAfter(oneMonthAgo)) countMonth++
+                        }
                     }
                 }
 
-                // Carrega nomes das conquistas
                 val uiAchievements = coroutineScope {
                     filteredAchievements.map { userAch ->
                         async {
@@ -156,8 +188,13 @@ class ProgressViewModel @Inject constructor(
                                 .filter { it !is Resource.Loading }
                                 .first()
 
-                            val name = achDetailsResult.data?.name ?: "Conquista Secreta"
-                            ProgressAchievementUiModel(userAch, name)
+                            val details = achDetailsResult.data
+                            ProgressAchievementUiModel(
+                                userAchievement = userAch,
+                                name = details?.name ?: "Conquista Secreta",
+                                description = details?.description ?: "",
+                                iconUrl = details?.iconUrl
+                            )
                         }
                     }.awaitAll()
                 }
@@ -180,6 +217,8 @@ class ProgressViewModel @Inject constructor(
                     globalStreak = bestStreakVal,
                     bestStreakLangName = bestStreakLangName,
                     achievements = uiAchievements,
+                    weekCount = countWeek,
+                    monthCount = countMonth,
                     error = error
                 )
             }.collect { result ->
@@ -198,6 +237,8 @@ class ProgressViewModel @Inject constructor(
                     globalStreak = result.globalStreak,
                     bestStreakLanguageName = result.bestStreakLangName,
                     achievements = result.achievements,
+                    achievementsThisWeek = result.weekCount,
+                    achievementsThisMonth = result.monthCount,
                     error = result.error
                 )
             }
@@ -228,6 +269,8 @@ class ProgressViewModel @Inject constructor(
         val globalStreak: Int,
         val bestStreakLangName: String?,
         val achievements: List<ProgressAchievementUiModel>,
+        val weekCount: Int,
+        val monthCount: Int,
         val error: String?
     )
 }

@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,16 +38,19 @@ import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
 import com.questua.app.R
 import com.questua.app.core.common.toFullImageUrl
+import com.questua.app.domain.model.Achievement
 import com.questua.app.domain.model.City
 import com.questua.app.domain.model.QuestPoint
 
 val QuestuaGold = Color(0xFFFFC107)
+val QuestuaPurple = Color(0xFF6200EE)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CityDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToQuestPoint: (String) -> Unit,
+    onNavigateToUnlock: (String, String) -> Unit,
     viewModel: CityViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -55,7 +59,6 @@ fun CityDetailScreen(
     val cameraPositionState = rememberCameraPositionState()
     val scaffoldState = rememberBottomSheetScaffoldState()
 
-    // --- LÓGICA DE HOT RELOAD ---
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -112,7 +115,7 @@ fun CityDetailScreen(
         sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         sheetContent = {
             state.city?.let { city ->
-                CityBottomSheetContent(city = city)
+                CityBottomSheetContent(city = city, achievements = state.cityAchievements)
             }
         },
         containerColor = Color.Transparent
@@ -180,14 +183,12 @@ fun CityDetailScreen(
                     containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurface
                 ) {
-                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = "Voltar")
+                    Icon(imageVector = Icons.Default.ArrowBack, contentDescription = null)
                 }
             }
         }
     }
 }
-
-// --- Componentes Visuais ---
 
 @Composable
 fun QuestuaMapMarker(iconUrl: String?) {
@@ -290,7 +291,7 @@ fun SimpleInfoWindowContent(point: QuestPoint) {
 }
 
 @Composable
-fun CityBottomSheetContent(city: City) {
+fun CityBottomSheetContent(city: City, achievements: List<Achievement>) {
     val context = LocalContext.current
 
     Column(
@@ -343,7 +344,7 @@ fun CityBottomSheetContent(city: City) {
                     .data(city.imageUrl.toFullImageUrl())
                     .crossfade(true)
                     .build(),
-                contentDescription = "Imagem de ${city.name}",
+                contentDescription = null,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(180.dp)
@@ -359,6 +360,92 @@ fun CityBottomSheetContent(city: City) {
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
             lineHeight = 22.sp
         )
+
+        if (achievements.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(24.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.EmojiEvents,
+                    contentDescription = null,
+                    tint = QuestuaGold,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Conquistas desta Região",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            achievements.forEach { achievement ->
+                PendingAchievementCard(achievement)
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun PendingAchievementCard(achievement: Achievement) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f)),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.Gray.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (achievement.iconUrl != null) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(achievement.iconUrl.toFullImageUrl())
+                            .crossfade(true).build(),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.EmojiEvents,
+                        contentDescription = null,
+                        tint = Color.Gray,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = achievement.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                )
+                Text(
+                    text = "${achievement.xpReward} XP",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = QuestuaGold
+                )
+            }
+        }
     }
 }
 

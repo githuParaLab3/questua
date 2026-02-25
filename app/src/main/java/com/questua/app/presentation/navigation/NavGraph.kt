@@ -143,10 +143,12 @@ fun SetupNavGraph(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToQuestPoint = { pointId ->
                     navController.navigate(Screen.QuestPoint.passId(pointId))
+                },
+                onNavigateToUnlock = { contentId, contentType ->
+                    navController.navigate(Screen.UnlockPreview.passArgs(contentId, contentType))
                 }
             )
         }
-
         composable(
             route = Screen.QuestPoint.route,
             arguments = listOf(navArgument("pointId") { type = NavType.StringType })

@@ -6,14 +6,18 @@ import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
 import com.questua.app.core.ui.managers.AchievementMonitor
+import com.questua.app.domain.model.Achievement
 import com.questua.app.domain.model.Product
 import com.questua.app.domain.model.UnlockRequirement
+import com.questua.app.domain.repository.AdminRepository
 import com.questua.app.domain.repository.PaymentRepository
 import com.questua.app.domain.usecase.exploration.GetUnlockPreviewUseCase
 import com.questua.app.domain.usecase.language_learning.GetUserLanguagesUseCase
+import com.questua.app.domain.usecase.user.GetUserAchievementsUseCase
 import com.questua.app.domain.usecase.user.GetUserStatsUseCase
 import com.stripe.android.paymentsheet.PaymentSheetResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,6 +35,7 @@ data class UnlockPreviewState(
     val error: String? = null,
     val requirement: UnlockRequirement? = null,
     val products: List<Product> = emptyList(),
+    val pendingAchievements: List<Achievement> = emptyList(),
     val userLevel: Int = 0,
     val userId: String? = null,
     val clientSecret: String? = null,
@@ -43,8 +48,10 @@ class UnlockPreviewViewModel @Inject constructor(
     private val paymentRepository: PaymentRepository,
     private val getUserStatsUseCase: GetUserStatsUseCase,
     private val getUserLanguagesUseCase: GetUserLanguagesUseCase,
+    private val getUserAchievementsUseCase: GetUserAchievementsUseCase,
+    private val adminRepository: AdminRepository,
     private val tokenManager: TokenManager,
-    private val achievementMonitor: AchievementMonitor, // Injeção adicionada
+    private val achievementMonitor: AchievementMonitor,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -86,6 +93,10 @@ class UnlockPreviewViewModel @Inject constructor(
         viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true)
 
+            val userId = try {
+                tokenManager.userId.first { !it.isNullOrEmpty() }
+            } catch (e: Exception) { null }
+
             getUnlockPreviewUseCase(contentId, contentType).collectLatest { result ->
                 when (result) {
                     is Resource.Success -> {
@@ -95,6 +106,9 @@ class UnlockPreviewViewModel @Inject constructor(
                         )
                         if (result.data?.premiumAccess == true) {
                             fetchProducts()
+                        }
+                        if (userId != null) {
+                            loadMonetizationAchievements(userId)
                         }
                     }
                     is Resource.Error -> {
@@ -109,6 +123,28 @@ class UnlockPreviewViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private suspend fun loadMonetizationAchievements(userId: String) {
+        try {
+            val allAchJob = viewModelScope.async {
+                adminRepository.getAchievements(null).filter { it !is Resource.Loading }.first().data ?: emptyList()
+            }
+            val userAchJob = viewModelScope.async {
+                getUserAchievementsUseCase(userId).filter { it !is Resource.Loading }.first().data ?: emptyList()
+            }
+
+            val all = allAchJob.await()
+            val userAchIds = userAchJob.await().map { it.achievementId }.toSet()
+
+            val related = all.filter { ach ->
+                val isMonetizationType = ach.conditionType.name == "UNLOCK_PREMIUM_CONTENT"
+                val isTargeted = ach.targetId == contentId
+                (isMonetizationType || isTargeted) && !userAchIds.contains(ach.id)
+            }.take(2)
+
+            _state.value = _state.value.copy(pendingAchievements = related)
+        } catch (e: Exception) { }
     }
 
     private fun fetchProducts() {
@@ -195,8 +231,6 @@ class UnlockPreviewViewModel @Inject constructor(
                         if (isIdInList) {
                             unlocked = true
                             _state.value = _state.value.copy(isUnlocked = true)
-
-                            // Conteúdo liberado com sucesso -> Checa se desbloqueou achievement (UNLOCK_PREMIUM_CONTENT)
                             achievementMonitor.check()
                         }
                     }

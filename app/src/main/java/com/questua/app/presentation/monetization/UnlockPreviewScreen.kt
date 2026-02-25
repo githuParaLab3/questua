@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
@@ -19,16 +20,22 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.components.QuestuaButton
+import com.questua.app.domain.model.Achievement
 import com.questua.app.domain.model.Product
 import com.stripe.android.paymentsheet.PaymentSheet
 import com.stripe.android.paymentsheet.rememberPaymentSheet
@@ -250,6 +257,11 @@ fun LockedView(state: UnlockPreviewState, onBuyClick: (String) -> Unit) {
 
         state.requirement?.let { req ->
             if (req.premiumAccess) {
+                if (state.pendingAchievements.isNotEmpty()) {
+                    PendingAchievementsSection(state.pendingAchievements)
+                    Spacer(modifier = Modifier.height(24.dp))
+                }
+
                 PremiumContentSection(
                     products = state.products,
                     userId = state.userId,
@@ -257,7 +269,60 @@ fun LockedView(state: UnlockPreviewState, onBuyClick: (String) -> Unit) {
                     onBuyClick = onBuyClick
                 )
             } else {
-                Text("Requer Nível: ${req.requiredGamificationLevel}")
+                Text(
+                    text = "Acesso Requer Nível ${req.requiredGamificationLevel}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = QuestuaGold
+                )
+                Text(
+                    text = "Você está atualmente no nível ${state.userLevel}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PendingAchievementsSection(achievements: List<Achievement>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(QuestuaGold.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+            .border(1.dp, QuestuaGold.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+            .padding(16.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.EmojiEvents, null, tint = QuestuaGold, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Ganhe ao Desbloquear:", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        achievements.forEach { ach ->
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 4.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Color.Gray.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (ach.iconUrl != null) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current).data(ach.iconUrl.toFullImageUrl()).build(),
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Icon(Icons.Default.EmojiEvents, null, modifier = Modifier.size(16.dp), tint = Color.Gray)
+                    }
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(ach.name, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                    Text("+ ${ach.xpReward} XP", style = MaterialTheme.typography.labelSmall, color = QuestuaGold)
+                }
             }
         }
     }
@@ -271,7 +336,7 @@ fun PremiumContentSection(
     onBuyClick: (String) -> Unit
 ) {
     if (products.isEmpty()) {
-        Text("Sem produtos disponíveis.")
+        Text("Carregando ofertas...", style = MaterialTheme.typography.bodyMedium)
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
             products.forEach { product ->

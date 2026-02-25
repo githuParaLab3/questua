@@ -21,13 +21,15 @@ import javax.inject.Singleton
 @Singleton
 class AchievementMonitor @Inject constructor(
     private val getUserAchievementsUseCase: GetUserAchievementsUseCase,
-    private val getAchievementDetailsUseCase: GetAchievementDetailsUseCase, // UseCase correto injetado
+    private val getAchievementDetailsUseCase: GetAchievementDetailsUseCase,
     private val tokenManager: TokenManager
 ) {
     private val _currentPopup = MutableStateFlow<Achievement?>(null)
     val currentPopup: StateFlow<Achievement?> = _currentPopup.asStateFlow()
 
-    // Armazena os IDs das conquistas (Achievement IDs) e não os IDs da tabela UserAchievement
+    private val _unseenAchievementIds = MutableStateFlow<Set<String>>(emptySet())
+    val unseenAchievementIds: StateFlow<Set<String>> = _unseenAchievementIds.asStateFlow()
+
     private var knownAchievementIds: MutableSet<String> = mutableSetOf()
     private val pendingQueue = ArrayDeque<Achievement>()
 
@@ -38,15 +40,11 @@ class AchievementMonitor @Inject constructor(
 
     fun initialize() {
         if (isInitialized) return
-
         scope.launch {
             val userId = tokenManager.userId.first() ?: return@launch
-
-            // Carga inicial: apenas popula o cache para não mostrar popups antigos
             getUserAchievementsUseCase(userId).collect { result ->
                 if (result is Resource.Success) {
                     val list = result.data ?: emptyList()
-                    // Assume que UserAchievement tem 'achievementId' ou que o ID retornado mapeia para tal
                     knownAchievementIds.clear()
                     knownAchievementIds.addAll(list.map { it.achievementId })
                     isInitialized = true
@@ -58,27 +56,24 @@ class AchievementMonitor @Inject constructor(
     fun check() {
         scope.launch {
             val userId = tokenManager.userId.first() ?: return@launch
-
             if (!isInitialized) {
                 initialize()
                 return@launch
             }
 
-            // 1. Busca a lista atualizada de IDs
             getUserAchievementsUseCase(userId).collect { result ->
                 if (result is Resource.Success) {
                     val currentList = result.data ?: emptyList()
-
-                    // 2. Encontra IDs que não estavam no cache
                     val newUnlockUserAchievements = currentList.filter {
                         !knownAchievementIds.contains(it.achievementId)
                     }
 
                     if (newUnlockUserAchievements.isNotEmpty()) {
-                        // Atualiza cache
                         knownAchievementIds.addAll(newUnlockUserAchievements.map { it.achievementId })
 
-                        // 3. Busca detalhes (Nome, Ícone) para cada conquista nova
+                        val newIds = newUnlockUserAchievements.map { it.achievementId }.toSet()
+                        _unseenAchievementIds.update { it + newIds }
+
                         newUnlockUserAchievements.forEach { userAchievement ->
                             fetchAndQueueDetails(userAchievement.achievementId)
                         }
@@ -100,6 +95,14 @@ class AchievementMonitor @Inject constructor(
         }
     }
 
+    fun markAsSeen(achievementId: String) {
+        _unseenAchievementIds.update { it - achievementId }
+    }
+
+    fun markAllAsSeen() {
+        _unseenAchievementIds.update { emptySet() }
+    }
+
     private fun addToQueue(achievement: Achievement) {
         pendingQueue.add(achievement)
         processQueue()
@@ -107,12 +110,9 @@ class AchievementMonitor @Inject constructor(
 
     private fun processQueue() {
         if (isProcessingQueue || pendingQueue.isEmpty()) return
-
         isProcessingQueue = true
         val nextAchievement = pendingQueue.removeFirst()
-
         _currentPopup.update { nextAchievement }
-
         scope.launch {
             delay(4000)
             _currentPopup.update { null }

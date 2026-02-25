@@ -1,8 +1,9 @@
 package com.questua.app.core.ui.components
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -12,17 +13,13 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,22 +35,28 @@ enum class HubTab(val icon: ImageVector, val label: String) {
 @Composable
 fun BottomNavBar(
     selectedTab: HubTab,
-    onTabSelected: (HubTab) -> Unit
+    onTabSelected: (HubTab) -> Unit,
+    hasNotificationsOnProgress: Boolean = false
 ) {
-    // Cores do Tema
     val containerColor = MaterialTheme.colorScheme.surface
-    // Use outline se outlineVariant não estiver disponível, mas geralmente outlineVariant existe no M3
     val borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
 
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(80.dp)
-            // CORREÇÃO: Substituído MaterialTheme.colorScheme.shadow por Color.Black
-            .shadow(
-                elevation = 15.dp,
-                spotColor = Color.Black.copy(alpha = 0.1f)
-            ),
+            .shadow(elevation = 15.dp, spotColor = Color.Black.copy(alpha = 0.1f)),
         color = containerColor,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, borderColor)
@@ -66,49 +69,48 @@ fun BottomNavBar(
             HubTab.values().forEach { tab ->
                 val isSelected = selectedTab == tab
                 val interactionSource = remember { MutableInteractionSource() }
+                val isProgressTab = tab == HubTab.PROGRESS
 
-                // Animações de cor baseadas no Tema
                 val offsetY by animateDpAsState(targetValue = if (isSelected) (-8).dp else 0.dp, label = "offset")
-
-                val iconColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    label = "iconColor"
-                )
-
-                val bgColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                    label = "bgColor"
-                )
-
-                val labelColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    label = "labelColor"
-                )
+                val iconColor by animateColorAsState(targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant)
+                val bgColor by animateColorAsState(targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                val labelColor by animateColorAsState(targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
 
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
                         .offset(y = offsetY)
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = null
-                        ) { onTabSelected(tab) }
+                        .clickable(interactionSource = interactionSource, indication = null) { onTabSelected(tab) }
                 ) {
                     Box(
                         modifier = Modifier
                             .size(48.dp)
+                            .graphicsLayer {
+                                if (isProgressTab && hasNotificationsOnProgress && !isSelected) {
+                                    scaleX = pulseScale
+                                    scaleY = pulseScale
+                                }
+                            }
                             .shadow(
                                 elevation = if (isSelected) 10.dp else 0.dp,
                                 shape = RoundedCornerShape(16.dp),
-                                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                spotColor = if (isProgressTab && hasNotificationsOnProgress) Color(0xFFFFC107) else MaterialTheme.colorScheme.primary
                             )
-                            .background(bgColor, RoundedCornerShape(16.dp)),
+                            .background(
+                                if (isProgressTab && hasNotificationsOnProgress && !isSelected) Color(0xFFFFC107).copy(alpha = 0.2f) else bgColor,
+                                RoundedCornerShape(16.dp)
+                            )
+                            .then(
+                                if (isProgressTab && hasNotificationsOnProgress && !isSelected)
+                                    Modifier.border(1.5.dp, Color(0xFFFFC107).copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                                else Modifier
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = tab.icon,
                             contentDescription = tab.label,
-                            tint = iconColor,
+                            tint = if (isProgressTab && hasNotificationsOnProgress && !isSelected) Color(0xFFFFC107) else iconColor,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -117,11 +119,7 @@ fun BottomNavBar(
 
                     Text(
                         text = tab.label,
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = labelColor
-                        )
+                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp, fontWeight = FontWeight.Bold, color = labelColor)
                     )
                 }
             }

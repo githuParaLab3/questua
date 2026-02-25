@@ -5,14 +5,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
+import com.questua.app.core.ui.components.AchievementOverlay
 import com.questua.app.core.ui.components.BottomNavBar
 import com.questua.app.core.ui.components.HubTab
+import com.questua.app.core.ui.managers.AchievementMonitor
 import com.questua.app.domain.enums.ReportType
 import com.questua.app.presentation.exploration.worldmap.WorldMapScreen
 import com.questua.app.presentation.hub.HubScreen
@@ -29,9 +32,11 @@ fun MainScreen(
     onNavigateToAdmin: () -> Unit,
     onNavigateToHelp: () -> Unit,
     onNavigateToFeedback: (ReportType) -> Unit,
-    navController: NavController
+    navController: NavController,
+    achievementMonitor: AchievementMonitor // Removido o hiltViewModel() daqui
 ) {
     var currentTab by rememberSaveable { mutableStateOf(HubTab.HOME) }
+    val unseenAchievements by achievementMonitor.unseenAchievementIds.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -39,7 +44,8 @@ fun MainScreen(
                 selectedTab = currentTab,
                 onTabSelected = { tab ->
                     currentTab = tab
-                }
+                },
+                hasNotificationsOnProgress = unseenAchievements.isNotEmpty()
             )
         }
     ) { paddingValues ->
@@ -48,6 +54,8 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
+            AchievementOverlay(monitor = achievementMonitor)
+
             when (currentTab) {
                 HubTab.HOME -> {
                     HubScreen(
@@ -83,7 +91,7 @@ fun MainScreen(
                     )
                 }
                 HubTab.PROGRESS -> {
-                    ProgressScreen()
+                    ProgressScreen(achievementMonitor = achievementMonitor)
                 }
             }
         }

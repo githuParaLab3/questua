@@ -52,7 +52,8 @@ class MainActivity : ComponentActivity() {
                         Box(modifier = Modifier.fillMaxSize()) {
                             SetupNavGraph(
                                 navController = navController,
-                                startDestination = startDestination!!
+                                startDestination = startDestination!!,
+                                achievementMonitor = achievementMonitor
                             )
 
                             AchievementOverlay(monitor = achievementMonitor)

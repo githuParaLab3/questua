@@ -7,6 +7,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import com.questua.app.core.ui.managers.AchievementMonitor
 import com.questua.app.presentation.admin.feedback.AdminReportDetailScreen
 import com.questua.app.presentation.auth.LoginScreen
 import com.questua.app.presentation.auth.RegisterScreen
@@ -26,11 +27,12 @@ import com.questua.app.presentation.profile.HelpScreen
 @Composable
 fun SetupNavGraph(
     navController: NavHostController,
-    startDestination: String
+    startDestination: String,
+    achievementMonitor: AchievementMonitor
 ) {
     NavHost(
         navController = navController,
-        startDestination = startDestination
+        startDestination = startDestination,
     ) {
         composable(route = Screen.Initial.route) {
             InitialScreen(
@@ -96,7 +98,8 @@ fun SetupNavGraph(
                 onNavigateToFeedback = { type ->
                     navController.navigate(Screen.Feedback.passReportType(type.name))
                 },
-                navController = navController
+                navController = navController,
+                achievementMonitor = achievementMonitor // Passe a instância recebida
             )
         }
 

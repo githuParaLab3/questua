@@ -7,17 +7,23 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
@@ -37,9 +43,11 @@ import com.questua.app.domain.model.Achievement
 import com.questua.app.presentation.hub.components.HeaderStats
 import com.questua.app.presentation.hub.components.StreakCard
 
+// Cores do Tema (Mantidas e reforçadas)
 val QuestuaGold = Color(0xFFFFC107)
 val QuestuaPurple = Color(0xFF6200EE)
 val QuestuaTeal = Color(0xFF03DAC5)
+val QuestuaBackgroundGradientStart = QuestuaGold.copy(alpha = 0.25f)
 
 @Composable
 fun HubScreen(
@@ -70,21 +78,23 @@ fun HubScreen(
             FloatingActionButton(
                 onClick = onNavigateToLanguages,
                 containerColor = QuestuaGold,
-                contentColor = Color.Black
+                contentColor = Color.Black,
+                elevation = FloatingActionButtonDefaults.elevation(8.dp)
             ) {
-                Icon(Icons.Default.Language, contentDescription = null)
+                Icon(Icons.Default.Language, contentDescription = "Mudar Idioma")
             }
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
+            // Background Header aprimorado
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(280.dp)
+                    .height(320.dp) // Aumentado um pouco para cobrir Header + Streak
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                QuestuaGold.copy(alpha = 0.15f),
+                                QuestuaBackgroundGradientStart,
                                 MaterialTheme.colorScheme.background
                             )
                         )
@@ -97,32 +107,37 @@ fun HubScreen(
                     .padding(paddingValues)
                     .verticalScroll(rememberScrollState())
             ) {
-                HeaderStats(
-                    userName = state.user?.displayName ?: "",
-                    userAvatar = state.user?.avatarUrl,
-                    level = state.activeLanguage?.gamificationLevel ?: 1,
-                    xp = state.activeLanguage?.xpTotal ?: 0,
-                    modifier = Modifier.padding(16.dp)
-                )
+                // Header e Stats
+                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    HeaderStats(
+                        userName = state.user?.displayName ?: "",
+                        userAvatar = state.user?.avatarUrl,
+                        level = state.activeLanguage?.gamificationLevel ?: 1,
+                        xp = state.activeLanguage?.xpTotal ?: 0,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
 
-                StreakCard(
-                    streakDays = state.activeLanguage?.streakDays ?: 0,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
+                    StreakCard(
+                        streakDays = state.activeLanguage?.streakDays ?: 0,
+                        modifier = Modifier.shadow(8.dp, RoundedCornerShape(16.dp))
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // Progresso de Nível
                 state.levelProgress?.let { progress ->
                     LevelProgressCard(progress = progress)
                     Spacer(modifier = Modifier.height(32.dp))
                 }
 
+                // Continue Playing
                 if (state.continueJourneyQuests.isNotEmpty()) {
-                    SectionHeader("Continue sua Jornada", Icons.Default.PlayArrow)
+                    SectionHeader("Continue sua Jornada", Icons.Rounded.PlayArrow)
 
                     LazyRow(
                         contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         items(state.continueJourneyQuests) { item ->
                             ResumeQuestCard(
@@ -134,6 +149,7 @@ fun HubScreen(
                     Spacer(modifier = Modifier.height(32.dp))
                 }
 
+                // Achievements
                 if (state.latestAchievements.isNotEmpty()) {
                     SectionHeader("Próximas Conquistas", Icons.Default.EmojiEvents)
 
@@ -148,12 +164,13 @@ fun HubScreen(
                     Spacer(modifier = Modifier.height(32.dp))
                 }
 
+                // New Content
                 if (state.newContent.isNotEmpty()) {
                     SectionHeader("Novidades em ${state.activeLanguage?.cefrLevel ?: "Seu Curso"}", Icons.Default.NewReleases)
 
                     Column(
                         modifier = Modifier.padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         state.newContent.forEach { content ->
                             NewContentItemCard(content = content) {
@@ -177,13 +194,23 @@ fun HubScreen(
 fun SectionHeader(title: String, icon: ImageVector) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Icon(icon, null, tint = QuestuaGold, modifier = Modifier.size(20.dp))
-        Spacer(modifier = Modifier.width(8.dp))
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(QuestuaGold.copy(alpha = 0.2f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = QuestuaGold, modifier = Modifier.size(18.dp))
+        }
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = title,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground
         )
@@ -197,58 +224,76 @@ fun LevelProgressCard(progress: LevelProgress) {
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(2.dp),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+        elevation = CardDefaults.cardElevation(4.dp),
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Bottom
             ) {
-                Text(
-                    text = "Próximo Nível: ${progress.currentLevel + 1}",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = "${progress.currentXp} / ${progress.nextLevelXp} XP",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column {
+                    Text(
+                        text = "NÍVEL ATUAL",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                    Text(
+                        text = "${progress.currentLevel}",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "${progress.currentXp} / ${progress.nextLevelXp} XP",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = QuestuaGold,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             LinearProgressIndicator(
                 progress = { progress.progress },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
+                    .height(12.dp)
+                    .clip(RoundedCornerShape(6.dp)),
                 color = QuestuaGold,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                strokeCap = StrokeCap.Round
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(QuestuaPurple.copy(alpha = 0.1f))
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
                 Icon(
                     imageVector = Icons.Default.School,
                     contentDescription = null,
                     tint = QuestuaPurple,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Faltam ${progress.levelsToNextCefr} níveis para ${progress.nextCefrLabel}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = QuestuaPurple,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
@@ -257,62 +302,86 @@ fun LevelProgressCard(progress: LevelProgress) {
 
 @Composable
 fun ResumeQuestCard(item: ResumeQuestItem, onClick: () -> Unit) {
+    // Gradiente para dar destaque à quest ativa
+    val activeGradient = Brush.linearGradient(
+        colors = listOf(
+            MaterialTheme.colorScheme.primaryContainer,
+            MaterialTheme.colorScheme.surface
+        )
+    )
+
     Card(
         modifier = Modifier
-            .width(260.dp)
-            .height(150.dp)
+            .width(280.dp)
+            .height(160.dp)
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-        border = BorderStroke(1.dp, QuestuaGold.copy(alpha = 0.5f))
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(6.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent) // Transparente para usar o Box gradient
     ) {
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .background(activeGradient)
         ) {
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Place,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                            shape = RoundedCornerShape(6.dp)
+                        ) {
+                            Text(
+                                text = item.questPointTitle.uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 10.sp,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = item.questPointTitle.uppercase(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = item.questTitle,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        fontSize = 10.sp
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = item.questTitle,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                LinearProgressIndicator(
-                    progress = { item.userQuest.percentComplete.toFloat() / 100f },
-                    modifier = Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp)),
-                    color = QuestuaGold,
-                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "${item.userQuest.percentComplete.toInt()}%",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = QuestuaGold
-                )
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${item.userQuest.percentComplete.toInt()}% Completo",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { item.userQuest.percentComplete.toFloat() / 100f },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(4.dp)),
+                        color = QuestuaGold,
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        strokeCap = StrokeCap.Round
+                    )
+                }
             }
         }
     }
@@ -320,33 +389,48 @@ fun ResumeQuestCard(item: ResumeQuestItem, onClick: () -> Unit) {
 
 @Composable
 fun AchievementCard(achievement: Achievement) {
+    val rarityColor = when(achievement.rarity.name) {
+        "COMMON" -> Color.Gray
+        "RARE" -> QuestuaGold
+        "LEGENDARY" -> QuestuaPurple
+        else -> Color.Gray
+    }
+
     Card(
         modifier = Modifier
-            .width(140.dp)
-            .height(170.dp),
-        shape = RoundedCornerShape(16.dp),
+            .width(150.dp)
+            .height(190.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(2.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.2f))
+        border = BorderStroke(1.5.dp, rarityColor.copy(alpha = 0.3f))
     ) {
         Column(
             modifier = Modifier
                 .padding(12.dp)
                 .fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(achievement.iconUrl?.toFullImageUrl())
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                error = rememberVectorPainter(Icons.Default.EmojiEvents)
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
+            // Icon Container
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(rarityColor.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(achievement.iconUrl?.toFullImageUrl())
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    modifier = Modifier.size(36.dp),
+                    error = rememberVectorPainter(Icons.Default.EmojiEvents),
+                    contentScale = ContentScale.Fit
+                )
+            }
 
             Text(
                 text = achievement.name,
@@ -354,29 +438,22 @@ fun AchievementCard(achievement: Achievement) {
                 fontWeight = FontWeight.Bold,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val rarityColor = when(achievement.rarity.name) {
-                "COMMON" -> Color.Gray
-                "RARE" -> QuestuaGold
-                "LEGENDARY" -> QuestuaPurple
-                else -> Color.Gray
-            }
-
             Surface(
-                color = rarityColor.copy(alpha = 0.1f),
-                shape = RoundedCornerShape(4.dp)
+                color = rarityColor,
+                shape = RoundedCornerShape(50),
+                shadowElevation = 2.dp
             ) {
                 Text(
                     text = achievement.rarity.name,
                     style = MaterialTheme.typography.labelSmall,
-                    color = rarityColor,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 8.sp,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    color = if (achievement.rarity.name == "COMMON") Color.White else Color.Black,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 9.sp,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                 )
             }
         }
@@ -389,18 +466,20 @@ fun NewContentItemCard(content: NewContentItem, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(2.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Imagem do Conteúdo
             Surface(
-                shape = RoundedCornerShape(8.dp),
+                shape = RoundedCornerShape(12.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(56.dp)
             ) {
                 if (content.imageUrl != null) {
                     AsyncImage(
@@ -425,56 +504,65 @@ fun NewContentItemCard(content: NewContentItem, onClick: () -> Unit) {
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
+                // Badge e Tipo
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val badgeColor = if (content.isLocked) Color.Gray else QuestuaTeal
+                    val badgeColor = if (content.isLocked) MaterialTheme.colorScheme.secondary else QuestuaTeal
+                    val badgeText = if (content.isLocked) "BLOQUEADO" else "NOVO"
+                    val badgeIcon = if (content.isLocked) Icons.Rounded.Lock else Icons.Default.Star
+
                     Surface(
-                        color = badgeColor.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp)
+                        color = badgeColor.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(6.dp)
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
                         ) {
-                            if (content.isLocked) {
-                                Icon(
-                                    imageVector = Icons.Default.Lock,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(8.dp),
-                                    tint = badgeColor
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                            }
+                            Icon(
+                                imageVector = badgeIcon,
+                                contentDescription = null,
+                                modifier = Modifier.size(10.dp),
+                                tint = badgeColor
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = if (content.isLocked) "BLOQUEADO" else "NOVO",
+                                text = badgeText,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = badgeColor,
                                 fontWeight = FontWeight.Bold,
-                                fontSize = 8.sp
+                                fontSize = 9.sp
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     Text(
                         text = content.type,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.Medium
                     )
                 }
-                Spacer(modifier = Modifier.height(2.dp))
+
+                Spacer(modifier = Modifier.height(6.dp))
+
                 Text(
                     text = content.title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
             Icon(
-                imageVector = Icons.Default.ChevronRight,
+                imageVector = Icons.Rounded.ChevronRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                modifier = Modifier.size(28.dp)
             )
         }
     }

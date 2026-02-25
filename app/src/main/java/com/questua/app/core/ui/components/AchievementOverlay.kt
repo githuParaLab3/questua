@@ -5,15 +5,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -29,10 +21,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.questua.app.core.common.toFullImageUrl // Importante: A extensão que resolve a URL
 import com.questua.app.core.ui.managers.AchievementMonitor
 import com.questua.app.domain.model.Achievement
 
@@ -45,7 +43,7 @@ fun AchievementOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .zIndex(100f)
+            .zIndex(100f) // Garante que fica no topo da Z-Order
             .padding(top = 48.dp),
         contentAlignment = Alignment.TopCenter
     ) {
@@ -63,42 +61,55 @@ fun AchievementOverlay(
 
 @Composable
 fun AchievementCard(achievement: Achievement) {
+    // Cores do Card
     val gradient = Brush.horizontalGradient(
         colors = listOf(
             MaterialTheme.colorScheme.surface,
             MaterialTheme.colorScheme.surfaceVariant
         )
     )
+    val goldColor = Color(0xFFFFC107) // QuestuaGold
 
     Row(
         modifier = Modifier
             .widthIn(min = 300.dp, max = 360.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(gradient)
-            .border(2.dp, Color(0xFFFFD700), RoundedCornerShape(16.dp))
+            .border(2.dp, goldColor, RoundedCornerShape(16.dp))
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Área do Ícone
         Box(
             modifier = Modifier
                 .size(56.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFFFF8E1)),
+                .background(goldColor.copy(alpha = 0.1f)) // Fundo dourado suave
+                .border(1.dp, goldColor.copy(alpha = 0.3f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            if (!achievement.iconUrl.isNullOrBlank()) {
-                QuestuaAsyncImage(
-                    imageUrl = achievement.iconUrl,
+            val iconUrl = achievement.iconUrl
+
+            if (!iconUrl.isNullOrBlank()) {
+                // --- LÓGICA CORRIGIDA (IGUAL AO HUB) ---
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(iconUrl.toFullImageUrl()) // Usa a extensão para completar a URL
+                        .crossfade(true)
+                        .build(),
                     contentDescription = null,
                     modifier = Modifier
                         .size(40.dp)
-                        .clip(CircleShape)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                    // Fallback para ícone padrão se falhar o carregamento
+                    error = rememberVectorPainter(Icons.Default.EmojiEvents)
                 )
             } else {
                 Icon(
                     imageVector = Icons.Default.EmojiEvents,
                     contentDescription = null,
-                    tint = Color(0xFFFFD700),
+                    tint = goldColor,
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -106,11 +117,12 @@ fun AchievementCard(achievement: Achievement) {
 
         Spacer(modifier = Modifier.width(16.dp))
 
+        // Textos
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "CONQUISTA DESBLOQUEADA!",
                 style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFFFFD700),
+                color = goldColor,
                 fontWeight = FontWeight.Black,
                 letterSpacing = 0.5.sp
             )

@@ -8,7 +8,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -20,12 +19,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -34,7 +31,6 @@ import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
 import com.questua.app.core.ui.components.LoadingSpinner
 import com.questua.app.core.ui.managers.AchievementMonitor
-import kotlinx.coroutines.delay
 
 val QuestuaGold = Color(0xFFFFC107)
 val QuestuaPurple = Color(0xFF6200EE)
@@ -52,19 +48,22 @@ fun ProgressScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                state.userLanguage?.userId?.let { viewModel.loadProgressData(it) }
+                state.userId?.let { viewModel.loadProgressData(it) }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    LaunchedEffect(unseenIds) {
-        if (unseenIds.isNotEmpty()) {
-            delay(5000)
-            achievementMonitor.markAllAsSeen()
+    LaunchedEffect(state.filter, state.achievements) {
+        if (state.achievements.isNotEmpty()) {
+            val visibleNewIds = state.achievements
+                .map { it.userAchievement.achievementId }
+                .filter { unseenIds.contains(it) }
+
+            if (visibleNewIds.isNotEmpty()) {
+                achievementMonitor.markSeenByContext(visibleNewIds)
+            }
         }
     }
 
@@ -72,60 +71,28 @@ fun ProgressScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        "Seu Progresso",
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.headlineMedium
-                    )
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                    titleContentColor = MaterialTheme.colorScheme.onBackground
-                )
+                title = { Text("Seu Progresso", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineMedium) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         }
     ) { paddingValues ->
         Box(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                QuestuaGold.copy(alpha = 0.15f),
-                                MaterialTheme.colorScheme.background
-                            )
-                        )
-                    )
-            )
+            Box(modifier = Modifier.fillMaxWidth().height(200.dp).background(Brush.verticalGradient(listOf(QuestuaGold.copy(alpha = 0.15f), MaterialTheme.colorScheme.background))))
 
-            if (state.isLoading && state.userLanguage == null) {
+            if (state.isLoading && state.userId == null) {
                 LoadingSpinner(modifier = Modifier.align(Alignment.Center))
             } else {
-                val userLang = state.userLanguage
                 val isGlobal = state.filter == ProgressFilter.GLOBAL
-
-                val xp = if (isGlobal) state.globalXp else userLang?.xpTotal ?: 0
-                val level = if (isGlobal) state.globalLevel else userLang?.gamificationLevel ?: 1
-                val streakValue = if (isGlobal) state.globalStreak else userLang?.streakDays ?: 0
-                val questsCompleted = if (isGlobal) state.globalQuestsCount else state.activeQuestsCount
-                val questPointsUnlocked = if (isGlobal) state.globalQuestPointsCount else state.activeQuestPointsCount
-                val citiesUnlocked = if (isGlobal) state.globalCitiesCount else state.activeCitiesCount
+                val xp = if (isGlobal) state.globalXp else state.userLanguage?.xpTotal ?: 0
+                val level = if (isGlobal) state.globalLevel else state.userLanguage?.gamificationLevel ?: 1
+                val streakValue = if (isGlobal) state.globalStreak else state.userLanguage?.streakDays ?: 0
 
                 LazyColumn(
                     contentPadding = PaddingValues(top = paddingValues.calculateTopPadding() + 16.dp, bottom = 24.dp, start = 24.dp, end = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(24.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    item {
-                        ProgressFilterSegmentedButton(
-                            currentFilter = state.filter,
-                            onFilterChange = viewModel::setFilter
-                        )
-                    }
+                    item { ProgressFilterSegmentedButton(state.filter, viewModel::setFilter) }
 
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -135,40 +102,18 @@ fun ProgressScreen(
                             }
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 StatCard(Icons.Default.LocalFireDepartment, "Ofensiva", "$streakValue", "dias", Modifier.weight(1f), Color(0xFFFF5722))
-                                StatCard(Icons.Default.LocationCity, "Cidades", "$citiesUnlocked", "Desbloqueadas", Modifier.weight(1f), MaterialTheme.colorScheme.primary)
-                            }
-                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                StatCard(Icons.Default.TaskAlt, "Missões", "$questsCompleted", "Completas", Modifier.weight(1f), MaterialTheme.colorScheme.secondary)
-                                StatCard(Icons.Default.Place, "Pontos", "$questPointsUnlocked", "Visitados", Modifier.weight(1f), MaterialTheme.colorScheme.tertiary)
+                                StatCard(Icons.Default.LocationCity, "Cidades", "${if (isGlobal) state.globalCitiesCount else state.activeCitiesCount}", "Vilas", Modifier.weight(1f), MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
 
-                    item {
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text("Atividade Recente", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
-                        Spacer(modifier = Modifier.height(12.dp))
-                        ActivityGraphCard(weekCount = state.achievementsThisWeek, monthCount = state.achievementsThisMonth)
-                    }
+                    item { ActivityGraphCard(state.achievementsThisWeek, state.achievementsThisMonth) }
 
-                    item {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.width(4.dp).height(24.dp).background(QuestuaGold, RoundedCornerShape(2.dp)))
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text("Conquistas (${state.achievements.size})", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
-                        }
-                    }
+                    item { Text("Conquistas (${state.achievements.size})", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)) }
 
-                    if (state.achievements.isEmpty()) {
-                        item {
-                            Text("Nenhuma conquista desbloqueada ainda.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    } else {
-                        items(state.achievements, key = { it.userAchievement.id }) { achievement ->
-                            val isNew = unseenIds.contains(achievement.userAchievement.achievementId)
-                            AchievementItem(achievement = achievement, isHighlighted = isNew)
-                        }
+                    items(state.achievements, key = { it.userAchievement.id }) { achievement ->
+                        val isNew = unseenIds.contains(achievement.userAchievement.achievementId)
+                        AchievementItem(achievement = achievement, isHighlighted = isNew)
                     }
                 }
             }
@@ -179,110 +124,47 @@ fun ProgressScreen(
 @Composable
 fun AchievementItem(achievement: ProgressAchievementUiModel, isHighlighted: Boolean) {
     val infiniteTransition = rememberInfiniteTransition(label = "highlight")
-
     val borderColor by infiniteTransition.animateColor(
         initialValue = if (isHighlighted) QuestuaGold else Color.Transparent,
         targetValue = if (isHighlighted) QuestuaGold.copy(alpha = 0.1f) else Color.Transparent,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
+        animationSpec = infiniteRepeatable(tween(1000, easing = LinearEasing), RepeatMode.Reverse),
         label = "borderColor"
     )
 
-    val elevation by animateDpAsState(
-        targetValue = if (isHighlighted) 8.dp else 2.dp,
-        animationSpec = tween(500),
-        label = "elevation"
-    )
-
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 12.dp),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
-        border = BorderStroke(
-            width = if (isHighlighted) 2.dp else 1.dp,
-            color = if (isHighlighted) borderColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-        ),
+        elevation = CardDefaults.cardElevation(if (isHighlighted) 8.dp else 2.dp),
+        border = BorderStroke(if (isHighlighted) 2.dp else 1.dp, if (isHighlighted) borderColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(QuestuaGold.copy(alpha = 0.1f))
-                    .border(1.dp, QuestuaGold.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
+        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(QuestuaGold.copy(alpha = 0.1f)).border(1.dp, QuestuaGold.copy(alpha = 0.3f), RoundedCornerShape(12.dp)), contentAlignment = Alignment.Center) {
                 if (achievement.iconUrl != null) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(achievement.iconUrl.toFullImageUrl())
-                            .build(),
-                        contentDescription = null,
-                        modifier = Modifier.size(32.dp)
-                    )
-                } else {
-                    Icon(Icons.Default.EmojiEvents, null, tint = QuestuaGold, modifier = Modifier.size(28.dp))
-                }
+                    AsyncImage(model = ImageRequest.Builder(LocalContext.current).data(achievement.iconUrl.toFullImageUrl()).build(), contentDescription = null, modifier = Modifier.size(32.dp))
+                } else { Icon(Icons.Default.EmojiEvents, null, tint = QuestuaGold, modifier = Modifier.size(28.dp)) }
             }
-
             Spacer(modifier = Modifier.width(16.dp))
-
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(achievement.name, fontWeight = FontWeight.Bold)
                     if (isHighlighted) {
                         Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            color = QuestuaGold,
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                "NOVO",
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Color.Black,
-                                fontWeight = FontWeight.Black
-                            )
+                        Surface(color = QuestuaGold, shape = RoundedCornerShape(4.dp)) {
+                            Text("NOVO", modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = Color.Black, fontWeight = FontWeight.Black)
                         }
                     }
                 }
-                Text(
-                    text = achievement.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2
-                )
+                Text(achievement.description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
             }
-
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = null,
-                tint = if (isHighlighted) QuestuaGold else Color(0xFF4CAF50),
-                modifier = Modifier.size(24.dp)
-            )
+            Icon(Icons.Default.CheckCircle, null, tint = if (isHighlighted) QuestuaGold else Color(0xFF4CAF50), modifier = Modifier.size(24.dp))
         }
     }
 }
 
 @Composable
 fun ActivityGraphCard(weekCount: Int, monthCount: Int) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(2.dp),
-        shape = RoundedCornerShape(16.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
-    ) {
+    Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(2.dp), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 ActivityBar(label = "Esta Semana", count = weekCount, max = 5, color = QuestuaGold)
@@ -301,37 +183,22 @@ fun RowScope.ActivityBar(label: String, count: Int, max: Int, color: Color) {
             Text("$count", style = MaterialTheme.typography.labelSmall, color = color, fontWeight = FontWeight.Bold)
         }
         Spacer(modifier = Modifier.height(8.dp))
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
-            color = color,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
+        LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)), color = color, trackColor = MaterialTheme.colorScheme.surfaceVariant)
     }
 }
 
 @Composable
 fun StatCard(icon: ImageVector, title: String, value: String, subtitle: String? = null, modifier: Modifier = Modifier, accentColor: Color = MaterialTheme.colorScheme.primary) {
-    Card(
-        modifier = modifier.height(140.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
-        shape = RoundedCornerShape(16.dp)
-    ) {
+    Card(modifier = modifier.height(140.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(2.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)), shape = RoundedCornerShape(16.dp)) {
         Column(modifier = Modifier.padding(16.dp).fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(accentColor.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) {
-                    Icon(imageVector = icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp))
-                }
+                Box(modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(accentColor.copy(alpha = 0.15f)), contentAlignment = Alignment.Center) { Icon(imageVector = icon, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp)) }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(text = title, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
             }
             Column {
                 Text(text = value, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.ExtraBold), color = MaterialTheme.colorScheme.onSurface)
-                if (subtitle != null) {
-                    Text(text = subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f))
-                }
+                if (subtitle != null) { Text(text = subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)) }
             }
         }
     }
@@ -342,12 +209,7 @@ fun StatCard(icon: ImageVector, title: String, value: String, subtitle: String? 
 fun ProgressFilterSegmentedButton(currentFilter: ProgressFilter, onFilterChange: (ProgressFilter) -> Unit) {
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
         ProgressFilter.entries.forEachIndexed { index, filter ->
-            SegmentedButton(
-                shape = SegmentedButtonDefaults.itemShape(index = index, count = ProgressFilter.entries.size),
-                onClick = { onFilterChange(filter) },
-                selected = filter == currentFilter,
-                colors = SegmentedButtonDefaults.colors(activeContainerColor = QuestuaGold.copy(alpha = 0.2f), activeContentColor = MaterialTheme.colorScheme.onSurface, activeBorderColor = QuestuaGold)
-            ) {
+            SegmentedButton(shape = SegmentedButtonDefaults.itemShape(index = index, count = ProgressFilter.entries.size), onClick = { onFilterChange(filter) }, selected = filter == currentFilter, colors = SegmentedButtonDefaults.colors(activeContainerColor = QuestuaGold.copy(alpha = 0.2f), activeContentColor = MaterialTheme.colorScheme.onSurface, activeBorderColor = QuestuaGold)) {
                 Text(text = if (filter == ProgressFilter.GLOBAL) "Global" else "Idioma Ativo", fontWeight = if (filter == currentFilter) FontWeight.Bold else FontWeight.Normal)
             }
         }

@@ -40,9 +40,8 @@ data class ProgressAchievementUiModel(
 
 data class ProgressState(
     val isLoading: Boolean = false,
-    val filter: ProgressFilter = ProgressFilter.ACTIVE_LANGUAGE,
+    val filter: ProgressFilter = ProgressFilter.GLOBAL,
     val userLanguage: UserLanguage? = null,
-
     val globalXp: Int = 0,
     val globalQuestsCount: Int = 0,
     val globalQuestPointsCount: Int = 0,
@@ -50,17 +49,14 @@ data class ProgressState(
     val activeQuestsCount: Int = 0,
     val activeQuestPointsCount: Int = 0,
     val activeCitiesCount: Int = 0,
-
     val globalLevel: Int = 0,
     val globalStreak: Int = 0,
     val bestStreakLanguageName: String? = null,
-
-    // Novos Dados de Atividade
     val achievementsThisWeek: Int = 0,
     val achievementsThisMonth: Int = 0,
-
     val achievements: List<ProgressAchievementUiModel> = emptyList(),
     val languageDetails: Language? = null,
+    val userId: String? = null,
     val error: String? = null
 )
 
@@ -74,12 +70,9 @@ class ProgressViewModel @Inject constructor(
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
-    private val _filter = MutableStateFlow(ProgressFilter.ACTIVE_LANGUAGE)
-
+    private val _filter = MutableStateFlow(ProgressFilter.GLOBAL)
     private val _state = MutableStateFlow(ProgressState())
     val state = _state.asStateFlow()
-
-    private var currentUserId: String? = null
 
     init {
         observeUserSession()
@@ -89,7 +82,6 @@ class ProgressViewModel @Inject constructor(
         viewModelScope.launch {
             tokenManager.userId.collectLatest { userId ->
                 if (!userId.isNullOrEmpty()) {
-                    currentUserId = userId
                     loadProgressData(userId)
                 } else {
                     _state.value = _state.value.copy(isLoading = false, error = "Sessão inválida")
@@ -103,7 +95,7 @@ class ProgressViewModel @Inject constructor(
     }
 
     fun loadProgressData(userId: String) {
-        _state.value = _state.value.copy(isLoading = true)
+        _state.value = _state.value.copy(isLoading = true, userId = userId)
 
         viewModelScope.launch {
             combine(
@@ -116,19 +108,16 @@ class ProgressViewModel @Inject constructor(
                 val activeUserLang = statsRes.data
                 val allLangs = allLangsRes.data ?: emptyList()
                 val rawAchievements = achievementsRes.data ?: emptyList()
-
                 val error = statsRes.message ?: allLangsRes.message ?: achievementsRes.message
 
                 val totalXp = allLangs.sumOf { it.xpTotal }
                 val totalQuests = allLangs.sumOf { it.unlockedContent?.quests?.size ?: 0 }
                 val totalQuestPoints = allLangs.sumOf { it.unlockedContent?.questPoints?.size ?: 0 }
                 val totalCities = allLangs.sumOf { it.unlockedContent?.cities?.size ?: 0 }
-
                 val totalLevel = allLangs.sumOf { it.gamificationLevel }
 
                 val bestStreakUserLang = allLangs.maxByOrNull { it.streakDays }
                 val bestStreakVal = bestStreakUserLang?.streakDays ?: 0
-
                 val bestStreakLangName = if (bestStreakUserLang != null) {
                     val langRes = getLanguageDetailsUseCase(bestStreakUserLang.languageId)
                         .filter { it !is Resource.Loading }
@@ -140,16 +129,14 @@ class ProgressViewModel @Inject constructor(
                 val currentQuestPoints = activeUserLang?.unlockedContent?.questPoints?.size ?: 0
                 val currentCities = activeUserLang?.unlockedContent?.cities?.size ?: 0
 
-                // Filtro e Ordenação
                 val filteredAchievements = when (currentFilter) {
                     ProgressFilter.GLOBAL -> rawAchievements
                     ProgressFilter.ACTIVE_LANGUAGE -> {
                         val activeLangId = activeUserLang?.languageId
                         rawAchievements.filter { it.languageId == activeLangId }
                     }
-                }.sortedByDescending { it.awardedAt } // Ordenação: Mais recente primeiro
+                }.sortedByDescending { it.awardedAt }
 
-                // Cálculo de Atividade (Semana/Mês)
                 val now = try { LocalDateTime.now() } catch (e: Exception) { null }
                 var countWeek = 0
                 var countMonth = 0
@@ -157,8 +144,6 @@ class ProgressViewModel @Inject constructor(
                 if (now != null) {
                     val oneWeekAgo = now.minusDays(7)
                     val oneMonthAgo = now.minusDays(30)
-
-                    // Formato esperado do backend, ajuste se necessário
                     val formatters = listOf(
                         DateTimeFormatter.ISO_DATE_TIME,
                         DateTimeFormatter.ISO_LOCAL_DATE_TIME,
@@ -173,7 +158,6 @@ class ProgressViewModel @Inject constructor(
                                 break
                             } catch (e: Exception) { continue }
                         }
-
                         if (date != null) {
                             if (date.isAfter(oneWeekAgo)) countWeek++
                             if (date.isAfter(oneMonthAgo)) countMonth++
@@ -187,7 +171,6 @@ class ProgressViewModel @Inject constructor(
                             val achDetailsResult = getAchievementDetailsUseCase(userAch.achievementId)
                                 .filter { it !is Resource.Loading }
                                 .first()
-
                             val details = achDetailsResult.data
                             ProgressAchievementUiModel(
                                 userAchievement = userAch,
@@ -203,44 +186,27 @@ class ProgressViewModel @Inject constructor(
                     fetchLanguageDetails(activeUserLang.languageId)
                 }
 
-                ProgressDataResult(
+                ProgressState(
                     filter = currentFilter,
-                    activeLang = activeUserLang,
+                    userLanguage = activeUserLang,
                     globalXp = totalXp,
-                    globalQuests = totalQuests,
-                    globalQuestPoints = totalQuestPoints,
-                    globalCities = totalCities,
-                    activeQuests = currentQuests,
-                    activeQuestPoints = currentQuestPoints,
-                    activeCities = currentCities,
+                    globalQuestsCount = totalQuests,
+                    globalQuestPointsCount = totalQuestPoints,
+                    globalCitiesCount = totalCities,
+                    activeQuestsCount = currentQuests,
+                    activeQuestPointsCount = currentQuestPoints,
+                    activeCitiesCount = currentCities,
                     globalLevel = totalLevel,
                     globalStreak = bestStreakVal,
-                    bestStreakLangName = bestStreakLangName,
+                    bestStreakLanguageName = bestStreakLangName,
                     achievements = uiAchievements,
-                    weekCount = countWeek,
-                    monthCount = countMonth,
+                    achievementsThisWeek = countWeek,
+                    achievementsThisMonth = countMonth,
+                    userId = userId,
                     error = error
                 )
             }.collect { result ->
-                _state.value = _state.value.copy(
-                    isLoading = false,
-                    filter = result.filter,
-                    userLanguage = result.activeLang,
-                    globalXp = result.globalXp,
-                    globalQuestsCount = result.globalQuests,
-                    globalQuestPointsCount = result.globalQuestPoints,
-                    globalCitiesCount = result.globalCities,
-                    activeQuestsCount = result.activeQuests,
-                    activeQuestPointsCount = result.activeQuestPoints,
-                    activeCitiesCount = result.activeCities,
-                    globalLevel = result.globalLevel,
-                    globalStreak = result.globalStreak,
-                    bestStreakLanguageName = result.bestStreakLangName,
-                    achievements = result.achievements,
-                    achievementsThisWeek = result.weekCount,
-                    achievementsThisMonth = result.monthCount,
-                    error = result.error
-                )
+                _state.value = result.copy(isLoading = false)
             }
         }
     }
@@ -254,23 +220,4 @@ class ProgressViewModel @Inject constructor(
             }
         }
     }
-
-    private data class ProgressDataResult(
-        val filter: ProgressFilter,
-        val activeLang: UserLanguage?,
-        val globalXp: Int,
-        val globalQuests: Int,
-        val globalQuestPoints: Int,
-        val globalCities: Int,
-        val activeQuests: Int,
-        val activeQuestPoints: Int,
-        val activeCities: Int,
-        val globalLevel: Int,
-        val globalStreak: Int,
-        val bestStreakLangName: String?,
-        val achievements: List<ProgressAchievementUiModel>,
-        val weekCount: Int,
-        val monthCount: Int,
-        val error: String?
-    )
 }

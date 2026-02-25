@@ -32,10 +32,8 @@ class AchievementMonitor @Inject constructor(
 
     private var knownAchievementIds: MutableSet<String> = mutableSetOf()
     private val pendingQueue = ArrayDeque<Achievement>()
-
     private var isProcessingQueue = false
     private var isInitialized = false
-
     private val scope = CoroutineScope(Dispatchers.Main + Job())
 
     fun initialize() {
@@ -60,23 +58,15 @@ class AchievementMonitor @Inject constructor(
                 initialize()
                 return@launch
             }
-
             getUserAchievementsUseCase(userId).collect { result ->
                 if (result is Resource.Success) {
                     val currentList = result.data ?: emptyList()
-                    val newUnlockUserAchievements = currentList.filter {
-                        !knownAchievementIds.contains(it.achievementId)
-                    }
-
-                    if (newUnlockUserAchievements.isNotEmpty()) {
-                        knownAchievementIds.addAll(newUnlockUserAchievements.map { it.achievementId })
-
-                        val newIds = newUnlockUserAchievements.map { it.achievementId }.toSet()
+                    val newOnes = currentList.filter { !knownAchievementIds.contains(it.achievementId) }
+                    if (newOnes.isNotEmpty()) {
+                        knownAchievementIds.addAll(newOnes.map { it.achievementId })
+                        val newIds = newOnes.map { it.achievementId }.toSet()
                         _unseenAchievementIds.update { it + newIds }
-
-                        newUnlockUserAchievements.forEach { userAchievement ->
-                            fetchAndQueueDetails(userAchievement.achievementId)
-                        }
+                        newOnes.forEach { fetchAndQueueDetails(it.achievementId) }
                     }
                 }
             }
@@ -87,20 +77,17 @@ class AchievementMonitor @Inject constructor(
         scope.launch {
             getAchievementDetailsUseCase(achievementId).collect { result ->
                 if (result is Resource.Success) {
-                    result.data?.let { achievement ->
-                        addToQueue(achievement)
-                    }
+                    result.data?.let { addToQueue(it) }
                 }
             }
         }
     }
 
-    fun markAsSeen(achievementId: String) {
-        _unseenAchievementIds.update { it - achievementId }
-    }
-
-    fun markAllAsSeen() {
-        _unseenAchievementIds.update { emptySet() }
+    fun markSeenByContext(ids: List<String>) {
+        scope.launch {
+            delay(5000)
+            _unseenAchievementIds.update { it - ids.toSet() }
+        }
     }
 
     private fun addToQueue(achievement: Achievement) {
@@ -111,8 +98,8 @@ class AchievementMonitor @Inject constructor(
     private fun processQueue() {
         if (isProcessingQueue || pendingQueue.isEmpty()) return
         isProcessingQueue = true
-        val nextAchievement = pendingQueue.removeFirst()
-        _currentPopup.update { nextAchievement }
+        val next = pendingQueue.removeFirst()
+        _currentPopup.update { next }
         scope.launch {
             delay(4000)
             _currentPopup.update { null }

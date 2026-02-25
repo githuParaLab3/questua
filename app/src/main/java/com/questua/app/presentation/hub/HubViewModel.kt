@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
+import com.questua.app.core.ui.managers.AchievementMonitor
 import com.questua.app.domain.enums.ProgressStatus
 import com.questua.app.domain.model.Achievement
 import com.questua.app.domain.model.City
@@ -59,7 +60,8 @@ class HubViewModel @Inject constructor(
     private val contentRepository: ContentRepository,
     private val gameRepository: GameRepository,
     private val adminRepository: AdminRepository,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val achievementMonitor: AchievementMonitor // Injeção adicionada
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HubState())
@@ -99,6 +101,8 @@ class HubViewModel @Inject constructor(
         profileJob = getUserProfileUseCase(userId).onEach { result ->
             if (result is Resource.Success) {
                 _state.value = _state.value.copy(user = result.data)
+                // Também é um bom lugar para checar achievements se baseados em dados do user (ex: data de cadastro)
+                achievementMonitor.check()
             }
         }.launchIn(viewModelScope)
 
@@ -107,6 +111,9 @@ class HubViewModel @Inject constructor(
             if (result is Resource.Success) {
                 val userLang = result.data
                 _state.value = _state.value.copy(activeLanguage = userLang)
+
+                // Aqui é o ponto ideal para checar Streak, Nível, XP acumulado
+                achievementMonitor.check()
 
                 userLang?.let { lang ->
                     fetchLanguageDetails(lang.languageId)

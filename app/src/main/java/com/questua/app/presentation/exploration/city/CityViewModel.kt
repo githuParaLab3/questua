@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
+import com.questua.app.core.ui.managers.AchievementMonitor
 import com.questua.app.domain.model.City
 import com.questua.app.domain.model.QuestPoint
 import com.questua.app.domain.repository.ContentRepository
@@ -31,6 +32,7 @@ data class CityState(
 class CityViewModel @Inject constructor(
     private val getCityDetailsUseCase: GetCityDetailsUseCase,
     private val getCityQuestPointsUseCase: GetCityQuestPointsUseCase,
+    private val achievementMonitor: AchievementMonitor, // Injeção adicionada
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -42,6 +44,9 @@ class CityViewModel @Inject constructor(
 
     init {
         loadCityData()
+
+        // Verifica achievements ao entrar na cidade (ex: "Visitou X cidades")
+        achievementMonitor.check()
     }
 
     fun refreshData() {

@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
+import com.questua.app.core.ui.managers.AchievementMonitor
 import com.questua.app.domain.enums.ReportType
 import com.questua.app.domain.usecase.feedback.SendReportUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -29,6 +30,7 @@ data class FeedbackState(
 class FeedbackViewModel @Inject constructor(
     private val sendReportUseCase: SendReportUseCase,
     private val tokenManager: TokenManager,
+    private val achievementMonitor: AchievementMonitor, // Injeção adicionada
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -92,6 +94,9 @@ class FeedbackViewModel @Inject constructor(
                         )
                         description.value = ""
                         clearImage()
+
+                        // Verifica se ganhou a conquista de "Submit Feedback"
+                        achievementMonitor.check()
                     }
                     is Resource.Error -> _state.value = _state.value.copy(isLoading = false, error = result.message)
                 }

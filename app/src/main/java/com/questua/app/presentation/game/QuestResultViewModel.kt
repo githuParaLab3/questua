@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
+import com.questua.app.core.ui.managers.AchievementMonitor
 import com.questua.app.domain.model.SkillAssessment
 import com.questua.app.domain.repository.GameRepository
 import com.questua.app.domain.usecase.exploration.GetQuestDetailsUseCase
@@ -38,6 +39,7 @@ class QuestResultViewModel @Inject constructor(
     private val getUserStatsUseCase: GetUserStatsUseCase,
     private val gameRepository: GameRepository,
     private val tokenManager: TokenManager,
+    private val achievementMonitor: AchievementMonitor, // Injeção adicionada
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -64,6 +66,9 @@ class QuestResultViewModel @Inject constructor(
         )
 
         loadExtraData(questId)
+
+        // Verifica achievements assim que a tela de resultado é inicializada
+        achievementMonitor.check()
     }
 
     private fun loadExtraData(questId: String) {

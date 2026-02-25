@@ -6,7 +6,7 @@ import com.questua.app.domain.usecase.admin.feedback_management.DeleteReportUseC
 import com.questua.app.domain.usecase.admin.feedback_management.GetReportDetailsUseCase
 import com.questua.app.domain.usecase.admin.feedback_management.GetUserReportsUseCase
 import com.questua.app.domain.usecase.admin.feedback_management.ResolveReportUseCase
-import com.questua.app.domain.usecase.admin.users.* // Importante: Importar o pacote dos novos UseCases
+import com.questua.app.domain.usecase.admin.users.*
 import com.questua.app.domain.usecase.auth.*
 import com.questua.app.domain.usecase.exploration.*
 import com.questua.app.domain.usecase.feedback.SendReportUseCase
@@ -26,7 +26,6 @@ import dagger.hilt.android.scopes.ViewModelScoped
 @InstallIn(ViewModelComponent::class)
 object UseCaseModule {
 
-    // --- AUTH ---
     @Provides
     @ViewModelScoped
     fun provideLoginUseCase(repo: AuthRepository) = LoginUseCase(repo)
@@ -35,12 +34,10 @@ object UseCaseModule {
     @ViewModelScoped
     fun provideRegisterUseCase(repo: AuthRepository) = RegisterUseCase(repo)
 
-    // --- ONBOARDING ---
     @Provides
     @ViewModelScoped
     fun provideGetAvailableLanguagesUseCase(repo: LanguageRepository) = GetAvailableLanguagesUseCase(repo)
 
-    // --- EXPLORATION ---
     @Provides
     @ViewModelScoped
     fun provideGetWorldMapUseCase(contentRepo: ContentRepository) =
@@ -62,7 +59,6 @@ object UseCaseModule {
     @ViewModelScoped
     fun provideGetQuestPointQuestsUseCase(repo: ContentRepository) = GetQuestPointQuestsUseCase(repo)
 
-    // --- GAMEPLAY ---
     @Provides
     @ViewModelScoped
     fun provideStartQuestUseCase(repo: GameRepository) = StartQuestUseCase(repo)
@@ -80,7 +76,6 @@ object UseCaseModule {
     @ViewModelScoped
     fun provideGetNextDialogueUseCase(repo: GameRepository) = GetNextDialogueUseCase(repo)
 
-    // --- USER ---
     @Provides
     @ViewModelScoped
     fun provideGetUserProfileUseCase(repo: UserRepository) = GetUserProfileUseCase(repo)
@@ -105,6 +100,11 @@ object UseCaseModule {
     @ViewModelScoped
     fun provideUpdateUserProfileUseCase(repo: UserRepository) = UpdateUserProfileUseCase(repo)
 
+    /*
+    REMOVIDO: Estes UseCases agora são usados pelo AchievementMonitor (Singleton).
+    Eles não podem ser restritos ao ViewModelScoped.
+    O Hilt usará o @Inject constructor das classes automaticamente.
+
     @Provides
     @ViewModelScoped
     fun provideGetUserAchievementsUseCase(repo: UserRepository) = GetUserAchievementsUseCase(repo)
@@ -112,13 +112,12 @@ object UseCaseModule {
     @Provides
     @ViewModelScoped
     fun provideGetAchievementDetailsUseCase(api: AchievementApi) = GetAchievementDetailsUseCase(api)
+    */
 
-    // --- FEEDBACK ---
     @Provides
     @ViewModelScoped
     fun provideSendReportUseCase(repo: UserRepository) = SendReportUseCase(repo)
 
-    // --- ADMIN: FEEDBACK ---
     @Provides
     @ViewModelScoped
     fun provideGetUserReportsUseCase(repo: AdminRepository) = GetUserReportsUseCase(repo)
@@ -135,7 +134,6 @@ object UseCaseModule {
     @ViewModelScoped
     fun provideDeleteReportUseCase(repo: AdminRepository) = DeleteReportUseCase(repo)
 
-    // --- ADMIN: USER MANAGEMENT (NOVO) ---
     @Provides
     @ViewModelScoped
     fun provideGetAllUsersUseCase(repo: AdminRepository) = GetAllUsersUseCase(repo)
@@ -156,8 +154,6 @@ object UseCaseModule {
     @ViewModelScoped
     fun provideDeleteUserUseCase(repo: AdminRepository) = DeleteUserUseCase(repo)
 
-    // --- Adicione estas linhas na seção EXPLORATION ou GAMEPLAY ---
-
     @Provides
     @ViewModelScoped
     fun provideGetCharacterDetailsUseCase(repo: ContentRepository) = GetCharacterDetailsUseCase(repo)
@@ -173,4 +169,8 @@ object UseCaseModule {
     @Provides
     @ViewModelScoped
     fun provideUnlockContentUseCase(repo: ContentRepository) = UnlockContentUseCase(repo)
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetUserStatsUseCase(repo: UserRepository) = GetUserStatsUseCase(repo)
 }

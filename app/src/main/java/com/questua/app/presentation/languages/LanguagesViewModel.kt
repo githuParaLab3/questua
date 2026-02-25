@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
+import com.questua.app.core.ui.managers.AchievementMonitor
 import com.questua.app.domain.enums.StatusLanguage
 import com.questua.app.domain.model.Language
 import com.questua.app.domain.model.UserLanguage
@@ -45,7 +46,8 @@ class LanguagesViewModel @Inject constructor(
     private val setLearningLanguageUseCase: SetLearningLanguageUseCase,
     private val abandonLanguageUseCase: AbandonLanguageUseCase,
     private val startNewLanguageUseCase: StartNewLanguageUseCase,
-    private val tokenManager: TokenManager
+    private val tokenManager: TokenManager,
+    private val achievementMonitor: AchievementMonitor // Injeção adicionada
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(LanguagesListState())
@@ -142,6 +144,9 @@ class LanguagesViewModel @Inject constructor(
             startNewLanguageUseCase(userId, languageId).collect { result ->
                 when (result) {
                     is Resource.Success -> {
+                        // Verifica achievement "LEARN_LANGUAGE_AMOUNT"
+                        achievementMonitor.check()
+
                         setLearningLanguageUseCase(userId, languageId).collect { activationResult ->
                             when(activationResult) {
                                 is Resource.Success -> {

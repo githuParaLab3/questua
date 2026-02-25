@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
+import com.questua.app.core.ui.managers.AchievementMonitor
 import com.questua.app.domain.enums.ProgressStatus
 import com.questua.app.domain.model.Quest
 import com.questua.app.domain.model.QuestPoint
@@ -47,6 +48,7 @@ class QuestPointViewModel @Inject constructor(
     private val getUserStatsUseCase: GetUserStatsUseCase,
     private val gameRepository: GameRepository,
     private val tokenManager: TokenManager,
+    private val achievementMonitor: AchievementMonitor, // Injeção adicionada
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -58,6 +60,9 @@ class QuestPointViewModel @Inject constructor(
 
     init {
         loadData()
+
+        // Verifica achievements ao carregar o Quest Point (ex: Unlock Quest Point Amount)
+        achievementMonitor.check()
     }
 
     fun refreshData() {

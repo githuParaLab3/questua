@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.questua.app.core.common.Resource
 import com.questua.app.core.network.TokenManager
+import com.questua.app.core.ui.managers.AchievementMonitor
 import com.questua.app.domain.model.Product
 import com.questua.app.domain.model.UnlockRequirement
 import com.questua.app.domain.repository.PaymentRepository
@@ -43,6 +44,7 @@ class UnlockPreviewViewModel @Inject constructor(
     private val getUserStatsUseCase: GetUserStatsUseCase,
     private val getUserLanguagesUseCase: GetUserLanguagesUseCase,
     private val tokenManager: TokenManager,
+    private val achievementMonitor: AchievementMonitor, // Injeção adicionada
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -193,6 +195,9 @@ class UnlockPreviewViewModel @Inject constructor(
                         if (isIdInList) {
                             unlocked = true
                             _state.value = _state.value.copy(isUnlocked = true)
+
+                            // Conteúdo liberado com sucesso -> Checa se desbloqueou achievement (UNLOCK_PREMIUM_CONTENT)
+                            achievementMonitor.check()
                         }
                     }
                 } catch (e: Exception) {

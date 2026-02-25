@@ -22,10 +22,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.questua.app.core.common.toFullImageUrl
@@ -44,10 +47,25 @@ fun ProgressScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val unseenIds by achievementMonitor.unseenAchievementIds.collectAsState()
+    val lifecycleOwner = LocalLifecycleOwner.current
 
-    LaunchedEffect(Unit) {
-        delay(3000)
-        achievementMonitor.markAllAsSeen()
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                state.userLanguage?.userId?.let { viewModel.loadProgressData(it) }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    LaunchedEffect(unseenIds) {
+        if (unseenIds.isNotEmpty()) {
+            delay(5000)
+            achievementMonitor.markAllAsSeen()
+        }
     }
 
     Scaffold(
@@ -147,13 +165,111 @@ fun ProgressScreen(
                             Text("Nenhuma conquista desbloqueada ainda.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     } else {
-                        items(state.achievements) { achievement ->
+                        items(state.achievements, key = { it.userAchievement.id }) { achievement ->
                             val isNew = unseenIds.contains(achievement.userAchievement.achievementId)
                             AchievementItem(achievement = achievement, isHighlighted = isNew)
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun AchievementItem(achievement: ProgressAchievementUiModel, isHighlighted: Boolean) {
+    val infiniteTransition = rememberInfiniteTransition(label = "highlight")
+
+    val borderColor by infiniteTransition.animateColor(
+        initialValue = if (isHighlighted) QuestuaGold else Color.Transparent,
+        targetValue = if (isHighlighted) QuestuaGold.copy(alpha = 0.1f) else Color.Transparent,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "borderColor"
+    )
+
+    val elevation by animateDpAsState(
+        targetValue = if (isHighlighted) 8.dp else 2.dp,
+        animationSpec = tween(500),
+        label = "elevation"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+        border = BorderStroke(
+            width = if (isHighlighted) 2.dp else 1.dp,
+            color = if (isHighlighted) borderColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        ),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(16.dp)
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(QuestuaGold.copy(alpha = 0.1f))
+                    .border(1.dp, QuestuaGold.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (achievement.iconUrl != null) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(achievement.iconUrl.toFullImageUrl())
+                            .build(),
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp)
+                    )
+                } else {
+                    Icon(Icons.Default.EmojiEvents, null, tint = QuestuaGold, modifier = Modifier.size(28.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(achievement.name, fontWeight = FontWeight.Bold)
+                    if (isHighlighted) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            color = QuestuaGold,
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                "NOVO",
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.Black,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                    }
+                }
+                Text(
+                    text = achievement.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = if (isHighlighted) QuestuaGold else Color(0xFF4CAF50),
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -191,49 +307,6 @@ fun RowScope.ActivityBar(label: String, count: Int, max: Int, color: Color) {
             color = color,
             trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
-    }
-}
-
-@Composable
-fun AchievementItem(achievement: ProgressAchievementUiModel, isHighlighted: Boolean) {
-    val infiniteTransition = rememberInfiniteTransition(label = "highlight")
-    val borderColor by infiniteTransition.animateColor(
-        initialValue = QuestuaGold.copy(alpha = 0.3f),
-        targetValue = if (isHighlighted) QuestuaGold else QuestuaGold.copy(alpha = 0.3f),
-        animationSpec = infiniteRepeatable(tween(1000), RepeatMode.Reverse),
-        label = "color"
-    )
-
-    Card(
-        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(
-            width = if (isHighlighted) 2.dp else 1.dp,
-            color = if (isHighlighted) borderColor else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-        ),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Row(modifier = Modifier.padding(16.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)).background(QuestuaGold.copy(alpha = 0.1f)).border(1.dp, QuestuaGold.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (achievement.iconUrl != null) {
-                    AsyncImage(model = ImageRequest.Builder(LocalContext.current).data(achievement.iconUrl.toFullImageUrl()).build(), contentDescription = null, modifier = Modifier.size(32.dp))
-                } else {
-                    Icon(Icons.Default.EmojiEvents, null, tint = QuestuaGold, modifier = Modifier.size(28.dp))
-                }
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(achievement.name, fontWeight = FontWeight.Bold)
-                if (isHighlighted) {
-                    Text("NOVA!", color = QuestuaGold, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black)
-                }
-                Text("Desbloqueado em ${achievement.userAchievement.awardedAt.take(10)}", style = MaterialTheme.typography.bodySmall)
-            }
-            Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF4CAF50))
-        }
     }
 }
 
